@@ -1,0 +1,872 @@
+{
+  "name": "Suki Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "planning-leads-start",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        4784,
+        1808
+      ],
+      "id": "c12fbcb0-cca8-4123-a6dc-0cacde23c033",
+      "name": "Start Webhook",
+      "webhookId": "planning-leads-start"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "planning-leads-loop",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        4880,
+        1936
+      ],
+      "id": "7c144555-1cf9-489d-8d7f-98d2620d024b",
+      "name": "Loop Webhook",
+      "webhookId": "planning-leads-loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// INITIALISE THE LOOP\n// ============================================\nconst councils = [\n  { name: 'Windsor & Maidenhead', auth: 'Windsor' },\n  { name: 'Hillingdon',           auth: 'Hillingdon' },\n  { name: 'Dacorum',              auth: 'Dacorum' },\n  { name: 'Wokingham',            auth: 'Wokingham' },\n  { name: 'Surrey Heath',         auth: 'SurreyHeath' },\n  { name: 'Runnymede',            auth: 'Runnymede' }\n];\n\nconst run_id = new Date().toISOString().replace(/[:.]/g, '-');\n\nreturn [{\n  json: {\n    council_index: 0,\n    councils: councils,\n    run_id: run_id,\n    total: councils.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4928,
+        1728
+      ],
+      "id": "ce943f69-9975-4d80-a7bb-137b970bd041",
+      "name": "Initialise Loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst data = raw.body ? raw.body : raw;\n\nconst index = data.council_index ?? 0;\nconst councils = data.councils;\nconst run_id = data.run_id;\nconst total = data.total;\n\nif (!councils || !Array.isArray(councils)) {\n  throw new Error('still missing: ' + JSON.stringify(Object.keys(raw)));\n}\n\nif (index >= total) {\n  return [{ json: { _all_done: true, run_id, total } }];\n}\n\nconst current = councils[index];\nconst nextIndex = index + 1;\n\nreturn [{\n  json: {\n    council_name: current.name,\n    council_auth: current.auth,\n    council_index: index,\n    next_index: nextIndex,\n    councils,\n    run_id,\n    total,\n    is_last: nextIndex >= total\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5024,
+        1856
+      ],
+      "id": "cec720c9-8107-43e8-ae12-818ab600f39c",
+      "name": "Extract Current Council"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-all-done",
+              "leftValue": "={{ $json._all_done }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5168,
+        1728
+      ],
+      "id": "7fa138fc-cb3d-400d-a396-2fb936c64c28",
+      "name": "All Councils Done?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-no-results",
+              "leftValue": "={{ $json._no_results }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5600,
+        1920
+      ],
+      "id": "5ea90fb8-7454-4d16-9cd6-72a665c1b8a5",
+      "name": "Has Results?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst first = items[0].json;\n\nconst loop = first._loop || first;\n\nif (!loop.councils || !Array.isArray(loop.councils)) {\n  throw new Error('Prepare Next Council lost councils array: ' + JSON.stringify(first));\n}\n\nconst nextIndex = loop.next_index !== undefined ? loop.next_index : (loop.council_index + 1);\n\nreturn [{\n  json: {\n    council_index: nextIndex,\n    next_index: nextIndex + 1,\n    councils: loop.councils,\n    run_id: loop.run_id,\n    total: loop.total,\n    is_last: (nextIndex + 1) >= loop.total\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6528,
+        1888
+      ],
+      "id": "127e5b3d-4a50-4aa4-8752-5517d016ed12",
+      "name": "Prepare Next Council"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-is-last",
+              "leftValue": "={{ $json.council_index >= $json.total }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6624,
+        1744
+      ],
+      "id": "33d2f0e4-8520-4c02-ae2f-1899605b1ecd",
+      "name": "All Done?"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6720,
+        1888
+      ],
+      "id": "33f40817-3b42-4f79-b4bc-a6c20a91b549",
+      "name": "Wait 12 Seconds",
+      "webhookId": "f5ccebab-b9fc-4083-aaf0-55057a7d724f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://xcelerate.app.n8n.cloud/webhook/planning-leads-loop",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        6816,
+        1744
+      ],
+      "id": "3bdaf54e-32e2-4d2e-bb45-3094e67e0b41",
+      "name": "Trigger Next Council"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// BUILD FINAL EMAIL DIGEST\n// ============================================\n// Reads ALL leads written to Google Sheets during this run\n// and sends a single summary email\n//\n// NOTE: This reads from the sheet using the run_id\n// For simplicity we build the email from what was just written\n// You can enhance this to re-read from Sheets if needed\n\nconst runId = $input.first().json.run_id || 'unknown';\nconst today = new Date().toLocaleDateString('en-GB', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'\n});\n\n// Signal to send completion email\nreturn [{\n  json: {\n    run_id: runId,\n    completed_at: new Date().toISOString(),\n    subject: `🏗️ Planning Leads Run Complete — ${today}`,\n    html_email: `\n<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\">\n<style>\n  body { font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; color: #333; }\n  h1 { color: #1a4e8a; border-bottom: 3px solid #1a4e8a; padding-bottom: 10px; }\n  .box { background: #e8f4e8; border: 1px solid #4caf50; padding: 16px 20px; border-radius: 6px; margin: 20px 0; }\n  .footer { margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }\n  a.btn { display: inline-block; background: #1a4e8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-size: 14px; margin-top: 10px; }\n</style>\n</head>\n<body>\n<h1>🏗️ Planning Leads Run Complete</h1>\n<div class=\"box\">\n  <strong>✅ All 16 councils have been scraped and processed.</strong><br><br>\n  New qualified leads have been added to your Google Sheet.<br>\n  Run ID: <code>${runId}</code><br>\n  Completed: ${today}\n</div>\n<p>Open your Google Sheet to view all new planning applications that have been identified as new build opportunities across your target councils.</p>\n<div class=\"footer\">Planning Leads System — Automated Run</div>\n</body>\n</html>`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6720,
+        1616
+      ],
+      "id": "eb0d7031-5775-4a3e-a98c-4826329fd3a1",
+      "name": "Build Completion Email"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.planit.org.uk/api/applics/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "auth",
+              "value": "={{ $json.council_auth }}"
+            },
+            {
+              "name": "recent",
+              "value": "30"
+            },
+            {
+              "name": "pg_sz",
+              "value": "200"
+            },
+            {
+              "name": "app_state",
+              "value": "Undecided"
+            },
+            {
+              "name": "search",
+              "value": "dwelling or \"new house\" or \"new homes\" or \"new build\" or \"replacement dwelling\" or \"residential development\""
+            },
+            {
+              "name": "compress",
+              "value": "on"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5312,
+        1792
+      ],
+      "id": "153c825f-463a-4bbc-b7cc-0b92d7a51e72",
+      "name": "PlanIt API Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// STAGE 1 CODE FILTER - NEW BUILD DEVELOPER\n// ============================================\nconst allItems = $input.all();\nconst firstItem = allItems[0].json;\nconst dataObj = Array.isArray(firstItem) ? firstItem[0] : firstItem;\n\n// Get council name passed through from loop state\nconst loopData = $('Extract Current Council').first().json;\nconst councilName = loopData.council_name || 'Unknown';\n\n// Get records\nconst applications = dataObj.records;\nif (!applications || applications.length === 0) {\n  return [{ json: {\n    _no_results: true,\n    council: councilName,\n    // Pass loop state through\n    council_index: loopData.council_index,\n    next_index: loopData.next_index,\n    councils: loopData.councils,\n    run_id: loopData.run_id,\n    total: loopData.total,\n    is_last: loopData.is_last\n  }}];\n}\n\n// ---- EXCLUSION KEYWORDS ----\nconst excludeDescKeywords = [\n  'rear extension', 'side extension', 'front extension',\n  'single storey extension', 'two storey extension', 'double storey extension',\n  'loft conversion', 'dormer', 'hip to gable',\n  'porch', 'conservatory', 'orangery',\n  'garage conversion',\n  'internal alterations', 'internal works',\n  'roof alterations', 'roof lights', 'velux',\n  'discharge of condition', 'non material amendment',\n  'prior approval', 'lawful development certificate',\n  'listed building consent',\n  'commercial', 'industrial', 'retail', 'office',\n  'telecommunications', 'advertisement', 'signage',\n  'tree works', 'tree preservation', 'hedgerow',\n  'replacement windows', 'replacement doors'\n];\n\nconst excludeAppTypes = ['conditions', 'trees', 'advert', 'prior', 'ldc', 'listed', 'heritage'];\n\n// ---- INCLUSION KEYWORDS ----\nconst includeKeywords = [\n  'new dwelling', 'new dwellings',\n  'new house', 'new houses', 'new home', 'new homes',\n  'replacement dwelling', 'replacement house',\n  'new build', 'newbuild',\n  'erection of',\n  'residential development', 'residential units', 'new residential',\n  'demolition and erection',\n  'barn conversion',\n  'change of use to dwelling', 'change of use to residential',\n  'conversion to',\n  'subdivision',\n  'self build', 'self-build', 'custom build',\n  'affordable housing',\n  'mixed use'\n];\n\nconst potentialLeads = applications.filter(app => {\n  const desc = (app.description || '').toLowerCase();\n  const appType = (app.app_type || '').toLowerCase();\n  const appState = (app.app_state || '').toLowerCase();\n\n  if (appState === 'decided' || appState === 'withdrawn') return false;\n  if (excludeAppTypes.some(t => appType.includes(t))) return false;\n  if (excludeDescKeywords.some(kw => desc.includes(kw))) return false;\n  if (!includeKeywords.some(kw => desc.includes(kw))) return false;\n\n  return true;\n});\n\nif (potentialLeads.length === 0) {\n  return [{ json: {\n    _no_results: true,\n    council: councilName,\n    council_index: loopData.council_index,\n    next_index: loopData.next_index,\n    councils: loopData.councils,\n    run_id: loopData.run_id,\n    total: loopData.total,\n    is_last: loopData.is_last\n  }}];\n}\n\n// Return slim records for AI — carry loop state on first item only\nreturn potentialLeads.map((app, i) => ({\n  json: {\n    uid: app.uid,\n    address: app.address,\n    postcode: app.postcode,\n    description: app.description,\n    app_type: app.app_type,\n    app_state: app.app_state,\n    start_date: app.start_date,\n    url: app.url,\n    link: app.link,\n    council: app.area_name || councilName,\n    // Carry loop state on every item so we can access it later\n    _loop: {\n      council_index: loopData.council_index,\n      next_index: loopData.next_index,\n      councils: loopData.councils,\n      run_id: loopData.run_id,\n      total: loopData.total,\n      is_last: loopData.is_last\n    }\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5408,
+        1920
+      ],
+      "id": "7c434b49-ab23-41b3-bfd1-734cd34a512b",
+      "name": "Code Filter Stage "
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// If no results, pass loop state directly to Prepare Next Council\nif (items.length === 1 && items[0].json._no_results) {\n  return items;\n}\n\n// Has results - pass to AI Agent\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5504,
+        1760
+      ],
+      "id": "718ca61b-77d3-4cb9-9876-55bdf88bb085",
+      "name": "Skip If Empty1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ JSON.stringify($input.all().map(item => ({ uid: item.json.uid, address: item.json.address, description: item.json.description, app_type: item.json.app_type }))) }}",
+        "options": {
+          "systemMessage": "You are a lead qualification specialist for a new home builder and property developer in South East England.\n\nYour job is to review planning applications and identify genuine new build residential opportunities.\n\nKEEP - These are valuable leads:\n- New dwellings (detached, semi-detached, terraced houses)\n- New apartment blocks or flats\n- Replacement dwellings (demolish existing, build new)\n- Residential developments of 1 or more units\n- Barn conversions or building conversions creating new residential units\n- Self-build and custom build plots\n- Affordable housing schemes\n- Mixed-use developments with a significant residential element\n- Subdivision of land for new housing\n\nREJECT - These are NOT relevant:\n- Extensions or alterations to existing homes\n- Garage conversions without a new dwelling\n- Change of use only with no new structure\n- Commercial, retail, industrial or office only\n- Infrastructure, telecoms, drainage\n- Householder applications (improvements to existing home)\n- Prior approval notifications only\n\nThis client builds NEW HOMES. They are NOT interested in refurbishment or extension work.\n\nOUTPUT: Return ONLY a JSON array of UIDs. No explanation. No markdown. No extra text.\nExample: [\"SB/2024/0123\",\"TR/2024/0456\"]"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        5696,
+        1760
+      ],
+      "id": "b570cebd-c265-4b57-9d19-8d5904b283e5",
+      "name": "AI Agent - New Build Filter1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        5744,
+        2016
+      ],
+      "id": "816a0b5b-ac10-4121-9a63-85e44d6297b1",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "evQ7fKP9dktGYHkj",
+          "name": "Dylan open router"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// RESTORE FULL DATA + ENRICH\n// ============================================\nconst aiOutput = $input.first().json.output;\n\nlet qualifiedUIDs;\ntry {\n  const cleaned = aiOutput.replace(/```json|```/g, '').trim();\n  qualifiedUIDs = JSON.parse(cleaned);\n} catch (e) {\n  qualifiedUIDs = aiOutput.match(/\"[^\"]+\"/g)?.map(uid => uid.replace(/\"/g, '')) || [];\n}\n\nif (!qualifiedUIDs || qualifiedUIDs.length === 0) {\n  const loopState = $('Code Filter Stage ').first().json._loop || {};\n  return [{ json: { \n    _no_qualified: true,\n    councils: loopState.councils,\n    council_index: loopState.council_index,\n    next_index: loopState.next_index,\n    run_id: loopState.run_id,\n    total: loopState.total,\n    is_last: loopState.is_last\n  }}];\n}\n\n// Get original HTTP data\nconst httpData = $('PlanIt API Request1').first().json;\nconst dataObj = Array.isArray(httpData) ? httpData[0] : httpData;\nconst originalData = dataObj.records || [];\n\n// Get loop state from filter node\nconst loopState = $('Code Filter Stage ').first().json._loop || {};\n\n// Match UIDs and build full records\nconst qualifiedLeads = originalData.filter(app => qualifiedUIDs.includes(app.uid));\n\nreturn qualifiedLeads.map(app => ({\n  json: {\n    uid: app.uid,\n    reference: app.uid,\n    council: app.area_name || 'Unknown',\n    address: app.address,\n    postcode: app.postcode,\n    description: app.description,\n    app_type: app.app_type,\n    app_state: app.app_state,\n    app_size: app.app_size || null,\n    start_date: app.start_date,\n    target_decision_date: app.other_fields?.target_decision_date || null,\n    applicant_name: app.applicant_name || null,\n    applicant_address: app.applicant_address || null,\n    agent_name: app.agent_name || null,\n    agent_address: app.agent_address || null,\n    planit_url: app.link || app.url,\n    council_url: app.other_fields?.url || null,\n    scraped_date: new Date().toISOString().split('T')[0],\n    _loop: loopState\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5920,
+        1936
+      ],
+      "id": "d16a4da7-5c56-4e9c-8720-09a9e836df74",
+      "name": "Restore Full Data1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1ULUxuyohwVgnRowbvwylPNs4lwjfWm3u6H903GyxCzw",
+          "mode": "list",
+          "cachedResultName": "Suki projects",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ULUxuyohwVgnRowbvwylPNs4lwjfWm3u6H903GyxCzw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 62579589,
+          "mode": "list",
+          "cachedResultName": "planning_leads_template",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ULUxuyohwVgnRowbvwylPNs4lwjfWm3u6H903GyxCzw/edit#gid=62579589"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "uid": "={{ $json.uid }}",
+            "reference": "={{ $json.reference }}",
+            "council": "={{ $json.council }}",
+            "address": "={{ $json.address }}",
+            "postcode": "={{ $json.postcode }}",
+            "description": "={{ $json.description }}",
+            "app_type": "={{ $json.app_type }}",
+            "app_state": "={{ $json.app_state }}",
+            "app_size": "={{ $json.app_size }}",
+            "start_date": "={{ $json.start_date }}",
+            "target_decision_date": "={{ $json.target_decision_date }}",
+            "applicant_name": "={{ $json.applicant_name }}",
+            "applicant_address": "={{ $json.applicant_address }}",
+            "agent_name": "={{ $json.agent_name }}",
+            "agent_address": "={{ $json.agent_address }}",
+            "planit_url": "={{ $json.planit_url }}",
+            "council_url": "={{ $json.council_url }}",
+            "scraped_date": "={{ $json.scraped_date }}"
+          },
+          "matchingColumns": [
+            "uid"
+          ],
+          "schema": [
+            {
+              "id": "uid",
+              "displayName": "uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reference",
+              "displayName": "reference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "council",
+              "displayName": "council",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "postcode",
+              "displayName": "postcode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "app_type",
+              "displayName": "app_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "app_state",
+              "displayName": "app_state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "app_size",
+              "displayName": "app_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_decision_date",
+              "displayName": "target_decision_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "applicant_name",
+              "displayName": "applicant_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "applicant_address",
+              "displayName": "applicant_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agent_name",
+              "displayName": "agent_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agent_address",
+              "displayName": "agent_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "planit_url",
+              "displayName": "planit_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "council_url",
+              "displayName": "council_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scraped_date",
+              "displayName": "scraped_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6208,
+        1712
+      ],
+      "id": "7561dfc1-2c7c-4006-84c2-c35f4ed4d9f0",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6FDOaDwWjqKUnaA3",
+          "name": "Dylan google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5d649580-eeb6-47d9-a530-6629435dda21",
+              "leftValue": "={{ $json._no_qualified }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6016,
+        1808
+      ],
+      "id": "a34eeea4-7ecd-47cd-9bea-fe8d2826192d",
+      "name": "Has Qualified Leads?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Sheets strips _loop, so we retrieve it from Restore Full Data1\nconst loopState = $('Restore Full Data1').first().json._loop;\n\nreturn [{\n  json: {\n    councils: loopState.councils,\n    council_index: loopState.council_index,\n    next_index: loopState.next_index,\n    run_id: loopState.run_id,\n    total: loopState.total,\n    is_last: loopState.is_last\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6384,
+        1808
+      ],
+      "id": "4d9d2a2a-8e0a-4632-9737-7b7ba29b390a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        4784,
+        1632
+      ],
+      "id": "451742e3-82b3-48a6-b1eb-b1dfcebceaed",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initialise Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Current Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialise Loop": {
+      "main": [
+        [
+          {
+            "node": "Extract Current Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Current Council": {
+      "main": [
+        [
+          {
+            "node": "All Councils Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Councils Done?": {
+      "main": [
+        [
+          {
+            "node": "Build Completion Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PlanIt API Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Results?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - New Build Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Next Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Next Council": {
+      "main": [
+        [
+          {
+            "node": "All Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Done?": {
+      "main": [
+        [
+          {
+            "node": "Build Completion Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 12 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 12 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Trigger Next Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Completion Email": {
+      "main": [
+        []
+      ]
+    },
+    "PlanIt API Request1": {
+      "main": [
+        [
+          {
+            "node": "Code Filter Stage ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Filter Stage ": {
+      "main": [
+        [
+          {
+            "node": "Skip If Empty1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip If Empty1": {
+      "main": [
+        [
+          {
+            "node": "Has Results?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - New Build Filter1": {
+      "main": [
+        [
+          {
+            "node": "Restore Full Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - New Build Filter1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Full Data1": {
+      "main": [
+        [
+          {
+            "node": "Has Qualified Leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Qualified Leads?": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Next Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Prepare Next Council",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "31d4a018-8511-461e-97d3-295d441cb3c3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d14cfb1aef30125b6ef93c7d59f4a71b3a1b7bf02cefe5f10e54c5c97cf71dfb"
+  },
+  "id": "SrD8ozZrjnYTxnVD",
+  "tags": []
+}

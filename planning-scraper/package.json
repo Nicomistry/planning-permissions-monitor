@@ -1,0 +1,18 @@
+{
+  "name": "planning-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx trigger.dev@latest dev",
+    "deploy": "npx trigger.dev@latest deploy"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
+    "@trigger.dev/sdk": "4.4.3",
+    "resend": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

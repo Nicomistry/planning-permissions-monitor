@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — PPM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Geist', 'sans-serif'] },
+          colors: {
+            brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f' },
+            dark:  { bg: '#0a0a0a', surface: '#111111', border: '#1f1f1f' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antialiased; }
+    .glass-panel { background: rgba(17,17,17,0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+    .badge-high   { background: rgba(22,163,74,0.15);  color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+    .badge-medium { background: rgba(217,119,6,0.15);  color: #fbbf24; border: 1px solid rgba(217,119,6,0.3); }
+    .badge-low    { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
+    .table-row:hover { background: rgba(255,255,255,0.03); }
+  </style>
+</head>
+<body class="min-h-screen font-sans">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 inset-x-0 z-40 h-14 bg-[#050505]/95 border-b border-white/10 backdrop-blur">
+    <div class="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
+      <a href="/index.html" class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center">
+          <iconify-icon icon="solar:radar-2-linear" class="w-4 h-4" style="color:#00d084;stroke-width:1.5;"></iconify-icon>
+        </div>
+        <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
+      </a>
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:block text-[0.7rem] text-zinc-500">Dashboard</div>
+        <a id="adminBtn" href="/admin.html" class="hidden items-center gap-1.5 text-xs text-brand border border-brand/30 bg-brand/10 hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
+          <iconify-icon icon="solar:settings-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          Command Centre
+        </a>
+        <div class="relative">
+          <button id="accountMenuButton" class="flex hover:bg-white/5 transition-colors text-xs text-zinc-200 bg-black/30 border-white/10 border rounded-full pt-1.5 pr-3 pb-1.5 pl-3 items-center gap-2">
+            <div id="userInitials" class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[0.7rem] text-emerald-300 font-medium">?</div>
+            <div class="hidden sm:flex flex-col items-start">
+              <span id="userEmail" class="text-[0.7rem] font-medium text-white tracking-tight">Loading…</span>
+              <span class="text-[0.65rem] text-zinc-500">Logged in</span>
+            </div>
+            <iconify-icon icon="solar:alt-arrow-down-linear" class="text-zinc-400 w-3 h-3" style="stroke-width:1.5;" width="12" height="12"></iconify-icon>
+          </button>
+          <div id="accountDropdown" class="hidden absolute right-0 mt-2 w-40 bg-[#050505]/95 border border-white/10 rounded-xl shadow-lg backdrop-blur pt-1 pb-1">
+            <button onclick="handleLogout()" class="flex items-center justify-center gap-1.5 w-full text-[0.7rem] font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg px-3 py-2 transition-colors">
+              <iconify-icon icon="solar:logout-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+              Log out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="pt-14 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+
+      <!-- Page header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-2xl font-medium text-white tracking-tight">Planning Leads</h1>
+          <p class="text-sm text-zinc-500 mt-0.5" id="leadCount">Loading…</p>
+        </div>
+        <button id="runBtn" onclick="handleGetData()"
+          class="flex items-center gap-2 px-5 py-2.5 bg-brand text-black text-sm font-medium rounded-lg hover:bg-brand-light transition-colors">
+          <iconify-icon icon="solar:refresh-linear" class="w-4 h-4" style="stroke-width:1.5;"></iconify-icon>
+          Run Scraper
+        </button>
+      </div>
+
+      <!-- Stats row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div class="glass-panel rounded-xl p-4">
+          <div class="text-2xl font-semibold text-white" id="statTotal">—</div>
+          <div class="text-xs text-zinc-500 mt-1">Total leads</div>
+        </div>
+        <div class="glass-panel rounded-xl p-4">
+          <div class="text-2xl font-semibold text-green-400" id="statHigh">—</div>
+          <div class="text-xs text-zinc-500 mt-1">HIGH priority</div>
+        </div>
+        <div class="glass-panel rounded-xl p-4">
+          <div class="text-2xl font-semibold text-yellow-400" id="statMedium">—</div>
+          <div class="text-xs text-zinc-500 mt-1">MEDIUM priority</div>
+        </div>
+        <div class="glass-panel rounded-xl p-4">
+          <div class="text-2xl font-semibold text-zinc-300" id="statAvgScore">—</div>
+          <div class="text-xs text-zinc-500 mt-1">Avg score</div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <select id="filterPriority" onchange="renderTable()"
+          class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+          <option value="">All priorities</option>
+          <option value="HIGH">HIGH</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="LOW">LOW</option>
+        </select>
+        <input id="filterSearch" type="text" placeholder="Search address or description…" oninput="renderTable()"
+          class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+      </div>
+
+      <!-- Run status -->
+      <div id="runStatus" class="hidden mb-4 text-sm px-4 py-2.5 rounded-lg border"></div>
+
+      <!-- Tabs -->
+      <div class="flex gap-1 p-1 bg-white/5 rounded-xl w-fit border border-white/[0.08] mb-6">
+        <button id="dtab-leads" onclick="switchDTab('leads')"
+          class="px-4 py-2 rounded-lg text-xs font-medium transition-all bg-white/10 text-white">
+          Planning Leads
+        </button>
+        <button id="dtab-contacts" onclick="switchDTab('contacts')"
+          class="px-4 py-2 rounded-lg text-xs font-medium transition-all text-zinc-500 hover:text-zinc-300 flex items-center gap-1.5">
+          My Contacts
+          <span id="dContactsBadge" class="hidden text-[10px] bg-brand/20 text-brand px-1.5 rounded-full"></span>
+        </button>
+      </div>
+
+      <!-- Leads panel -->
+      <div id="dpanel-leads">
+
+      <!-- Table -->
+      <div class="glass-panel rounded-2xl overflow-hidden">
+        <!-- Loading -->
+        <div id="tableLoading" class="flex items-center justify-center py-20 gap-3 text-zinc-500">
+          <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+          <span class="text-sm">Loading leads…</span>
+        </div>
+
+        <!-- Empty state -->
+        <div id="tableEmpty" class="hidden flex-col items-center justify-center py-20 text-center px-6">
+          <iconify-icon icon="solar:file-search-linear" class="w-10 h-10 text-zinc-600 mb-4" style="stroke-width:1;"></iconify-icon>
+          <div class="text-white font-medium mb-1">No leads yet</div>
+          <div class="text-sm text-zinc-500 mb-4">Click "Run Scraper" to pull your first batch of planning leads.</div>
+        </div>
+
+        <!-- Table content -->
+        <div id="tableWrap" class="hidden overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/5 text-left">
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Description</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Score</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Priority</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
+                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide"></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      </div><!-- /dpanel-leads -->
+
+      <!-- Contacts panel -->
+      <div id="dpanel-contacts" class="hidden">
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <select id="dcFilterStatus" onchange="renderDContacts()"
+            class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="converted">Converted</option>
+            <option value="closed">Closed</option>
+          </select>
+          <input id="dcFilterSearch" type="text" placeholder="Search name, address…" oninput="renderDContacts()"
+            class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+        </div>
+        <div class="glass-panel rounded-2xl overflow-hidden">
+          <div id="dcLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
+            <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+            <span class="text-sm">Loading contacts…</span>
+          </div>
+          <div id="dcEmpty" class="hidden flex-col items-center justify-center py-16 text-center px-6">
+            <iconify-icon icon="solar:users-group-rounded-linear" class="w-10 h-10 text-zinc-600 mb-3" style="stroke-width:1;"></iconify-icon>
+            <div class="text-white font-medium mb-1">No contacts yet</div>
+            <div class="text-sm text-zinc-500">Your account manager will add relevant contacts here.</div>
+          </div>
+          <div id="dcWrap" class="hidden overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-white/5 text-left">
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Name</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Phone</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
+                  <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
+                </tr>
+              </thead>
+              <tbody id="dcBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // ── Supabase ──────────────────────────────────────────────────────────────
+    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    let currentUser = null;
+    let allLeads    = [];
+
+    // ── Auth guard ────────────────────────────────────────────────────────────
+    async function initAuth() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+      currentUser = session.user;
+      const email = currentUser.email || '';
+      document.getElementById('userEmail').textContent    = email;
+      document.getElementById('userInitials').textContent = email.slice(0, 2).toUpperCase();
+      const { data: profile } = await sb.from('profiles')
+        .select('is_admin')
+        .eq('user_id', currentUser.id)
+        .single();
+      if (profile?.is_admin) {
+        const btn = document.getElementById('adminBtn');
+        btn.classList.remove('hidden');
+        btn.classList.add('flex');
+      }
+      loadLeads();
+    }
+
+    initAuth();
+
+    // ── Load leads from Supabase ──────────────────────────────────────────────
+    async function loadLeads() {
+      const { data, error } = await sb
+        .from('leads')
+        .select('*')
+        .order('opportunity_score', { ascending: false });
+
+      document.getElementById('tableLoading').classList.add('hidden');
+
+      if (error || !data || data.length === 0) {
+        document.getElementById('tableEmpty').classList.remove('hidden');
+        document.getElementById('tableEmpty').classList.add('flex');
+        updateStats([]);
+        document.getElementById('leadCount').textContent = '0 leads found';
+        return;
+      }
+
+      allLeads = data;
+      updateStats(data);
+      renderTable();
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    function updateStats(leads) {
+      const high   = leads.filter(l => l.priority === 'HIGH').length;
+      const medium = leads.filter(l => l.priority === 'MEDIUM').length;
+      const avg    = leads.length
+        ? (leads.reduce((s, l) => s + (l.opportunity_score || 0), 0) / leads.length).toFixed(1)
+        : '—';
+      document.getElementById('statTotal').textContent   = leads.length;
+      document.getElementById('statHigh').textContent    = high;
+      document.getElementById('statMedium').textContent  = medium;
+      document.getElementById('statAvgScore').textContent = avg;
+    }
+
+    // ── Render table ──────────────────────────────────────────────────────────
+    function renderTable() {
+      const priority = document.getElementById('filterPriority').value;
+      const search   = document.getElementById('filterSearch').value.toLowerCase();
+
+      let filtered = allLeads;
+      if (priority) filtered = filtered.filter(l => l.priority === priority);
+      if (search)   filtered = filtered.filter(l =>
+        (l.address || '').toLowerCase().includes(search) ||
+        (l.description || '').toLowerCase().includes(search)
+      );
+
+      document.getElementById('leadCount').textContent =
+        `${filtered.length} lead${filtered.length !== 1 ? 's' : ''} found`;
+
+      if (filtered.length === 0) {
+        document.getElementById('tableWrap').classList.add('hidden');
+        document.getElementById('tableEmpty').classList.remove('hidden');
+        document.getElementById('tableEmpty').classList.add('flex');
+        return;
+      }
+
+      document.getElementById('tableEmpty').classList.add('hidden');
+      document.getElementById('tableEmpty').classList.remove('flex');
+      document.getElementById('tableWrap').classList.remove('hidden');
+
+      const badgeClass = { HIGH: 'badge-high', MEDIUM: 'badge-medium', LOW: 'badge-low' };
+      const scoreColor = s => s >= 8 ? '#4ade80' : s >= 5 ? '#fbbf24' : '#9ca3af';
+
+      const rows = filtered.map(lead => {
+        const desc = (lead.description || '').length > 90
+          ? lead.description.slice(0, 90) + '…'
+          : (lead.description || '—');
+        const badge = badgeClass[lead.priority] || 'badge-low';
+        const link  = lead.planit_url
+          ? `<a href="${lead.planit_url}" target="_blank" class="text-brand hover:underline text-xs">View →</a>`
+          : '';
+        return `
+          <tr class="table-row border-b border-white/5 transition-colors">
+            <td class="px-4 py-3 align-top">
+              <div class="text-white text-xs font-medium">${lead.address || '—'}</div>
+              <div class="text-zinc-500 text-[11px]">${lead.postcode || ''}</div>
+            </td>
+            <td class="px-4 py-3 align-top max-w-xs">
+              <div class="text-zinc-300 text-xs leading-relaxed">${desc}</div>
+            </td>
+            <td class="px-4 py-3 align-top text-center">
+              <span style="color:${scoreColor(lead.opportunity_score || 0)}" class="text-base font-semibold">${lead.opportunity_score ?? '—'}</span>
+              <span class="text-zinc-600 text-[10px]">/10</span>
+            </td>
+            <td class="px-4 py-3 align-top text-center">
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full ${badge}">${lead.priority || '—'}</span>
+            </td>
+            <td class="px-4 py-3 align-top text-zinc-400 text-xs">${lead.council || '—'}</td>
+            <td class="px-4 py-3 align-top text-zinc-500 text-xs whitespace-nowrap">${lead.scraped_date || ''}</td>
+            <td class="px-4 py-3 align-top">${link}</td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('tableBody').innerHTML = rows;
+    }
+
+    // ── Run scraper ───────────────────────────────────────────────────────────
+    async function handleGetData() {
+      if (!currentUser) return;
+      const btn    = document.getElementById('runBtn');
+      const status = document.getElementById('runStatus');
+
+      btn.disabled = true;
+      btn.innerHTML = `<iconify-icon icon="svg-spinners:3-dots-fade" class="w-4 h-4" style="color:black;"></iconify-icon> Running…`;
+      status.classList.add('hidden');
+
+      try {
+        const res = await fetch(
+          'https://xcelerate.app.n8n.cloud/webhook-test/7b42ed17-57ee-478d-bc92-4c5dae07955b?email='
+          + encodeURIComponent(currentUser.email)
+        );
+        const ok = res.ok;
+        status.textContent = ok
+          ? '✓ Scraper triggered — your leads will appear here once complete.'
+          : '⚠ Could not trigger scraper. Please try again.';
+        status.className = `mb-4 text-sm px-4 py-2.5 rounded-lg border ${ok
+          ? 'bg-brand/10 border-brand/20 text-brand'
+          : 'bg-red-500/10 border-red-500/20 text-red-400'}`;
+        status.classList.remove('hidden');
+      } catch {
+        status.textContent = '⚠ Connection error. Please try again.';
+        status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border bg-red-500/10 border-red-500/20 text-red-400';
+        status.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<iconify-icon icon="solar:refresh-linear" class="w-4 h-4" style="stroke-width:1.5;"></iconify-icon> Run Scraper`;
+      }
+    }
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    // ── Dashboard tabs ────────────────────────────────────────────────────────
+    function switchDTab(tab) {
+      ['leads','contacts'].forEach(t => {
+        document.getElementById('dpanel-' + t).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById('dtab-' + t);
+        if (t === tab) {
+          btn.classList.add('bg-white/10','text-white');
+          btn.classList.remove('text-zinc-500');
+        } else {
+          btn.classList.remove('bg-white/10','text-white');
+          btn.classList.add('text-zinc-500');
+        }
+      });
+      if (tab === 'contacts') loadDContacts();
+    }
+
+    // ── Contacts (read-only for subscriber) ───────────────────────────────────
+    let allDContacts = [];
+
+    async function loadDContacts() {
+      document.getElementById('dcLoading').classList.remove('hidden');
+      document.getElementById('dcWrap').classList.add('hidden');
+      document.getElementById('dcEmpty').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('contacts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      document.getElementById('dcLoading').classList.add('hidden');
+
+      if (error || !data || data.length === 0) {
+        document.getElementById('dcEmpty').classList.remove('hidden');
+        document.getElementById('dcEmpty').classList.add('flex');
+        return;
+      }
+
+      allDContacts = data;
+      const badge = document.getElementById('dContactsBadge');
+      badge.textContent = data.length; badge.classList.remove('hidden');
+      renderDContacts();
+    }
+
+    function renderDContacts() {
+      const statusFilter = document.getElementById('dcFilterStatus').value;
+      const search       = document.getElementById('dcFilterSearch').value.toLowerCase();
+      let rows = allDContacts;
+      if (statusFilter) rows = rows.filter(r => r.status === statusFilter);
+      if (search) rows = rows.filter(r =>
+        (r.name || '').toLowerCase().includes(search) ||
+        (r.address || '').toLowerCase().includes(search)
+      );
+
+      if (rows.length === 0) {
+        document.getElementById('dcWrap').classList.add('hidden');
+        document.getElementById('dcEmpty').classList.remove('hidden');
+        document.getElementById('dcEmpty').classList.add('flex');
+        return;
+      }
+      document.getElementById('dcEmpty').classList.add('hidden');
+      document.getElementById('dcEmpty').classList.remove('flex');
+      document.getElementById('dcWrap').classList.remove('hidden');
+
+      const priColor = { HIGH:'#4ade80', MEDIUM:'#fbbf24', LOW:'#9ca3af' };
+      const statusBadge = {
+        new:       'background:rgba(59,130,246,0.15);color:#93c5fd;',
+        contacted: 'background:rgba(234,179,8,0.15);color:#fcd34d;',
+        converted: 'background:rgba(22,163,74,0.15);color:#4ade80;',
+        closed:    'background:rgba(107,114,128,0.15);color:#9ca3af;',
+      };
+
+      document.getElementById('dcBody').innerHTML = rows.map(r => `
+        <tr class="table-row border-b border-white/5 transition-colors">
+          <td class="px-4 py-3 text-white text-xs font-medium whitespace-nowrap">${r.name || '—'}</td>
+          <td class="px-4 py-3 text-xs whitespace-nowrap">
+            ${r.phone ? `<a href="tel:${r.phone}" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${r.phone}</a>` : '<span class="text-zinc-600">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-xs whitespace-nowrap">
+            ${r.email ? `<a href="mailto:${r.email}" class="text-blue-400 hover:text-blue-300 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:12px;"></iconify-icon>${r.email}</a>` : '<span class="text-zinc-600">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-zinc-400 text-xs max-w-[180px] truncate">${r.address || '—'}</td>
+          <td class="px-4 py-3 text-xs font-semibold" style="color:${priColor[r.priority]||'#9ca3af'}">${r.priority || '—'}</td>
+          <td class="px-4 py-3 text-brand text-xs font-mono font-semibold">${r.score ?? '—'}</td>
+          <td class="px-4 py-3">
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full" style="${statusBadge[r.status]||statusBadge.new}">${r.status}</span>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function handleLogout() {
+      await sb.auth.signOut();
+      window.location.href = '/login.html';
+    }
+
+    // ── Account dropdown ──────────────────────────────────────────────────────
+    document.getElementById('accountMenuButton').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('accountDropdown').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => {
+      document.getElementById('accountDropdown').classList.add('hidden');
+    });
+
+    lucide.createIcons();
+  </script>
+
+</body>
+</html>

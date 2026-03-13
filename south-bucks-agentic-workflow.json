@@ -1,0 +1,364 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 240],
+      "id": "sched-0001-0001-0001-000000000001",
+      "name": "Daily Schedule (8am)"
+    },
+    {
+      "parameters": {
+        "url": "https://www.planit.org.uk/api/applics/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "auth", "value": "Bucks" },
+            { "name": "recent", "value": "7" },
+            { "name": "pg_sz", "value": "200" },
+            { "name": "app_state", "value": "Undecided" },
+            { "name": "compress", "value": "on" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [460, 240],
+      "id": "http-0002-0002-0002-000000000002",
+      "name": "Fetch Planning Applications"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rawData = items[0].json;\nconst records = rawData.records;\n\nconst targetPrefixes = [\n  'HP5', 'HP6', 'HP7', 'HP8', 'HP9',\n  'HP10', 'HP15', 'HP16',\n  'SL0', 'SL1', 'SL2', 'SL3', 'SL7', 'SL8', 'SL9'\n];\n\nconst filtered = records.filter(app => {\n  if (!app.postcode) return false;\n  const prefix = app.postcode.trim().toUpperCase().split(' ')[0];\n  return targetPrefixes.includes(prefix);\n});\n\nreturn filtered.map(app => ({ json: app }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 240],
+      "id": "code-0003-0003-0003-000000000003",
+      "name": "Filter by Postcode"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 240],
+      "id": "loop-0004-0004-0004-000000000004",
+      "name": "Loop Over Applications"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ JSON.stringify($input.item.json) }}",
+        "options": {
+          "systemMessage": "You are a planning application filter for a property development intelligence tool. Your sole job is to identify planning applications where the end result involves the physical construction of a residential dwelling or dwellings.\n\nYou must return ONLY a valid JSON object in this exact format:\n{\"decision\": \"PASS\", \"reason\": \"Brief reason\"}\nor\n{\"decision\": \"FAIL\", \"reason\": \"Brief reason\"}\n\nPASS if the description involves:\n- Building a new house, flat, bungalow, apartment or residential unit\n- Demolishing an existing building and replacing it with a new dwelling\n- Converting a non-residential building into a dwelling (e.g. barn, office, commercial unit)\n- Adding new residential units on top of or alongside existing buildings\n- Permission in principle or outline applications where the outcome is a new dwelling\n\nFAIL everything else including:\n- Extensions to existing houses\n- Loft conversions\n- Outbuildings, garages, garden rooms\n- Tree works\n- Amendments, conditions, certificates of lawfulness\n- Solar panels, utilities, telecoms\n- Anything where no new dwelling is physically being constructed\n\nOne simple test: will a new house or flat exist that didn't exist before? If yes, PASS. If no, FAIL.\n\nBase your decision on the description field only."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [1120, 112],
+      "id": "aiclassify-0005-0005-0005-000000000005",
+      "name": "AI: Classify Application",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1072, 320],
+      "id": "model-0006-0006-0006-000000000006",
+      "name": "Model: Classifier",
+      "credentials": {
+        "openRouterApi": {
+          "id": "tUvxD0dv4NgCzQ4t",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-pass-001",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "PASS",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1340, 112],
+      "id": "ifpass-0007-0007-0007-000000000007",
+      "name": "Is New Dwelling?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ JSON.stringify($('Loop Over Applications').item.json) }}",
+        "options": {
+          "systemMessage": "You are a planning application data extractor for a property development intelligence tool.\n\nExtract structured information from the planning application.\n\nReturn ONLY a valid JSON object in this exact format:\n{\n  \"unit_count\": <number or null if unclear>,\n  \"dwelling_type\": \"<house|flat|bungalow|mixed|unknown>\",\n  \"development_scale\": \"<single|small|medium|large|unknown>\",\n  \"applicant_type\": \"<individual|developer|housing_association|council|unknown>\",\n  \"notes\": \"<one key detail about this development>\"\n}\n\nScale guide:\n- single: 1 unit\n- small: 2-5 units\n- medium: 6-20 units\n- large: 21+ units\n\nBase your extraction on the description, applicant_name, and agent_name fields."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [1560, 112],
+      "id": "aienrich-0008-0008-0008-000000000008",
+      "name": "AI: Enrich Application Data",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1512, 320],
+      "id": "model-0009-0009-0009-000000000009",
+      "name": "Model: Enricher",
+      "credentials": {
+        "openRouterApi": {
+          "id": "tUvxD0dv4NgCzQ4t",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ JSON.stringify({ application: $('Loop Over Applications').item.json, enrichment: $input.item.json.output }) }}",
+        "options": {
+          "systemMessage": "You are a property development opportunity scorer for a development intelligence tool targeting the South Bucks / Chilterns area.\n\nScore the planning application as a lead opportunity for a property developer or land agent.\n\nReturn ONLY a valid JSON object in this exact format:\n{\n  \"score\": <integer 1-10>,\n  \"priority\": \"<HIGH|MEDIUM|LOW>\",\n  \"reasoning\": \"<one sentence explaining the score>\"\n}\n\nScoring guide:\n- 9-10: HIGH — Large scheme (6+ units), major conversion, or strategic redevelopment site\n- 7-8: HIGH — Medium scheme (3-5 units) or well-located premium single dwelling\n- 5-6: MEDIUM — Standard 1-2 unit development or infill plot\n- 3-4: LOW — Single replacement dwelling, limited upside\n- 1-2: LOW — Minimal commercial opportunity\n\nConsider: unit count, development scale, postcode desirability (HP postcodes premium), applicant type (individual vs professional developer), and description quality."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [1780, 112],
+      "id": "aiscore-0010-0010-0010-000000000010",
+      "name": "AI: Score Opportunity",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1732, 320],
+      "id": "model-0011-0011-0011-000000000011",
+      "name": "Model: Scorer",
+      "credentials": {
+        "openRouterApi": {
+          "id": "tUvxD0dv4NgCzQ4t",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const app = $('Loop Over Applications').item.json;\nconst enrichmentRaw = $('AI: Enrich Application Data').item.json.output || '';\nconst scoreRaw = $input.item.json.output || '';\n\nlet enrichment = {};\nlet score = {};\n\ntry {\n  const m = enrichmentRaw.match(/\\{[\\s\\S]*\\}/);\n  if (m) enrichment = JSON.parse(m[0]);\n} catch(e) { enrichment = {}; }\n\ntry {\n  const m = scoreRaw.match(/\\{[\\s\\S]*\\}/);\n  if (m) score = JSON.parse(m[0]);\n} catch(e) { score = {}; }\n\nreturn [{\n  json: {\n    uid: app.uid,\n    reference: app.uid,\n    address: app.address,\n    postcode: app.postcode,\n    description: app.description,\n    app_type: app.app_type,\n    app_state: app.app_state,\n    start_date: app.start_date,\n    target_decision_date: app.other_fields?.target_decision_date || null,\n    url: app.url,\n    link: app.link,\n    agent_name: app.other_fields?.agent_name || null,\n    agent_address: app.other_fields?.agent_address || null,\n    applicant_name: app.other_fields?.applicant_name || null,\n    applicant_address: app.other_fields?.applicant_address || null,\n    unit_count: enrichment.unit_count ?? null,\n    dwelling_type: enrichment.dwelling_type || null,\n    development_scale: enrichment.development_scale || null,\n    applicant_type: enrichment.applicant_type || null,\n    enrichment_notes: enrichment.notes || null,\n    opportunity_score: score.score ?? null,\n    priority: score.priority || null,\n    score_reasoning: score.reasoning || null,\n    processed_at: new Date().toISOString(),\n    other_fields: JSON.stringify(app.other_fields || {})\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 112],
+      "id": "merge-0012-0012-0012-000000000012",
+      "name": "Merge Enriched Data"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dgM7Dp-mrshA1gYFY33OX2QnigQ4Y-1KMTL4lQupdfU",
+          "mode": "list",
+          "cachedResultName": "South Bucks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dgM7Dp-mrshA1gYFY33OX2QnigQ4Y-1KMTL4lQupdfU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "filtered ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dgM7Dp-mrshA1gYFY33OX2QnigQ4Y-1KMTL4lQupdfU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["uid"],
+          "schema": [
+            { "id": "uid",                  "displayName": "uid",                  "required": false, "defaultMatch": true,  "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "reference",            "displayName": "reference",            "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "address",              "displayName": "address",              "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "postcode",             "displayName": "postcode",             "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "description",          "displayName": "description",          "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "app_type",             "displayName": "app_type",             "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "app_state",            "displayName": "app_state",            "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "start_date",           "displayName": "start_date",           "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "target_decision_date", "displayName": "target_decision_date", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "url",                  "displayName": "url",                  "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "link",                 "displayName": "link",                 "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "agent_name",           "displayName": "agent_name",           "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "agent_address",        "displayName": "agent_address",        "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "applicant_name",       "displayName": "applicant_name",       "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "applicant_address",    "displayName": "applicant_address",    "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "unit_count",           "displayName": "unit_count",           "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "dwelling_type",        "displayName": "dwelling_type",        "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "development_scale",    "displayName": "development_scale",    "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "applicant_type",       "displayName": "applicant_type",       "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "enrichment_notes",     "displayName": "enrichment_notes",     "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "opportunity_score",    "displayName": "opportunity_score",    "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "priority",             "displayName": "priority",             "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "score_reasoning",      "displayName": "score_reasoning",      "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "processed_at",         "displayName": "processed_at",         "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "other_fields",         "displayName": "other_fields",         "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2220, 112],
+      "id": "sheets-0013-0013-0013-000000000013",
+      "name": "Write to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "87SUv5nYKzh1Ijux",
+          "name": "Dylan Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-highpri-001",
+              "leftValue": "={{ $json.opportunity_score }}",
+              "rightValue": 8,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2440, 112],
+      "id": "ifhigh-0014-0014-0014-000000000014",
+      "name": "High Priority Lead?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PLACEHOLDER — Connect Gmail, Slack, or Webhook after this node\n// This fires only for HIGH priority leads (opportunity_score >= 8)\n\nconst app = $input.item.json;\n\nreturn [{\n  json: {\n    notification_type: 'HIGH_PRIORITY_PLANNING_LEAD',\n    subject: `HIGH Priority Lead: ${app.address} (Score: ${app.opportunity_score}/10)`,\n    body: [\n      `New high-priority planning application detected!`,\n      ``,\n      `Address:     ${app.address}`,\n      `Postcode:    ${app.postcode}`,\n      `Description: ${app.description}`,\n      ``,\n      `Units:       ${app.unit_count ?? 'Unknown'}`,\n      `Type:        ${app.dwelling_type ?? 'Unknown'}`,\n      `Scale:       ${app.development_scale ?? 'Unknown'}`,\n      ``,\n      `Score:       ${app.opportunity_score}/10`,\n      `Priority:    ${app.priority}`,\n      `Reason:      ${app.score_reasoning}`,\n      ``,\n      `Applicant:   ${app.applicant_name ?? 'Unknown'}`,\n      `Agent:       ${app.agent_name ?? 'Unknown'}`,\n      ``,\n      `View: ${app.url || app.link || 'N/A'}`\n    ].join('\\n'),\n    data: app\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 32],
+      "id": "notify-0015-0015-0015-000000000015",
+      "name": "Prepare Notification (Connect Gmail or Slack here)"
+    }
+  ],
+  "connections": {
+    "Daily Schedule (8am)": {
+      "main": [[{ "node": "Fetch Planning Applications", "type": "main", "index": 0 }]]
+    },
+    "Fetch Planning Applications": {
+      "main": [[{ "node": "Filter by Postcode", "type": "main", "index": 0 }]]
+    },
+    "Filter by Postcode": {
+      "main": [[{ "node": "Loop Over Applications", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Applications": {
+      "main": [
+        [],
+        [{ "node": "AI: Classify Application", "type": "main", "index": 0 }]
+      ]
+    },
+    "Model: Classifier": {
+      "ai_languageModel": [[{ "node": "AI: Classify Application", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI: Classify Application": {
+      "main": [[{ "node": "Is New Dwelling?", "type": "main", "index": 0 }]]
+    },
+    "Is New Dwelling?": {
+      "main": [
+        [{ "node": "AI: Enrich Application Data", "type": "main", "index": 0 }],
+        [{ "node": "Loop Over Applications", "type": "main", "index": 0 }]
+      ]
+    },
+    "Model: Enricher": {
+      "ai_languageModel": [[{ "node": "AI: Enrich Application Data", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI: Enrich Application Data": {
+      "main": [[{ "node": "AI: Score Opportunity", "type": "main", "index": 0 }]]
+    },
+    "Model: Scorer": {
+      "ai_languageModel": [[{ "node": "AI: Score Opportunity", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI: Score Opportunity": {
+      "main": [[{ "node": "Merge Enriched Data", "type": "main", "index": 0 }]]
+    },
+    "Merge Enriched Data": {
+      "main": [[{ "node": "Write to Google Sheets", "type": "main", "index": 0 }]]
+    },
+    "Write to Google Sheets": {
+      "main": [[{ "node": "High Priority Lead?", "type": "main", "index": 0 }]]
+    },
+    "High Priority Lead?": {
+      "main": [
+        [{ "node": "Prepare Notification (Connect Gmail or Slack here)", "type": "main", "index": 0 }],
+        [{ "node": "Loop Over Applications", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Notification (Connect Gmail or Slack here)": {
+      "main": [[{ "node": "Loop Over Applications", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d14cfb1aef30125b6ef93c7d59f4a71b3a1b7bf02cefe5f10e54c5c97cf71dfb"
+  }
+}

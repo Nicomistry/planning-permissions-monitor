@@ -1,0 +1,2398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — PPM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Geist', 'sans-serif'], mono: ['Share Tech Mono', 'monospace'] },
+          colors: { brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f' } }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antialiased; }
+    .glass-panel { background: rgba(17,17,17,0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); transition: border-color 0.3s, box-shadow 0.3s; }
+    .status-new       { background: rgba(59,130,246,0.15); color:#93c5fd; border:1px solid rgba(59,130,246,0.3); }
+    .status-contacted { background: rgba(234,179,8,0.15);  color:#fcd34d; border:1px solid rgba(234,179,8,0.3); }
+    .status-converted { background: rgba(22,163,74,0.15);  color:#4ade80; border:1px solid rgba(22,163,74,0.3); }
+    .status-closed    { background: rgba(107,114,128,0.15);color:#9ca3af; border:1px solid rgba(107,114,128,0.3); }
+    .row-hover { transition: background 0.25s ease; }
+    .row-hover:hover  { background: rgba(255,255,255,0.03); }
+    .row-saved { background: rgba(0,208,132,0.07) !important; border-color: rgba(0,208,132,0.15) !important; }
+    .row-saved:hover  { background: rgba(0,208,132,0.10) !important; }
+    /* smooth fade-in for panels */
+    .fade-in { animation: fadeIn 0.35s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    /* button transitions */
+    button, a { transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
+    /* save button pulse on success */
+    @keyframes savePulse {
+      0%   { box-shadow: 0 0 0 0 rgba(0,208,132,0.5); }
+      70%  { box-shadow: 0 0 0 8px rgba(0,208,132,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,208,132,0); }
+    }
+    .btn-saved-pulse { animation: savePulse 0.6s ease-out; }
+
+    /* ── Motherboard ── */
+    .pcb-board {
+      background-color: #071a0e;
+      background-image:
+        linear-gradient(rgba(0,208,132,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,208,132,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      border: 1px solid rgba(0,208,132,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    .pcb-board::before {
+      content:'';
+      position:absolute;inset:0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,208,132,0.06) 0%, transparent 70%);
+      pointer-events:none;
+    }
+
+    /* council chip */
+    .chip {
+      background: #0c2318;
+      border: 1px solid rgba(0,208,132,0.25);
+      border-radius: 6px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .chip::before, .chip::after {
+      content:'';
+      position:absolute;
+      background: rgba(0,208,132,0.35);
+    }
+    /* left pins */
+    .chip::before {
+      left:-6px; top:50%; transform:translateY(-50%);
+      width:6px; height:2px;
+      box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
+    }
+    /* right pins */
+    .chip::after {
+      right:-6px; top:50%; transform:translateY(-50%);
+      width:6px; height:2px;
+      box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
+    }
+    .chip.selected {
+      background: #0d2e1c;
+      border-color: #00d084;
+      box-shadow: 0 0 12px rgba(0,208,132,0.3), inset 0 0 8px rgba(0,208,132,0.05);
+    }
+    .chip.selected .chip-led { background: #00d084; box-shadow: 0 0 6px #00d084, 0 0 12px rgba(0,208,132,0.6); }
+    .chip.selected .chip-name { color: #00d084; }
+    .chip.selected::before, .chip.selected::after {
+      background: #00d084;
+      box-shadow: 0 -8px 0 #00d084, 0 8px 0 #00d084;
+    }
+    .chip-led {
+      width:8px; height:8px; border-radius:50%;
+      background: #1a4a30;
+      border: 1px solid rgba(0,208,132,0.3);
+      transition: all 0.2s;
+      flex-shrink:0;
+    }
+    .chip-code { color:#1a6b3a; font-size:9px; font-family:'Share Tech Mono',monospace; }
+    .chip-name { color:#4ade80; font-size:11px; font-weight:500; transition:color 0.2s; line-height:1.2; }
+
+    /* trace lines svg */
+    .pcb-traces { position:absolute; inset:0; pointer-events:none; }
+
+    /* scan button */
+    .scan-btn {
+      background: linear-gradient(135deg, #00d084, #00a064);
+      color: #000;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 8px;
+      padding: 10px 28px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+    .scan-btn:hover { box-shadow: 0 0 20px rgba(0,208,132,0.4); transform: translateY(-1px); }
+    .scan-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+    .scan-btn.scanning::after {
+      content:'';
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+
+    /* scan log */
+    .scan-log {
+      background: #050f08;
+      border: 1px solid rgba(0,208,132,0.15);
+      border-radius: 8px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: #00d084;
+      padding: 12px;
+      max-height: 140px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+    .scan-log::-webkit-scrollbar { width:4px; }
+    .scan-log::-webkit-scrollbar-track { background:transparent; }
+    .scan-log::-webkit-scrollbar-thumb { background:rgba(0,208,132,0.3); border-radius:2px; }
+    .log-dim { color: #1a4a30; }
+    .log-ok  { color: #00d084; }
+    .log-err { color: #f87171; }
+
+    /* progress bar */
+    .progress-track { background: #0c2318; border-radius:4px; height:4px; overflow:hidden; }
+    .progress-fill  { height:100%; background: linear-gradient(90deg,#00d084,#00ffa3); border-radius:4px; transition:width 0.4s ease; }
+
+    /* select-all toggle */
+    .sel-all-btn {
+      font-size:10px; font-family:'Share Tech Mono',monospace;
+      color:#1a6b3a; border:1px solid rgba(0,208,132,0.2);
+      background:transparent; padding:3px 10px; border-radius:4px; cursor:pointer;
+      transition:all 0.2s;
+    }
+    .sel-all-btn:hover { color:#00d084; border-color:rgba(0,208,132,0.5); }
+
+    /* region tab buttons */
+    .region-tab {
+      font-size:10px; font-family:'Share Tech Mono',monospace;
+      color:#1a6b3a; border:1px solid rgba(0,208,132,0.15);
+      background:transparent; padding:4px 10px; border-radius:4px; cursor:pointer;
+      transition:all 0.18s; white-space:nowrap;
+    }
+    .region-tab:hover { color:#4ade80; border-color:rgba(0,208,132,0.4); }
+    .region-tab.active {
+      color:#000; background:#00d084; border-color:#00d084;
+      box-shadow:0 0 8px rgba(0,208,132,0.3);
+    }
+
+    /* starred chip */
+    .chip-star {
+      position:absolute; top:4px; right:4px; font-size:9px;
+      color:rgba(0,208,132,0.25); cursor:pointer; z-index:2;
+      transition:color 0.2s;
+    }
+    .chip-star:hover, .chip-star.starred { color:#fbbf24; }
+    .chip { position:relative; }
+
+    /* favourite section divider */
+    .fav-label {
+      font-size:9px; font-family:'Share Tech Mono',monospace;
+      color:rgba(0,208,132,0.3); letter-spacing:0.08em;
+      padding:2px 0; border-bottom:1px solid rgba(0,208,132,0.08);
+      margin-bottom:6px;
+    }
+
+    /* ── Trades & Coverage panel ── */
+    .trade-board {
+      background: rgba(17,17,17,0.95);
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+    }
+
+    /* trade toggle card */
+    .trade-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 16px 14px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      text-align: center;
+    }
+    .trade-card:hover {
+      border-color: rgba(59,130,246,0.35);
+      background: rgba(59,130,246,0.04);
+      transform: translateY(-1px);
+    }
+    .trade-card.active {
+      background: rgba(59,130,246,0.1);
+      border-color: rgba(59,130,246,0.5);
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.15), 0 4px 16px rgba(59,130,246,0.12);
+    }
+    .trade-card.active:hover {
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.25), 0 6px 20px rgba(59,130,246,0.18);
+    }
+
+    /* toggle pill top-right */
+    .trade-toggle {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 28px; height: 16px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .trade-toggle::after {
+      content:'';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #555;
+      transition: all 0.2s;
+    }
+    .trade-card.active .trade-toggle {
+      background: rgba(59,130,246,0.3);
+      border-color: rgba(59,130,246,0.6);
+    }
+    .trade-card.active .trade-toggle::after {
+      background: #60a5fa;
+      transform: translateX(12px);
+      box-shadow: 0 0 6px rgba(59,130,246,0.8);
+    }
+
+    /* icon wrapper */
+    .trade-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      color: #52525b;
+      font-size: 20px;
+      transition: all 0.2s;
+    }
+    .trade-card.active .trade-icon {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.3);
+      color: #60a5fa;
+    }
+    .trade-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #52525b;
+      transition: color 0.2s;
+      line-height: 1.3;
+    }
+    .trade-card.active .trade-label { color: #e4e4e7; }
+
+    .save-cfg-btn {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500;
+      background: #3b82f6; color: #fff;
+      border: none;
+      padding: 8px 20px; border-radius: 8px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .save-cfg-btn:hover { background: #2563eb; box-shadow: 0 4px 12px rgba(59,130,246,0.35); transform: translateY(-1px); }
+    .save-cfg-btn.saved { background: #16a34a; }
+    .save-cfg-btn.saved:hover { background: #15803d; box-shadow: 0 4px 12px rgba(22,163,74,0.35); }
+
+    /* ── Scan results panel ── */
+    .pill { display:inline-flex; align-items:center; gap:3px; padding:1px 7px; border-radius:4px; font-size:10px; border-width:1px; }
+    .result-council-card {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .result-council-card:hover { border-color: rgba(0,208,132,0.3); box-shadow: 0 0 16px rgba(0,208,132,0.08); }
+    .result-council-card.open { border-color: rgba(0,208,132,0.4); box-shadow: 0 0 20px rgba(0,208,132,0.12); }
+    .council-expand { display:none; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06); }
+    .council-expand.visible { display:block; }
+    .pri-badge {
+      display:inline-flex; align-items:center;
+      font-size:10px; font-weight:600; padding:2px 7px; border-radius:99px;
+    }
+    .pri-HIGH   { background:rgba(22,163,74,0.15);  color:#4ade80; }
+    .pri-MEDIUM { background:rgba(234,179,8,0.15);  color:#fcd34d; }
+    .pri-LOW    { background:rgba(107,114,128,0.15);color:#9ca3af; }
+    @keyframes fadeSlideIn {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .animate-in { animation: fadeSlideIn 0.35s ease forwards; }
+  </style>
+</head>
+<body class="min-h-screen font-sans">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 inset-x-0 z-40 h-14 bg-[#050505]/95 border-b border-white/10 backdrop-blur">
+    <div class="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
+      <a href="/index.html" class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center">
+          <iconify-icon icon="solar:radar-2-linear" class="w-4 h-4" style="color:#00d084;stroke-width:1.5;"></iconify-icon>
+        </div>
+        <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
+        <span class="ml-2 text-[0.65rem] uppercase tracking-widest text-brand border border-brand/30 bg-brand/10 px-2 py-0.5 rounded-full">Admin</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <a href="/dashboard.html" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+          <iconify-icon icon="solar:chart-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          Dashboard
+        </a>
+        <button onclick="document.getElementById('tab-contacts').click();document.getElementById('tab-contacts').scrollIntoView({behavior:'smooth',block:'start'})" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+          <iconify-icon icon="solar:users-group-rounded-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          Saved
+        </button>
+        <a href="#scanBtn" onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth'})" class="flex items-center gap-1.5 text-xs border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
+          <iconify-icon icon="solar:cpu-bolt-linear" class="w-3.5 h-3.5"></iconify-icon>
+          Control Panel
+        </a>
+        <button onclick="handleLogout()" class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
+          <iconify-icon icon="solar:logout-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          Log out
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="pt-14 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+
+      <!-- Access denied -->
+      <div id="accessDenied" class="hidden flex-col items-center justify-center py-32 text-center">
+        <iconify-icon icon="solar:lock-linear" class="w-12 h-12 text-zinc-600 mb-4" style="stroke-width:1;"></iconify-icon>
+        <div class="text-white font-medium mb-1">Access denied</div>
+        <div class="text-sm text-zinc-500">This page is restricted to admins only.</div>
+      </div>
+
+      <!-- Admin content -->
+      <div id="adminContent" class="hidden space-y-8">
+
+        <!-- ══════════════════════════════════════════════════
+             COUNCIL SCANNER — MOTHERBOARD
+        ═══════════════════════════════════════════════════ -->
+        <div class="pcb-board rounded-2xl p-6">
+
+          <!-- header -->
+          <div class="flex items-center justify-between mb-5 relative z-10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
+                <iconify-icon icon="solar:cpu-bolt-linear" style="color:#00d084;font-size:16px;"></iconify-icon>
+              </div>
+              <div>
+                <div class="text-white text-sm font-semibold tracking-tight">Council Scanner</div>
+                <div class="text-[10px] font-mono text-brand/50 mt-0.5">SELECT COUNCILS → INITIATE SCAN</div>
+              </div>
+            </div>
+            <button class="sel-all-btn" id="selAllBtn" onclick="toggleAll()">SELECT ALL</button>
+          </div>
+
+          <!-- council search + chip grid -->
+          <div class="relative z-10 mb-4">
+            <!-- Search row -->
+            <div class="relative mb-2">
+              <iconify-icon icon="solar:magnifer-linear" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:rgba(0,208,132,0.4);pointer-events:none;"></iconify-icon>
+              <input id="councilSearch" type="text" placeholder="Search or press Enter to add…"
+                oninput="filterChips()" onkeydown="councilSearchKey(event)"
+                class="w-full bg-[#071a0e] border border-brand/20 rounded-lg pl-8 pr-3 py-2 text-xs text-brand placeholder-brand/25 font-mono focus:outline-none focus:border-brand/50">
+            </div>
+            <!-- Region filter tabs -->
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              <button class="region-tab active" onclick="setRegion(null,this)">ALL</button>
+              <button class="region-tab" onclick="setRegion('London',this)">London</button>
+              <button class="region-tab" onclick="setRegion('South East',this)">South East</button>
+              <button class="region-tab" onclick="setRegion('South West',this)">South West</button>
+              <button class="region-tab" onclick="setRegion('East',this)">East</button>
+              <button class="region-tab" onclick="setRegion('Midlands',this)">Midlands</button>
+              <button class="region-tab" onclick="setRegion('North',this)">North</button>
+              <button class="region-tab" onclick="setRegion('Wales',this)">Wales</button>
+              <button class="region-tab" onclick="setRegion('Scotland',this)">Scotland</button>
+              <button class="region-tab" onclick="setRegion('N. Ireland',this)">N. Ireland</button>
+            </div>
+            <!-- selected pills -->
+            <div id="selectedPills" class="flex flex-wrap gap-1.5 mb-3 hidden"></div>
+            <!-- filtered chip grid -->
+            <div id="chipGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+            <div id="chipMore" class="text-[10px] font-mono text-brand/30 mt-2 hidden"></div>
+          </div>
+
+          <!-- progress (hidden until scan starts) -->
+          <div id="scanProgress" class="hidden relative z-10 mb-4">
+            <div class="flex justify-between text-[10px] font-mono text-brand/60 mb-1.5">
+              <span id="progressLabel">SCANNING…</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- log window -->
+          <div id="scanLog" class="scan-log relative z-10 mb-5">
+            <span class="log-dim">// PPM Council Scanner v1.0 — ready</span><br>
+            <span class="log-dim">// Select councils above and press INITIATE SCAN</span>
+          </div>
+
+          <!-- action row -->
+          <div class="flex items-center justify-between relative z-10">
+            <div class="text-[10px] font-mono text-brand/40">
+              <span id="selectedCount">0</span> COUNCILS SELECTED
+            </div>
+            <button class="scan-btn" id="scanBtn" onclick="runScan()">
+              ⬡ INITIATE SCAN
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             SCAN RESULTS (hidden until scan completes)
+        ═══════════════════════════════════════════════════ -->
+        <div id="scanResultsPanel" class="hidden space-y-4 animate-in">
+
+          <!-- results header bar -->
+          <div class="glass-panel rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
+                <iconify-icon icon="solar:chart-square-bold" style="color:#00d084;font-size:16px;"></iconify-icon>
+              </div>
+              <div>
+                <div class="text-white text-sm font-semibold tracking-tight">Scan Results</div>
+                <div id="scanResultsMeta" class="text-xs text-zinc-500 mt-0.5">—</div>
+              </div>
+            </div>
+            <!-- summary pills -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="pri-badge pri-HIGH text-xs" id="rHigh">0 HIGH</span>
+              <span class="pri-badge pri-MEDIUM text-xs" id="rMedium">0 MEDIUM</span>
+              <span class="pri-badge pri-LOW text-xs" id="rLow">0 LOW</span>
+            </div>
+            <!-- action buttons -->
+            <div class="flex items-center gap-2">
+              <button onclick="copyReportLink()" id="copyLinkBtn"
+                class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all rounded-lg px-3 py-2">
+                <iconify-icon icon="solar:link-bold" style="font-size:13px;"></iconify-icon>
+                Copy link
+              </button>
+              <button onclick="sendReportEmail()" id="sendReportBtn"
+                class="flex items-center gap-1.5 text-xs font-medium bg-brand text-black hover:bg-brand-light transition-all rounded-lg px-3 py-2">
+                <iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon>
+                Send report
+              </button>
+            </div>
+          </div>
+
+          <!-- per-council cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="councilResultCards"></div>
+
+          <!-- top leads table -->
+          <div class="glass-panel rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+              <div class="text-sm font-medium text-white">Top Leads</div>
+              <div class="text-xs text-zinc-500" id="topLeadsCount">—</div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-white/5 text-left">
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Applicant</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Phone</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Type</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
+                    <th class="px-4 py-3"></th>
+                    <th class="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody id="resultsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             TRADES & COVERAGE
+        ═══════════════════════════════════════════════════ -->
+        <div class="trade-board glass-panel rounded-2xl p-6">
+
+          <!-- header -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <iconify-icon icon="solar:tuning-2-linear" style="color:#3b82f6;font-size:16px;"></iconify-icon>
+              </div>
+              <div>
+                <div class="text-white text-sm font-semibold tracking-tight">Trades & Coverage</div>
+                <div class="text-xs text-zinc-500 mt-0.5">Toggle which trades are monitored during council scans</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="tradeCount" class="text-xs text-zinc-500">0 active</span>
+              <button onclick="toggleAllTrades()"
+                class="text-xs text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all rounded-lg px-3 py-1.5">
+                Select all
+              </button>
+            </div>
+          </div>
+
+          <!-- trade card grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6" id="tradeChipGrid">
+            <!-- injected by JS -->
+          </div>
+
+          <!-- footer row -->
+          <div class="flex items-center justify-between pt-4 border-t border-white/5">
+            <div class="flex items-center gap-1.5 text-xs text-zinc-600">
+              <iconify-icon icon="solar:info-circle-linear" style="font-size:13px;flex-shrink:0;"></iconify-icon>
+              Inactive trades are excluded from scan results
+            </div>
+            <button class="save-cfg-btn" id="saveCfgBtn" onclick="saveTradeConfig()">
+              <iconify-icon icon="solar:floppy-disk-linear" style="font-size:14px;"></iconify-icon>
+              Save changes
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             TABS
+        ═══════════════════════════════════════════════════ -->
+        <div class="flex gap-1 p-1 bg-white/5 rounded-xl w-fit border border-white/8">
+          <button id="tab-demos" onclick="switchTab('demos')"
+            class="tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all bg-white/10 text-white">
+            Demo Requests
+          </button>
+          <button id="tab-leads" onclick="switchTab('leads')"
+            class="tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-zinc-500 hover:text-zinc-300">
+            All Leads
+          </button>
+          <button id="tab-contacts" onclick="switchTab('contacts')"
+            class="tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-zinc-500 hover:text-zinc-300 flex items-center gap-1.5">
+            Contacts
+            <span id="contactsCountBadge" class="hidden text-[10px] bg-brand/20 text-brand px-1.5 rounded-full"></span>
+          </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             DEMO REQUESTS TAB
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-demos">
+          <!-- Stats -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-white" id="statAll">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Total requests</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-blue-400" id="statNew">—</div>
+              <div class="text-xs text-zinc-500 mt-1">New</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-yellow-400" id="statContacted">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Contacted</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-green-400" id="statConverted">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Converted</div>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <select id="filterStatus" onchange="renderTable()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="converted">Converted</option>
+              <option value="closed">Closed</option>
+            </select>
+            <input id="filterSearch" type="text" placeholder="Search name, email, trade…" oninput="renderTable()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+            <button onclick="loadRequests()" class="ml-auto flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+              <iconify-icon icon="solar:refresh-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+              Refresh
+            </button>
+          </div>
+
+          <!-- Table -->
+          <div class="glass-panel rounded-2xl overflow-hidden">
+            <div id="tableLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
+              <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+              <span class="text-sm">Loading…</span>
+            </div>
+            <div id="tableEmpty" class="hidden flex-col items-center justify-center py-16 text-center">
+              <div class="text-white font-medium mb-1">No demo requests yet</div>
+              <div class="text-sm text-zinc-500">They'll appear here when someone fills out the form.</div>
+            </div>
+            <div id="tableWrap" class="hidden overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-white/5 text-left">
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Name</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Phone</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Trade</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             ALL LEADS TAB
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-leads" class="hidden">
+          <!-- Lead stats -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-white" id="lstatAll">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Total leads</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-green-400" id="lstatHigh">—</div>
+              <div class="text-xs text-zinc-500 mt-1">High priority</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-yellow-400" id="lstatMedium">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Medium priority</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4">
+              <div class="text-2xl font-semibold text-brand" id="lstatAvg">—</div>
+              <div class="text-xs text-zinc-500 mt-1">Avg score</div>
+            </div>
+          </div>
+
+          <!-- Lead filter -->
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <select id="lFilterCouncil" onchange="renderLeads()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+              <option value="">All councils</option>
+            </select>
+            <select id="lFilterPriority" onchange="renderLeads()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+              <option value="">All priorities</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+            <input id="lFilterSearch" type="text" placeholder="Search address, description…" oninput="renderLeads()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+            <button onclick="loadLeads()" class="ml-auto flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+              <iconify-icon icon="solar:refresh-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+              Refresh
+            </button>
+          </div>
+
+          <!-- Leads table -->
+          <div class="glass-panel rounded-2xl overflow-hidden">
+            <div id="lTableLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
+              <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+              <span class="text-sm">Loading…</span>
+            </div>
+            <div id="lTableEmpty" class="hidden flex-col items-center justify-center py-16 text-center">
+              <div class="text-white font-medium mb-1">No leads yet</div>
+              <div class="text-sm text-zinc-500">Run the scanner to populate leads.</div>
+            </div>
+            <div id="lTableWrap" class="hidden overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-white/5 text-left">
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Type</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">User</th>
+                  </tr>
+                </thead>
+                <tbody id="lTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             CONTACTS TAB
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-contacts" class="hidden">
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <select id="cFilterStatus" onchange="renderContacts()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="converted">Converted</option>
+              <option value="closed">Closed</option>
+            </select>
+            <input id="cFilterSearch" type="text" placeholder="Search name, address…" oninput="renderContacts()"
+              class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+            <button onclick="loadContacts()" class="ml-auto flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+              <iconify-icon icon="solar:refresh-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+              Refresh
+            </button>
+          </div>
+          <div class="glass-panel rounded-2xl overflow-hidden">
+            <div id="cTableLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
+              <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+              <span class="text-sm">Loading…</span>
+            </div>
+            <div id="cTableEmpty" class="hidden flex-col items-center justify-center py-16 text-center">
+              <iconify-icon icon="solar:users-group-rounded-linear" class="w-10 h-10 text-zinc-600 mb-3" style="stroke-width:1;"></iconify-icon>
+              <div class="text-white font-medium mb-1">No contacts yet</div>
+              <div class="text-sm text-zinc-500">Save leads from scan results to build your contacts list.</div>
+            </div>
+            <div id="cTableWrap" class="hidden overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-white/5 text-left">
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Name</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Phone</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Added</th>
+                    <th class="px-4 py-3"></th>
+                    <th class="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody id="cTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Notes modal -->
+  <div id="notesModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeNotes()"></div>
+    <div class="relative w-full max-w-sm glass-panel rounded-2xl p-6" style="border-color:rgba(0,208,132,0.2);">
+      <h3 class="text-sm font-medium text-white mb-3">Notes</h3>
+      <textarea id="notesText" rows="4" placeholder="Add notes about this lead…"
+        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand resize-none"></textarea>
+      <div class="flex gap-2 mt-3">
+        <button onclick="saveNotes()" class="flex-1 py-2 rounded-lg bg-brand text-black text-xs font-medium hover:bg-brand-light transition-colors">Save</button>
+        <button onclick="closeNotes()" class="flex-1 py-2 rounded-lg border border-white/10 text-zinc-300 text-xs hover:bg-white/5 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+    const ADMIN_EMAIL   = 'nicomistry@gmail.com';
+    // Replace with your Trigger.dev task webhook URL once deployed
+    // Live data mode — fetch directly from PlanIt via /api/planit proxy
+
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    let allRequests = [];
+    let activeNoteId = null;
+
+    // ── Trade data ────────────────────────────────────────────────────────────
+    const TRADES = [
+      { id: 'builder',     name: 'Builder',        icon: 'solar:sledgehammer-bold',   subs: ['New Build','Extensions','Conversions','Renovations','Groundwork','Structural Work','Brickwork','Basement Conversion'] },
+      { id: 'plumber',     name: 'Plumber',         icon: 'solar:waterdrops-bold',     subs: ['Bathroom Fitting','Central Heating','Boiler Installation','Underfloor Heating','Drainage','Water Supply','Emergency Plumbing'] },
+      { id: 'electrician', name: 'Electrician',     icon: 'solar:bolt-circle-bold',    subs: ['Full Rewire','EV Charging Points','Solar & PV','Consumer Units','Smart Home','Security Systems','Commercial Electrical'] },
+      { id: 'roofer',      name: 'Roofer',          icon: 'solar:home-angle-bold',     subs: ['Pitched Roof','Flat Roof','Guttering','Skylights','Fascias & Soffits','Chimney Work','Green Roof'] },
+      { id: 'landscaper',  name: 'Landscaper',      icon: 'solar:leaf-bold',           subs: ['Patio & Decking','Garden Design','Driveways','Fencing','Retaining Walls','Artificial Grass','Irrigation','Outdoor Lighting'] },
+      { id: 'kitchen',     name: 'Kitchen Fitter',  icon: 'solar:cup-hot-bold',        subs: ['Full Kitchen Install','Worktops','Appliance Fitting','Utility Rooms','Open Plan Conversion','Kitchen Extension'] },
+      { id: 'loft',        name: 'Loft Specialist', icon: 'solar:arrow-up-bold',       subs: ['Loft Conversion','Dormer','Hip to Gable','Mansard','Velux Windows','Loft Insulation','Storage Solutions'] },
+      { id: 'extension',   name: 'Extensions',      icon: 'solar:buildings-3-bold',    subs: ['Single Storey','Double Storey','Side Return','Wraparound','Orangery','Garage Conversion','Annexe / Outbuilding'] },
+      { id: 'decorator',   name: 'Decorator',       icon: 'solar:paint-roller-bold',   subs: ['Interior Painting','Exterior Painting','Wallpapering','Plastering','Coving & Cornicing','Rendering'] },
+      { id: 'windows',     name: 'Windows & Doors', icon: 'solar:window-frame-bold',   subs: ['UPVC Windows','Aluminium Windows','Timber Windows','Bifold Doors','French Doors','Garage Doors','Composite Doors','Sash Windows'] },
+    ];
+    let selectedTrades = new Set();
+    let selectedSubs   = {};  // { trade_id: Set<sub> }
+
+    function buildTradeChips() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]');
+        saved.forEach(id => selectedTrades.add(id));
+      } catch(e) {}
+      if (selectedTrades.size === 0) TRADES.forEach(t => selectedTrades.add(t.id));
+      try {
+        const savedSubs = JSON.parse(localStorage.getItem('ppm_active_subs') || '{}');
+        Object.entries(savedSubs).forEach(([id, arr]) => { selectedSubs[id] = new Set(arr); });
+      } catch(e) {}
+      TRADES.forEach(t => { if (!selectedSubs[t.id]) selectedSubs[t.id] = new Set(t.subs); });
+
+      const grid = document.getElementById('tradeChipGrid');
+      grid.innerHTML = TRADES.map(t => {
+        const isActive = selectedTrades.has(t.id);
+        const subCount = selectedSubs[t.id] ? selectedSubs[t.id].size : t.subs.length;
+        return `
+        <div class="trade-card ${isActive ? 'active' : ''}" id="tchip-${t.id}">
+          <div class="trade-toggle" onclick="toggleTrade('${t.id}')"></div>
+          <div onclick="toggleTrade('${t.id}')" class="trade-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
+          <div onclick="toggleTrade('${t.id}')" class="trade-label">${t.name}</div>
+          <!-- specialism expand bar -->
+          <button onclick="toggleTradeExpand('${t.id}')"
+            class="mt-2 w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] transition-all">
+            <div class="flex items-center gap-1.5">
+              <iconify-icon icon="solar:list-check-minimalistic-linear" style="font-size:11px;color:#52525b;"></iconify-icon>
+              <span class="text-[10px] text-zinc-500 font-medium">Specialisms</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span id="sub-count-${t.id}" class="text-[10px] font-mono text-zinc-600">${subCount}/${t.subs.length}</span>
+              <iconify-icon id="sub-icon-${t.id}" icon="solar:alt-arrow-down-linear" style="font-size:11px;color:#52525b;transition:transform 0.2s;"></iconify-icon>
+            </div>
+          </button>
+          <div id="sub-panel-${t.id}" class="hidden mt-2 space-y-1.5 text-left px-1">
+            ${t.subs.map(s => `
+              <label class="flex items-center gap-2 cursor-pointer group py-0.5" onclick="event.stopPropagation()">
+                <input type="checkbox" ${(selectedSubs[t.id] && selectedSubs[t.id].has(s)) ? 'checked' : ''}
+                  onchange="toggleSub('${t.id}','${s.replace(/'/g,"\\'")}')"
+                  class="w-3.5 h-3.5 accent-[#00d084] cursor-pointer flex-shrink-0">
+                <span class="text-[11px] text-zinc-400 group-hover:text-zinc-200 transition-colors">${s}</span>
+              </label>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      updateTradeCount();
+    }
+
+    function toggleTradeExpand(id) {
+      const panel = document.getElementById('sub-panel-' + id);
+      const icon  = document.getElementById('sub-icon-' + id);
+      const open  = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !open);
+      if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function toggleSub(tradeId, sub) {
+      if (!selectedSubs[tradeId]) selectedSubs[tradeId] = new Set();
+      if (selectedSubs[tradeId].has(sub)) selectedSubs[tradeId].delete(sub);
+      else selectedSubs[tradeId].add(sub);
+      const t = TRADES.find(t => t.id === tradeId);
+      const el = document.getElementById('sub-count-' + tradeId);
+      if (el && t) el.textContent = selectedSubs[tradeId].size + '/' + t.subs.length;
+    }
+
+    function toggleTrade(id) {
+      if (selectedTrades.has(id)) {
+        selectedTrades.delete(id);
+        document.getElementById('tchip-' + id).classList.remove('active');
+      } else {
+        selectedTrades.add(id);
+        document.getElementById('tchip-' + id).classList.add('active');
+      }
+      updateTradeCount();
+    }
+
+    function toggleAllTrades() {
+      if (selectedTrades.size === TRADES.length) {
+        selectedTrades.clear();
+        TRADES.forEach(t => document.getElementById('tchip-' + t.id).classList.remove('active'));
+      } else {
+        TRADES.forEach(t => { selectedTrades.add(t.id); document.getElementById('tchip-' + t.id).classList.add('active'); });
+      }
+      updateTradeCount();
+    }
+
+    function updateTradeCount() {
+      document.getElementById('tradeCount').textContent = selectedTrades.size + ' of ' + TRADES.length + ' active';
+    }
+
+    function saveTradeConfig() {
+      localStorage.setItem('ppm_active_trades', JSON.stringify([...selectedTrades]));
+      const subsToSave = {};
+      Object.entries(selectedSubs).forEach(([id, set]) => { subsToSave[id] = [...set]; });
+      localStorage.setItem('ppm_active_subs', JSON.stringify(subsToSave));
+      const btn = document.getElementById('saveCfgBtn');
+      btn.classList.add('saved');
+      btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:14px;"></iconify-icon> Saved';
+      setTimeout(() => {
+        btn.classList.remove('saved');
+        btn.innerHTML = '<iconify-icon icon="solar:floppy-disk-linear" style="font-size:14px;"></iconify-icon> Save changes';
+      }, 2000);
+    }
+
+    // ── Council data ──────────────────────────────────────────────────────────
+    const ALL_COUNCILS = ['Aberdeen','Aberdeenshire','Adur and Worthing','Allerdale','Amber Valley','Anglesey','Angus','Antrim and Newtownabbey','Ards and North Down','Argyll','Armagh Banbridge Craigavon','Arun','Ashfield','Ashford','Babergh Mid Suffolk','Barking and Dagenham','Barnet','Barnsley','Barrow','Basildon','Basingstoke','Bassetlaw','Bath','BCP','Bedford','Belfast','Bexley','Birmingham','Blackburn','Blackpool','Blaenau Gwent','Blaby','Bolsover','Boston','Bracknell','Bradford','Braintree','Breckland','Brent','Brentwood','Brecon Beacons','Bridgend','Brighton','Bristol','Bromley','Bromsgrove Redditch','Broxtowe','Broxbourne','Buckinghamshire','Burnley','Bury','Caerphilly','Cairngorms','Calderdale','Cambridge','Cambridgeshire','Camden','Cannock Chase','Canterbury','Cardiff','Carlisle','Carmarthenshire','Castle Point','Causeway and Glens','Central Bedfordshire','Ceredigion','Charnwood','Chelmsford','Cheltenham','Cherwell','Cheshire East','Chester','Chesterfield','Chichester','Chorley','City','Clackmannanshire','Colchester','Conwy','Copeland','Cornwall','Cotswold','Coventry','Craven','Crawley','Croydon','Cumbria','Dacorum','Darlington','Dartford','Dartmoor','Denbighshire','Derby','Derbyshire','Derbyshire Dales','Derry and Strabane','Devon','DNS Wales','Doncaster','Dorset','Dover','Dudley','Dumfries','Dundee','Durham','Ealing','East Ayrshire','East Cambridgeshire','East Devon','East Dunbartonshire','East Hampshire','East Hertfordshire','East Lindsey','East Lothian','East Renfrewshire','East Riding','East Staffordshire','East Suffolk','East Sussex','Eastbourne','Eastleigh','Edinburgh','Elmbridge','Enfield','Epping Forest','Epsom and Ewell','Erewash','Essex','Exeter','Exmoor','Falkirk','Fareham','Fenland','Fermanagh and Omagh','Fife','Flintshire','Forest of Dean','Fylde','Gateshead','Gedling','Glamorgan','Glasgow','Gloucester','Gloucestershire','Gosport','Gravesham','Great Yarmouth','Greenwich','Guildford','Guernsey','Gwynedd','Hackney','Halton','Hambleton','Hammersmith and Fulham','Hampshire','Harborough','Haringey','Harlow','Harrogate','Harrow','Hart','Hartlepool','Hastings','Havant','Havering','Herefordshire','Hertfordshire','Hertsmere','High Peak','Highland','Hillingdon','Hinckley and Bosworth','Horsham','Hounslow','Hull','Huntingdonshire','Hyndburn','Inverclyde','Ipswich','Isle of Man','Isle of Wight','Islington','Jersey','Kensington','Kent','Kings Lynn','Kingston','Kirklees','Knowsley','Lake District','Lambeth','Lancaster','Leeds','Leicester','Leicestershire','Lewes','Lewisham','Lichfield','Lincoln','Lincolnshire','Lisburn and Castlereagh','Liverpool','Loch Lomond','Luton','Maldon','Malvern Hills','Manchester','Mansfield','Medway','Melton','Mendip','Merton','Middlesbrough','Mid Devon','Mid East Antrim','Mid Kent','Mid Sussex','Mid Ulster','Midlothian','Milton Keynes','Mole Valley','Monmouthshire','Moray','Neath','New Forest (District)','New Forest (Park)','Newark and Sherwood','Newcastle under Lyme','Newcastle upon Tyne','Newham','Newport','Newry Mourne Down','NI Strategic Planning','Norfolk','North Ayrshire','North Devon','North East Derbyshire','North East Lincs','North Hertfordshire','North Kesteven','North Lanarkshire','North Lincs','North Norfolk','North Somerset','North Tyneside','North Warwickshire','North West Leicestershire','North Yorkshire','North York Moors','Northumberland (County)','Northumberland (Park)','Norwich','Nottingham','Nottinghamshire','NSIP England','NSIP Wales','Nuneaton','Oadby and Wigston','Old Oak Park Royal','Oldham','Orkney','Oxford','Oxfordshire','Peak District','Pembroke Coast','Pembrokeshire','Pendle','Perth','Peterborough','Plymouth','Powys','Preston','Reading','Redbridge','Redcar and Cleveland','Reigate','Renfrewshire','Rhondda','Ribble Valley','Richmond','Richmondshire','Rochdale','Rochford','Rossendale','Rotherham','Rother','Rugby','Runnymede','Rushcliffe','Rushmoor','Rutland','Ryedale','Salford','Sandwell','Scarborough','Scilly Isles','Scottish Borders','Sedgemoor','Sefton','Selby','Sevenoaks','Sheffield','Shepway','Shetlands','Shropshire','Slough','Snowdonia','Solihull','Somerset','South Ayrshire','South Cambridgeshire','South Derbyshire','South Downs','South Gloucestershire','South Holland','South Kesteven','South Lanarkshire','South Norfolk Broadland','South Oxfordshire','South Ribble','South Somerset','South Staffordshire','South Tyneside','South West Devon','Southend','Southampton','Southwark','Spelthorne','St Albans','St Helens','Stafford','Staffordshire','Staffordshire Moorlands','Stevenage','Stirling','Stockport','Stockton-on-Tees','Stoke on Trent','Stratford on Avon','Stroud','Suffolk','Sunderland','Surrey','Surrey Heath','Sutton','Swansea','Swindon','Tameside','Tamworth','Tandridge','Taunton Deane','Telford','Tendring','Test Valley','Tewkesbury','Thanet','Three Rivers','Thurrock','Tonbridge','Torbay','Torridge','Torfaen','Tower Hamlets','Trafford','Tunbridge Wells','Uttlesford','Vale of White Horse','Wakefield','Walsall','Waltham Forest','Wandsworth','Warrington','Warwick','Warwickshire','Watford','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Dunbartonshire','West Lancashire','West Lindsey','West Lothian','West Northamptonshire','West Oxfordshire','West Somerset','West Suffolk','West Sussex','Western Isles','Westminster','Westmorland and Furness','Wigan','Wiltshire','Winchester','Windsor','Wirral','Woking','Wokingham','Wolverhampton','Worcester','Worcestershire','Wrexham','Wychavon','Wyre','Wyre Forest','Yale of White Horse','York','Yorkshire Dales'];
+
+    // ── Region map ───────────────────────────────────────────────────────────
+    const COUNCIL_REGION = {};
+    const _regionDefs = {
+      'London':     ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington','Kingston','Lambeth','Lewisham','Merton','Newham','Old Oak Park Royal','Redbridge','Richmond','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster'],
+      'South East': ['Adur and Worthing','Arun','Ashford','Basingstoke','Bracknell','Brighton','Canterbury','Castle Point','Chelmsford','Chichester','Crawley','Dartford','Dover','Eastbourne','Eastleigh','Elmbridge','Epsom and Ewell','Epping Forest','Fareham','Gosport','Gravesham','Guildford','Hampshire','Hart','Hastings','Havant','Hertfordshire','Hertsmere','Horsham','Isle of Wight','Kent','Lewes','Medway','Mid Kent','Mid Sussex','Mole Valley','New Forest (District)','New Forest (Park)','Oxford','Oxfordshire','Reading','Reigate','Rother','Rushmoor','Sevenoaks','Shepway','Slough','South Downs','South Oxfordshire','Spelthorne','St Albans','Surrey','Surrey Heath','Tandridge','Test Valley','Thanet','Three Rivers','Tonbridge','Tunbridge Wells','Vale of White Horse','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Oxfordshire','Windsor','Woking','Wokingham'],
+      'South West': ['Bath','BCP','Bristol','Cheltenham','Cornwall','Cotswold','Dartmoor','Devon','Dorset','East Devon','Exmoor','Gloucester','Gloucestershire','Mid Devon','North Devon','North Somerset','Plymouth','Scilly Isles','Sedgemoor','Somerset','South Gloucestershire','South Somerset','South West Devon','Stroud','Swindon','Taunton Deane','Tewkesbury','Torbay','Torridge','West Somerset','Wiltshire'],
+      'East':       ['Bedford','Braintree','Breckland','Cambridge','Cambridgeshire','Central Bedfordshire','Colchester','East Cambridgeshire','East Suffolk','Essex','Fenland','Great Yarmouth','Huntingdonshire','Ipswich','Kings Lynn','Luton','Maldon','Norfolk','North Hertfordshire','Norwich','Peterborough','South Cambridgeshire','South Norfolk Broadland','Suffolk','Tendring','Thurrock','Uttlesford','Watford','West Suffolk'],
+      'Midlands':   ['Amber Valley','Blaby','Bolsover','Boston','Birmingham','Bromsgrove Redditch','Cannock Chase','Charnwood','Chesterfield','Coventry','Derby','Derbyshire','Derbyshire Dales','Dudley','East Staffordshire','Erewash','Gedling','Herefordshire','High Peak','Hinckley and Bosworth','Leicester','Leicestershire','Lichfield','Lincoln','Lincolnshire','Malvern Hills','Mansfield','Melton','Newark and Sherwood','Newcastle under Lyme','North East Derbyshire','North Kesteven','North Warwickshire','North West Leicestershire','Nottingham','Nottinghamshire','Oadby and Wigston','Peak District','Rushcliffe','Rutland','Sandwell','Shropshire','Solihull','South Derbyshire','South Holland','South Kesteven','South Staffordshire','Stafford','Staffordshire','Staffordshire Moorlands','Stoke on Trent','Stratford on Avon','Tamworth','Telford','Walsall','Warwick','Warwickshire','West Lindsey','Wolverhampton','Worcester','Worcestershire','Wychavon','Wyre Forest'],
+      'North':      ['Barnsley','Blackburn','Blackpool','Bolton','Bradford','Burnley','Bury','Calderdale','Carlisle','Chester','Cheshire East','Chorley','Craven','Cumbria','Darlington','Doncaster','Durham','East Riding','Fylde','Gateshead','Hambleton','Harrogate','Hartlepool','Hull','Hyndburn','Kirklees','Lancaster','Leeds','Liverpool','Manchester','Middlesbrough','Newcastle upon Tyne','North Tyneside','North Yorkshire','North York Moors','Northumberland (County)','Northumberland (Park)','Oldham','Pendle','Preston','Redcar and Cleveland','Ribble Valley','Richmondshire','Rochdale','Rossendale','Rotherham','Ryedale','Salford','Scarborough','Sefton','Selby','Sheffield','South Ribble','South Tyneside','St Helens','Stockport','Stockton-on-Tees','Sunderland','Tameside','Trafford','Wakefield','Warrington','West Lancashire','Wigan','Wirral','Wyre','York','Yorkshire Dales'],
+      'Wales':      ['Blaenau Gwent','Bridgend','Brecon Beacons','Caerphilly','Cardiff','Carmarthenshire','Ceredigion','Conwy','Denbighshire','DNS Wales','Flintshire','Glamorgan','Gwynedd','Monmouthshire','Neath','Newport','NSIP Wales','Pembroke Coast','Pembrokeshire','Powys','Rhondda','Snowdonia','Swansea','Torfaen','Wrexham'],
+      'Scotland':   ['Aberdeen','Aberdeenshire','Angus','Argyll','Cairngorms','Clackmannanshire','Dumfries','Dundee','East Ayrshire','East Dunbartonshire','East Lothian','East Renfrewshire','Edinburgh','Falkirk','Fife','Glasgow','Highland','Inverclyde','Loch Lomond','Midlothian','Moray','North Ayrshire','North Lanarkshire','Orkney','Perth','Renfrewshire','Scottish Borders','Shetlands','South Ayrshire','South Lanarkshire','Stirling','West Dunbartonshire','West Lothian','Western Isles'],
+      'N. Ireland': ['Antrim and Newtownabbey','Ards and North Down','Armagh Banbridge Craigavon','Belfast','Causeway and Glens','Derry and Strabane','Fermanagh and Omagh','Lisburn and Castlereagh','Mid East Antrim','Mid Ulster','Newry Mourne Down','NI Strategic Planning'],
+    };
+    Object.entries(_regionDefs).forEach(([region, list]) => list.forEach(c => COUNCIL_REGION[c] = region));
+
+    let selectedCouncils = new Set();
+    let activeRegion = null;
+    let starredCouncils = new Set(JSON.parse(localStorage.getItem('ppm_starred_councils') || '[]'));
+
+    function councilId(name) { return name.toLowerCase().replace(/[^a-z0-9]/g, '-'); }
+
+    function buildChips() { filterChips(); }
+
+    function setRegion(region, btn) {
+      activeRegion = region;
+      document.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      document.getElementById('councilSearch').value = '';
+      const selBtn = document.getElementById('selAllBtn');
+      if (selBtn) selBtn.textContent = region ? `ADD ALL (${region})` : 'SELECT ALL';
+      filterChips();
+    }
+
+    function councilSearchKey(e) {
+      if (e.key !== 'Enter') return;
+      const q = (document.getElementById('councilSearch').value || '').toLowerCase().trim();
+      if (!q) return;
+      const match = ALL_COUNCILS.find(n => !selectedCouncils.has(n) && n.toLowerCase().includes(q));
+      if (match) {
+        toggleChip(match);
+        document.getElementById('councilSearch').value = '';
+        filterChips();
+      }
+    }
+
+    function toggleStar(name, e) {
+      e.stopPropagation();
+      if (starredCouncils.has(name)) starredCouncils.delete(name);
+      else starredCouncils.add(name);
+      localStorage.setItem('ppm_starred_councils', JSON.stringify([...starredCouncils]));
+      filterChips();
+    }
+
+    function filterChips() {
+      const q = (document.getElementById('councilSearch').value || '').toLowerCase().trim();
+      const grid = document.getElementById('chipGrid');
+      const moreEl = document.getElementById('chipMore');
+      const pillsEl = document.getElementById('selectedPills');
+
+      // selected pills row
+      if (selectedCouncils.size > 0) {
+        pillsEl.classList.remove('hidden');
+        pillsEl.innerHTML = [...selectedCouncils].map(name => `
+          <span onclick="toggleChip('${name.replace(/'/g,"\\'")}'); event.stopPropagation()"
+            class="flex items-center gap-1 text-[10px] font-mono bg-brand/10 text-brand border border-brand/30 px-2 py-0.5 rounded-full cursor-pointer hover:bg-brand/20">
+            ${name} <iconify-icon icon="solar:close-circle-bold" style="font-size:10px;"></iconify-icon>
+          </span>`).join('');
+      } else {
+        pillsEl.classList.add('hidden');
+        pillsEl.innerHTML = '';
+      }
+
+      // filter by region + search (exclude already selected)
+      const filtered = ALL_COUNCILS.filter(n => {
+        if (selectedCouncils.has(n)) return false;
+        if (activeRegion && COUNCIL_REGION[n] !== activeRegion) return false;
+        if (q && !n.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      // Starred first (only when no search query active)
+      const starred  = !q ? filtered.filter(n => starredCouncils.has(n)) : [];
+      const unstarred = filtered.filter(n => !starredCouncils.has(n));
+      const combined = [...starred, ...unstarred];
+      const show = combined.slice(0, 24);
+      const rest = combined.length - show.length;
+
+      const makeChip = name => {
+        const id = councilId(name);
+        const isStar = starredCouncils.has(name);
+        return `<div class="chip p-2.5 flex items-center gap-2" id="chip-${id}" onclick="toggleChip('${name.replace(/'/g,"\\'")}')">
+          <div class="chip-led flex-shrink-0" id="led-${id}"></div>
+          <span class="chip-name text-[11px] leading-tight flex-1">${name}</span>
+          <span class="chip-star${isStar ? ' starred' : ''}" onclick="toggleStar('${name.replace(/'/g,"\\'")}',event)" title="${isStar ? 'Unstar' : 'Star'}">★</span>
+        </div>`;
+      };
+
+      let html = '';
+      if (starred.length && show.some(n => starredCouncils.has(n))) {
+        html += `<div class="col-span-2 sm:col-span-4 fav-label">★ FAVOURITES</div>`;
+      }
+      html += show.map(makeChip).join('');
+      grid.innerHTML = html;
+
+      const label = activeRegion ? `${activeRegion} — ${rest} more` : `${rest} more — type to filter`;
+      moreEl.textContent = rest > 0 ? `// ${label}` : '';
+      moreEl.classList.toggle('hidden', rest === 0);
+    }
+
+    function toggleChip(name) {
+      if (selectedCouncils.has(name)) selectedCouncils.delete(name);
+      else selectedCouncils.add(name);
+      document.getElementById('selectedCount').textContent = selectedCouncils.size;
+      filterChips();
+    }
+
+    function toggleAll() {
+      if (selectedCouncils.size > 0) {
+        selectedCouncils.clear();
+      } else {
+        // Only add currently visible filtered set (respects region + search)
+        const q = (document.getElementById('councilSearch').value || '').toLowerCase().trim();
+        ALL_COUNCILS.filter(n => {
+          if (activeRegion && COUNCIL_REGION[n] !== activeRegion) return false;
+          if (q && !n.toLowerCase().includes(q)) return false;
+          return true;
+        }).forEach(n => selectedCouncils.add(n));
+      }
+      document.getElementById('selectedCount').textContent = selectedCouncils.size;
+      filterChips();
+    }
+
+    // ── Scan ──────────────────────────────────────────────────────────────────
+    let lastScanResults = [];
+
+    // Keywords that signal a relevant residential build opportunity
+    // All patterns are regexes — word boundaries prevent partial-word matches
+    const INCLUDE_PATTERNS = [
+      /\bdwelling/,
+      /\bhouse\b/,          // "house" but not "warehouse" or "powerhouse"
+      /\bbungalow\b/,
+      /\bapartment\b/,
+      /\bflat\b/,
+      /\bextension\b/,
+      /\bloft\b/,
+      /\bconservatory\b/,
+      /\bconversion\b/,
+      /\bannex(?:e|ure)?\b/,
+      /\bbasement\b/,
+      /\bdormer\b/,
+      /\boutbuilding\b/,
+      /\brenovation\b/,
+      /\brefurbishment\b/,
+      /\bremodel\b/,
+      /\borangery\b/,
+      /\bbifold\b|bi-fold/,
+      /\brooflights?\b|roof\s+lights?\b/,
+      /\bvelux\b/,
+      /\bpatio\b/,
+      /\blandscap/,        // landscaping / landscape / landscaped
+      /\bdriveway\b/,
+      /\berection of\b/,
+      /\bresidential\b/,
+      /\bhabitable\b/,
+      /\bnew\s+build\b|newbuild\b/,
+      /\b2[\s-]storey\b|two[\s-]storey\b|double\s+storey\b/,
+      /\bsingle[\s-]storey\b/,
+    ];
+
+    const EXCLUDE_PATTERNS = [
+      /\badvertisement\b/,
+      /\bsignage\b|\bsign\s+face\b|\bfascia\s+sign\b/,  // "sign" alone excluded — NOT "design" or "designation"
+      /\btelecoms?\b|\btelecommunication/,
+      /\bmast\b/,
+      /\bsolar\s+farm\b/,
+      /\bwind\s+turbine\b/,
+      /\bcommercial\s+unit\b|\bcommercial\s+premises\b|\bcommercial\s+development\b|\bcommercial\s+property\b/,
+      /\bretail\b/,
+      /\bcommercial\s+office\b|\boffice\s+building\b|\boffice\s+block\b|\boffice\s+space\b/,  // NOT "home office"
+      /\bindustrial\b/,
+      /\bwarehouse\b/,
+      /\bchange\s+of\s+use\b.*\bshop\b|\bchange\s+of\s+use\b.*\bretail\b/,
+      /\bchange\s+of\s+use\b.*\boffice\b/,
+      /\blisted\s+building\s+consent\s+only\b/,
+      /\btree\s+preservation\b|\btpo\b/,
+      /\bprior\s+notification\b.*\btelecom/,
+      /\bdemolition\s+only\b/,
+      /\bhazardous\b/,
+      /\bwaste\s+(?:disposal|management|facility|transfer|treatment|collection)\b/,  // NOT "wastewater"
+      /\bmining\b/,
+      /\bmineral\s+extraction\b/,
+    ];
+
+    // Score a description/type against trade value signals
+    function scoreApplication(desc, appType) {
+      const d = (desc + ' ' + appType).toLowerCase();
+      let score = 5;
+
+      // High-value signals
+      if (/new\s+dwelling|new\s+house|new\s+build|new build/.test(d))      score += 3;
+      if (/two-?storey|double storey/.test(d))                              score += 2;
+      if (/loft conversion|dormer/.test(d))                                 score += 2;
+      if (/extension/.test(d))                                              score += 1;
+      if (/basement|underground/.test(d))                                   score += 2;
+      if (/orangery|bi-?fold|glazed|lantern/.test(d))                       score += 1;
+      if (/conversion.*flat|flat.*conversion|2 flat|two flat/.test(d))      score += 2;
+      if (/garage conversion/.test(d))                                      score += 1;
+      if (/landscap|driveway|patio|decking/.test(d))                        score += 1;
+      if (/full planning permission/.test(d))                               score += 1;
+
+      // Lower-value signals
+      if (/single storey|single-storey/.test(d))                            score -= 1;
+      if (/certificate of lawfulness|lawful development/.test(d))           score -= 2;
+      if (/prior approval/.test(d))                                         score -= 1;
+      if (/fence|wall only|gates only/.test(d))                             score -= 2;
+
+      score = Math.min(10, Math.max(1, score));
+      const priority = score >= 8 ? 'HIGH' : score >= 6 ? 'MEDIUM' : 'LOW';
+      return { score, priority };
+    }
+
+    // Derive dwelling type and scale from description
+    function enrichDescription(desc) {
+      const d = (desc || '').toLowerCase();
+      let dwelling_type = null;
+      if (/detached/.test(d))       dwelling_type = 'Detached';
+      else if (/semi-?detached/.test(d)) dwelling_type = 'Semi-Detached';
+      else if (/terraced/.test(d))  dwelling_type = 'Terraced';
+      else if (/flat|apartment/.test(d)) dwelling_type = 'Flat/Apartment';
+      else if (/bungalow/.test(d))  dwelling_type = 'Bungalow';
+
+      // Unit count
+      const unitMatch = d.match(/(\d+)\s*(no\.|number\s+of\s+)?\s*(dwelling|flat|unit|apartment|house)/);
+      const unit_count = unitMatch ? parseInt(unitMatch[1]) : 1;
+
+      const development_scale = unit_count >= 10 ? 'Large' : unit_count >= 3 ? 'Medium' : 'Small';
+
+      return { dwelling_type, unit_count, development_scale };
+    }
+
+    // Map a raw PlanIt API record to our lead format
+    // Extract all fields from a PlanIt record (list or detail endpoint).
+    // Both endpoints return the same structure: top-level fields + other_fields bag.
+    function extractPlanitFields(rec) {
+      const of = rec.other_fields || {};
+      // Normalise applicant/agent — "See source" means the council didn't publish it
+      const clean = v => (v && v !== 'See source' && v.trim()) ? v.trim() : null;
+      return {
+        description:          rec.description || of.description || '',
+        app_type:             rec.app_type || of.application_type || '',
+        app_state:            rec.app_state || of.status || 'Undecided',
+        start_date:           rec.start_date || of.date_received || of.date_validated || '',
+        target_decision_date: rec.target_decision_date || of.application_expires_date || '',
+        consulted_date:       rec.consulted_date || of.consultation_end_date || null,
+        postcode:             rec.postcode || null,
+        app_size:             rec.app_size || null,
+        address:              rec.address || '',
+        uid:                  rec.uid || '',
+        planit_url:           rec.link || null,
+        council_url:          rec.url || of.source_url || null,
+        applicant_name:       clean(rec.applicant_name) || clean(of.applicant_name) || null,
+        applicant_address:    clean(of.applicant_address) || null,
+        agent_name:           clean(rec.agent_name) || clean(of.agent_name) || null,
+        agent_address:        clean(of.agent_address) || null,
+        agent_phone:          clean(of.agent_tel) || clean(of.agent_phone) || null,
+        agent_email:          clean(of.email) || clean(of.agent_email) || null,
+        ward_name:            of.ward_name || null,
+        n_documents:          of.n_documents || null,
+        decided_by:           of.decided_by || null,
+      };
+    }
+
+    function mapPlanitRecord(rec, councilName) {
+      const f = extractPlanitFields(rec);
+      const { score, priority } = scoreApplication(f.description, f.app_type);
+      const { dwelling_type, unit_count, development_scale } = enrichDescription(f.description);
+
+      return {
+        ...f,
+        council:           councilName,
+        score,
+        priority,
+        dwelling_type,
+        development_scale,
+        unit_count,
+        score_reasoning:   null,
+        phone:             null,
+        email:             null,
+      };
+    }
+
+    // Keyword filter — returns true if description should be included
+    function passesKeywordFilter(desc, appType) {
+      const text = (desc + ' ' + appType).toLowerCase();
+      if (EXCLUDE_PATTERNS.some(rx => rx.test(text))) return false;
+      return INCLUDE_PATTERNS.some(rx => rx.test(text));
+    }
+
+    // Fetch one council from PlanIt via our serverless proxy
+    async function fetchCouncilLeads(councilName) {
+      const params = new URLSearchParams({
+        council:   councilName,
+        recent:    '60',
+        pg_sz:     '200',
+        app_state: 'Undecided',
+      });
+      const resp = await fetch(`/api/planit?${params}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      const records = data.records || data.results || data.objects || [];
+      appendLog('log-dim', `    ${records.length} applications fetched, filtering…`);
+
+      // Filter to relevant applications only
+      const filtered = records.filter(r => {
+        const desc = r.description || r.proposal_text || r.proposal || '';
+        const type = r.app_type || r.application_type || '';
+        return passesKeywordFilter(desc, type);
+      });
+
+      // Map to leads
+      return filtered.map(r => mapPlanitRecord(r, councilName));
+    }
+
+    async function runScan() {
+      if (selectedCouncils.size === 0) {
+        appendLog('log-err', '⚠ No councils selected. Select at least one.');
+        return;
+      }
+
+      document.getElementById('scanResultsPanel').classList.add('hidden');
+      lastScanResults = [];
+
+      const btn = document.getElementById('scanBtn');
+      btn.disabled = true;
+      btn.classList.add('scanning');
+      btn.textContent = '⬡ SCANNING…';
+
+      const selected = [...selectedCouncils];
+      const total    = selected.length;
+
+      document.getElementById('scanProgress').classList.remove('hidden');
+      setProgress(0, total);
+      clearLog();
+      appendLog('log-ok', `▶ SCAN INITIATED — ${total} council(s) · PlanIt live data`);
+
+      const councilResults = [];
+      let done = 0;
+
+      for (const councilName of selected) {
+        appendLog('log-dim', `  → ${councilName}`);
+        try {
+          const leads = await fetchCouncilLeads(councilName);
+          councilResults.push({ council: { name: councilName }, leads });
+          lastScanResults.push(...leads);
+          appendLog('log-ok', `  ✓ ${councilName} — ${leads.length} lead(s) found`);
+        } catch(e) {
+          appendLog('log-err', `  ✗ ${councilName} — ${e.message}`);
+          councilResults.push({ council: { name: councilName }, leads: [] });
+        }
+        done++;
+        setProgress(done, total);
+      }
+
+      const totalLeads = lastScanResults.length;
+      appendLog('log-ok', `◼ SCAN COMPLETE — ${totalLeads} leads found across ${done} council(s)`);
+      btn.disabled = false;
+      btn.classList.remove('scanning');
+      btn.textContent = '⬡ INITIATE SCAN';
+
+      renderScanResults(councilResults);
+    }
+
+    function renderScanResults(councilResults) {
+      const allLeads = councilResults.flatMap(r => r.leads);
+      const high   = allLeads.filter(l => l.priority === 'HIGH').length;
+      const medium = allLeads.filter(l => l.priority === 'MEDIUM').length;
+      const low    = allLeads.filter(l => l.priority === 'LOW').length;
+
+      document.getElementById('scanResultsMeta').textContent =
+        `${allLeads.length} leads found · ${councilResults.length} council(s) scanned · ${new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})}`;
+      document.getElementById('rHigh').textContent   = high + ' HIGH';
+      document.getElementById('rMedium').textContent = medium + ' MEDIUM';
+      document.getElementById('rLow').textContent    = low + ' LOW';
+
+      // store all council data for card expand
+      window._councilData = councilResults;
+
+      // council cards
+      document.getElementById('councilResultCards').innerHTML = councilResults.map(({council, leads}, ci) => {
+        const name  = council.name.replace('\n',' ');
+        const high  = leads.filter(l => l.priority === 'HIGH').length;
+        const med   = leads.filter(l => l.priority === 'MEDIUM').length;
+        const low   = leads.filter(l => l.priority === 'LOW').length;
+
+        if (leads.length === 0) return `
+          <div class="result-council-card opacity-40">
+            <div class="flex items-start justify-between">
+              <div class="text-zinc-400 text-sm font-medium">${name}</div>
+              <span class="font-mono text-zinc-600 text-lg font-semibold leading-none">0</span>
+            </div>
+            <div class="text-[11px] text-zinc-700 mt-2">No matching leads</div>
+          </div>`;
+
+        // top 3 leads by score
+        const top3 = [...leads].sort((a,b) => (b.score||0)-(a.score||0)).slice(0,3);
+
+        // avg score
+        const avgScore = (leads.reduce((s,l) => s + (l.score||0), 0) / leads.length).toFixed(1);
+
+        // app type breakdown (top 3 types)
+        const typeCounts = {};
+        leads.forEach(l => { const t = l.app_type || 'Unknown'; typeCounts[t] = (typeCounts[t]||0)+1; });
+        const topTypes = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+        // decision urgency — how many decisions due within 30 days
+        const urgent = leads.filter(l => {
+          if (!l.target_decision_date) return false;
+          const d = Math.ceil((new Date(l.target_decision_date) - new Date()) / 86400000);
+          return d >= 0 && d <= 30;
+        }).length;
+
+        return `
+          <div class="result-council-card" id="cc-${ci}" onclick="toggleCouncilCard(${ci})">
+            <!-- Header -->
+            <div class="flex items-start justify-between mb-2">
+              <div class="text-white text-sm font-medium leading-tight">${name}</div>
+              <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                <span class="font-mono text-brand text-lg font-semibold leading-none">${leads.length}</span>
+                <iconify-icon id="cc-icon-${ci}" icon="solar:alt-arrow-down-linear" style="font-size:13px;color:#52525b;transition:transform 0.2s;"></iconify-icon>
+              </div>
+            </div>
+            <!-- Priority badges -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${high > 0 ? `<span class="pri-badge pri-HIGH">${high} HIGH</span>` : ''}
+              ${med  > 0 ? `<span class="pri-badge pri-MEDIUM">${med} MED</span>` : ''}
+              ${low  > 0 ? `<span class="pri-badge pri-LOW">${low} LOW</span>` : ''}
+            </div>
+
+            <!-- Expandable detail -->
+            <div class="council-expand" id="cc-body-${ci}">
+
+              <!-- Stats row -->
+              <div class="grid grid-cols-3 gap-2 mb-3">
+                <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
+                  <div class="text-brand font-mono font-semibold text-sm">${avgScore}</div>
+                  <div class="text-[10px] text-zinc-600 mt-0.5">Avg score</div>
+                </div>
+                <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
+                  <div class="text-amber-400 font-mono font-semibold text-sm">${urgent}</div>
+                  <div class="text-[10px] text-zinc-600 mt-0.5">Due ≤30d</div>
+                </div>
+                <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
+                  <div class="text-white font-mono font-semibold text-sm">${high}</div>
+                  <div class="text-[10px] text-zinc-600 mt-0.5">High pri.</div>
+                </div>
+              </div>
+
+              <!-- Application types -->
+              <div class="mb-3">
+                <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Application types</div>
+                <div class="space-y-1">
+                  ${topTypes.map(([type, count]) => {
+                    const pct = Math.round((count / leads.length) * 100);
+                    return `<div>
+                      <div class="flex justify-between text-[10px] mb-0.5">
+                        <span class="text-zinc-400 truncate">${type}</span>
+                        <span class="text-zinc-600 font-mono ml-2 flex-shrink-0">${count} (${pct}%)</span>
+                      </div>
+                      <div class="h-0.5 rounded-full bg-white/5 overflow-hidden">
+                        <div class="h-full rounded-full bg-brand/50" style="width:${pct}%"></div>
+                      </div>
+                    </div>`;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Top 3 leads -->
+              <div>
+                <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Top leads</div>
+                <div class="space-y-1.5">
+                  ${top3.map(l => `
+                    <div class="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-2">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="text-[11px] text-white font-medium leading-snug truncate">${l.address || '—'}</div>
+                        <span class="text-[10px] font-mono font-semibold text-brand flex-shrink-0">${l.score}/10</span>
+                      </div>
+                      ${l.description ? `<div class="text-[10px] text-zinc-500 mt-0.5 line-clamp-2 leading-relaxed">${l.description.slice(0,120)}${l.description.length > 120 ? '…' : ''}</div>` : ''}
+                      <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        ${l.app_type ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/15 text-blue-400">${l.app_type.replace('Full Planning Permission','Full PP').replace('Householder Application','Householder')}</span>` : ''}
+                        <span class="pri-badge pri-${l.priority}" style="font-size:9px;padding:1px 5px;">${l.priority}</span>
+                        ${l.start_date ? `<span class="text-[9px] text-zinc-600 font-mono">${l.start_date}</span>` : ''}
+                      </div>
+                    </div>`).join('')}
+                </div>
+              </div>
+
+            </div><!-- /council-expand -->
+          </div>`; // end card
+      }).join('');
+
+      // top leads table (top 15 by score)
+      const top = [...allLeads].sort((a,b) => (b.score||0)-(a.score||0)).slice(0,15);
+      window._scanLeads = top; // safe reference — avoids JSON-in-onclick issues
+      document.getElementById('topLeadsCount').textContent = `Top ${top.length} of ${allLeads.length}`;
+      const savedIds = new Set(JSON.parse(localStorage.getItem('ppm_saved_contacts') || '[]'));
+      document.getElementById('resultsTableBody').innerHTML = top.map((l, i) => {
+        const uid = btoa(encodeURIComponent((l.address||'') + '|' + (l.phone||''))).slice(0,20);
+        const isSaved = savedIds.has(uid);
+        const hasPlanit = l.planit_url || l.uid;
+        const planUrl = l.planit_url || (l.uid ? `https://www.planit.org.uk/api/applics/json?auth=rbkc&uid=${l.uid}` : null);
+        const daysLeft = l.target_decision_date ? Math.ceil((new Date(l.target_decision_date) - new Date()) / 86400000) : null;
+        const urgencyCls = daysLeft === null ? 'text-zinc-300' : daysLeft < 0 ? 'text-red-400' : daysLeft <= 14 ? 'text-amber-400' : 'text-zinc-300';
+        const daysLabel = daysLeft === null ? null : daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d remaining`;
+        const valueEst = (() => { const s=(l.development_scale||'').toLowerCase(),u=l.unit_count||1; if(s.includes('large')||u>=10) return '£80k–£250k+'; if(s.includes('medium')||u>=3) return '£30k–£80k'; if(s.includes('small')||u>=2) return '£15k–£40k'; return '£8k–£25k'; })();
+        return `
+        <tr id="result-row-${i}" onclick="toggleExpand(${i})" style="cursor:pointer"
+          class="row-hover border-b border-white/5 ${isSaved ? 'row-saved' : ''}">
+          <td class="px-4 py-3">
+            <div class="text-white text-xs font-medium">${l.address || '—'}</div>
+            <div class="text-zinc-600 text-[10px] font-mono mt-0.5">${l.uid || ''}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="text-zinc-300 text-xs font-medium whitespace-nowrap">${l.applicant_name || '—'}</div>
+            ${l.agent_name ? `<div class="text-zinc-600 text-[10px] mt-0.5 whitespace-nowrap">Agent: ${l.agent_name}</div>` : ''}
+          </td>
+          <td class="px-4 py-3 text-xs whitespace-nowrap">
+            ${l.phone ? `<a href="tel:${l.phone}" onclick="event.stopPropagation()" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;flex-shrink:0;"></iconify-icon>${l.phone}</a>` : '<span class="text-zinc-600">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-xs whitespace-nowrap">
+            ${l.email ? `<a href="mailto:${l.email}" onclick="event.stopPropagation()" class="text-blue-400 hover:text-blue-300 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:12px;flex-shrink:0;"></iconify-icon>${l.email}</a>` : '<span class="text-zinc-600">—</span>'}
+          </td>
+          <td class="px-4 py-3">
+            <div class="text-zinc-400 text-xs">${l.app_type || '—'}</div>
+            ${l.dwelling_type ? `<div class="text-zinc-600 text-[10px] mt-0.5">${l.dwelling_type}${l.unit_count > 1 ? ' · ' + l.unit_count + ' units' : ''}</div>` : ''}
+          </td>
+          <td class="px-4 py-3">
+            <span class="pri-badge pri-${l.priority}">${l.priority}</span>
+            ${l.start_date ? `<div class="text-zinc-600 text-[10px] mt-1 font-mono">${l.start_date}</div>` : ''}
+          </td>
+          <td class="px-4 py-3 text-brand text-xs font-mono font-semibold">${l.score}</td>
+          <td class="px-4 py-3 text-center">
+            <iconify-icon id="expand-icon-${i}" icon="solar:alt-arrow-down-linear" style="font-size:14px;color:#52525b;transition:transform 0.25s;"></iconify-icon>
+          </td>
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <button id="savebtn-${i}" onclick="saveContact(${i}, '${uid}')"
+              class="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg whitespace-nowrap
+              ${isSaved ? 'bg-brand/10 text-brand border border-brand/30 cursor-default' : 'bg-white/5 text-zinc-400 border border-white/10 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/30'}">
+              <iconify-icon icon="${isSaved ? 'solar:check-circle-bold' : 'solar:user-plus-rounded-linear'}" style="font-size:12px;"></iconify-icon>
+              ${isSaved ? 'Saved' : 'Save'}
+            </button>
+          </td>
+        </tr>
+        <tr id="expand-row-${i}" class="hidden border-b border-white/5 ${isSaved ? 'row-saved' : ''}">
+          <td colspan="9" class="px-4 pb-4 pt-0">
+            <div class="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+              <div class="flex gap-5">
+                <!-- LEFT: key stats strip -->
+                <div class="flex flex-col gap-1 flex-shrink-0" style="width:190px">
+                  <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                    <div class="flex items-center gap-1.5"><iconify-icon icon="solar:target-linear" style="font-size:11px;color:#00d084;"></iconify-icon><span class="text-[11px] text-zinc-500">Score</span></div>
+                    <span class="text-[11px] font-semibold text-brand font-mono">${l.score}/10</span>
+                  </div>
+                  <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                    <div class="flex items-center gap-1.5"><iconify-icon icon="solar:banknote-linear" style="font-size:11px;color:#a78bfa;"></iconify-icon><span class="text-[11px] text-zinc-500">Est. value</span></div>
+                    <span class="text-[11px] font-semibold text-violet-400">${valueEst}</span>
+                  </div>
+                  ${l.uid ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                    <div class="flex items-center gap-1.5"><iconify-icon icon="solar:document-linear" style="font-size:11px;color:#94a3b8;"></iconify-icon><span class="text-[11px] text-zinc-500">Ref</span></div>
+                    <span class="text-[10px] text-zinc-500 font-mono truncate max-w-[100px]">${l.uid}</span>
+                  </div>` : ''}
+                  ${l.council ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                    <div class="flex items-center gap-1.5"><iconify-icon icon="solar:map-point-linear" style="font-size:11px;color:#60a5fa;"></iconify-icon><span class="text-[11px] text-zinc-500">Council</span></div>
+                    <span class="text-[10px] text-zinc-400 text-right truncate max-w-[100px]">${l.council}</span>
+                  </div>` : ''}
+                  ${planUrl ? `<a href="${planUrl}" target="_blank" onclick="event.stopPropagation()" class="mt-2 inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-brand border border-white/8 hover:border-brand/30 px-2.5 py-1.5 rounded-lg"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:11px;"></iconify-icon>View on PlanIt</a>` : ''}
+                  <button onclick="event.stopPropagation();saveLead(${i})" id="save-btn-${i}"
+                    class="mt-1 inline-flex items-center justify-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all
+                    ${isSaved ? 'border-brand/40 text-brand bg-brand/8' : 'border-white/10 text-zinc-500 hover:text-brand hover:border-brand/30'}">
+                    <iconify-icon icon="solar:user-plus-rounded-linear" style="font-size:11px;"></iconify-icon>
+                    ${isSaved ? 'Saved' : 'Save Contact'}
+                  </button>
+                </div>
+                <!-- DIVIDER -->
+                <div class="w-px flex-shrink-0" style="background:rgba(255,255,255,0.06)"></div>
+                <!-- RIGHT: dynamic detail panel — filled by renderExpandPanel() after PlanIt fetch -->
+                <div id="expand-detail-${i}" class="flex-1 min-w-0 text-[11px] text-zinc-500 flex items-center gap-1.5" style="min-height:0">
+                  <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:13px;color:#00d084;"></iconify-icon>
+                  Loading application detail…
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      const panel = document.getElementById('scanResultsPanel');
+      panel.classList.remove('hidden');
+      panel.classList.add('fade-in');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Fetch full application details from PlanIt via our proxy (auto-called on expand)
+    const _detailFetched = new Set(); // track which rows have already been fetched
+
+    async function fetchPlanitDetails(idx, silent = false) {
+      const lead = window._scanLeads[idx];
+      if (!lead || !lead.uid) return;
+      if (_detailFetched.has(idx)) return;
+
+      const expandPanel = document.getElementById('expand-detail-' + idx);
+
+      try {
+        // Use /planapplic/{council}/{uid}/json — the only correct individual lookup pattern.
+        // The ?uid= param on /api/applics/json returns HTTP 400.
+        const params = new URLSearchParams({ council: lead.council, uid: lead.uid });
+        const resp = await fetch(`/api/planit?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        // Detail endpoint returns a flat object (not records[]).
+        // Use the same extractor as mapPlanitRecord.
+        const f = extractPlanitFields(data);
+
+        // Patch all extracted fields into the in-memory lead, keeping existing values if new ones are null
+        Object.keys(f).forEach(key => { if (f[key] !== null && f[key] !== '') lead[key] = f[key]; });
+
+        // Always set the canonical planit link from the detail response
+        if (data.link) lead.planit_url = data.link;
+
+        _detailFetched.add(idx);
+
+        // Attempt council-portal enrichment (agent_email via Idox REST if available)
+        try {
+          const ccParams = new URLSearchParams({ council: lead.council, uid: lead.uid });
+          const ccResp = await fetch(`/api/council-contact?${ccParams}`);
+          if (ccResp.ok) {
+            const cc = await ccResp.json();
+            if (cc.agent_email && !lead.agent_email) lead.agent_email = cc.agent_email;
+            if (cc.agent_phone && !lead.agent_phone) lead.agent_phone = cc.agent_phone;
+            if (cc.agent_name  && !lead.agent_name)  lead.agent_name  = cc.agent_name;
+          }
+        } catch(_) { /* enrichment failure is non-fatal */ }
+
+        renderExpandPanel(idx);
+
+      } catch(e) {
+        _detailFetched.add(idx);
+        // Still render with whatever data we already have from the list fetch
+        renderExpandPanel(idx);
+      }
+    }
+
+    // Re-render just the detail panel for a row (without closing/reopening the row)
+    function renderExpandPanel(idx) {
+      const l = window._scanLeads[idx];
+      if (!l) return;
+      const panel = document.getElementById('expand-detail-' + idx);
+      if (!panel) return;
+
+      // Switch panel to vertical flow now that content is ready
+      panel.className = 'flex-1 min-w-0 flex flex-col';
+
+      const daysLeft  = l.target_decision_date ? Math.ceil((new Date(l.target_decision_date) - new Date()) / 86400000) : null;
+      const urgCls    = daysLeft === null ? 'bg-white/5 border-white/10 text-zinc-500'
+                      : daysLeft < 0     ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                      : daysLeft <= 14   ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                      :                    'bg-white/5 border-white/10 text-zinc-500';
+      const daysLabel = daysLeft === null ? l.target_decision_date
+                      : daysLeft < 0     ? `${Math.abs(daysLeft)}d overdue`
+                      :                    `${daysLeft}d left`;
+
+      const hasApplicant = l.applicant_name || l.applicant_address;
+      const hasAgent     = l.agent_name || l.agent_address || l.agent_phone || l.agent_email;
+      const hasContact   = hasApplicant || hasAgent;
+
+      // Build email template body for mailto link
+      const fname   = ((l.applicant_name || l.agent_name || 'there').split(' ')[0]);
+      const addrShort = l.address ? l.address.split(',')[0] : 'your property';
+      const emailBody = encodeURIComponent(`Hi ${fname},\n\nI noticed your recent planning application for ${addrShort} and wanted to reach out. We specialise in exactly this type of project and would love the opportunity to quote for the works.\n\nWould you be available for a brief call or site visit?\n\nKind regards`);
+      const emailSubj = encodeURIComponent(`Re: Planning Application — ${addrShort}`);
+      // If we have a real agent email, use it in the mailto; otherwise leave address blank
+      const mailtoAddr = l.agent_email ? encodeURIComponent(l.agent_email) : '';
+
+      panel.innerHTML = `
+        <!-- ① Pills row — always full-width horizontal -->
+        <div class="flex flex-wrap gap-1.5 pb-3">
+          ${l.app_type    ? `<span class="pill bg-blue-500/10 border-blue-500/20 text-blue-400"><iconify-icon icon="solar:document-text-linear" style="font-size:10px;"></iconify-icon>${l.app_type}</span>` : ''}
+          ${l.app_state   ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${l.app_state}</span>` : ''}
+          ${l.app_size    ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${l.app_size}</span>` : ''}
+          ${l.ward_name   ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:map-point-linear" style="font-size:10px;"></iconify-icon>${l.ward_name}</span>` : ''}
+          ${l.postcode    ? `<span class="pill bg-white/5 border-white/10 text-zinc-500 font-mono">${l.postcode}</span>` : ''}
+          ${l.start_date  ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:calendar-linear" style="font-size:10px;"></iconify-icon>Submitted ${l.start_date}</span>` : ''}
+          ${l.target_decision_date ? `<span class="pill border ${urgCls}"><iconify-icon icon="solar:clock-circle-linear" style="font-size:10px;"></iconify-icon>Decision ${daysLabel}</span>` : ''}
+          ${l.consulted_date ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:chat-line-linear" style="font-size:10px;"></iconify-icon>Consultation ends ${l.consulted_date}</span>` : ''}
+          ${l.n_documents ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:file-text-linear" style="font-size:10px;"></iconify-icon>${l.n_documents} docs</span>` : ''}
+        </div>
+
+        <!-- ② Planning description — full width -->
+        ${l.description ? `<div class="border-t border-white/5 pt-3 pb-3">
+          <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Planning Description</div>
+          <p class="text-zinc-300 text-xs leading-relaxed">${l.description}</p>
+        </div>` : ''}
+
+        <!-- ③ Contact Details — full width with quick-action buttons -->
+        <div class="border-t border-white/5 pt-3 pb-3">
+          <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Contact Details</div>
+          ${hasContact ? `
+            <div class="grid grid-cols-2 gap-4 mb-3">
+              ${hasApplicant ? `<div>
+                <div class="text-[10px] text-zinc-600 mb-1">Applicant</div>
+                <div class="text-xs text-white font-medium">${l.applicant_name || '—'}</div>
+                ${l.applicant_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${l.applicant_address}</div>` : ''}
+              </div>` : '<div></div>'}
+              ${hasAgent ? `<div>
+                <div class="text-[10px] text-zinc-600 mb-1">Agent / Architect</div>
+                <div class="text-xs text-white font-medium">${l.agent_name || '—'}</div>
+                ${l.agent_email   ? `<div class="text-[11px] text-blue-400 mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:10px;"></iconify-icon>${l.agent_email}</div>` : ''}
+                ${l.agent_phone   ? `<div class="text-[11px] text-brand mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:10px;"></iconify-icon>${l.agent_phone}</div>` : ''}
+                ${l.agent_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${l.agent_address}</div>` : ''}
+              </div>` : '<div></div>'}
+            </div>
+          ` : `<p class="text-[11px] text-zinc-600 mb-2">Contact details not published for this council. Use the portal link below to find applicant/agent information.</p>`}
+          <!-- Quick-action reach-out buttons -->
+          <div class="flex flex-wrap gap-2">
+            ${l.agent_phone ? `<a href="tel:${l.agent_phone}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-brand border border-brand/30 bg-brand/8 hover:bg-brand/15 px-2.5 py-1.5 rounded-lg transition-all font-medium"><iconify-icon icon="solar:phone-linear" style="font-size:11px;"></iconify-icon>Call ${l.agent_phone}</a>` : ''}
+            <a href="mailto:${mailtoAddr}?subject=${emailSubj}&body=${emailBody}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] ${l.agent_email ? 'text-blue-300 border-blue-400/40 bg-blue-500/10 hover:bg-blue-500/20' : 'text-blue-400 border-blue-500/25 bg-blue-500/8 hover:bg-blue-500/15'} border px-2.5 py-1.5 rounded-lg transition-all font-medium"><iconify-icon icon="solar:letter-linear" style="font-size:11px;"></iconify-icon>${l.agent_email ? `Email ${l.agent_email.split('@')[0]}` : 'Draft Email'}</a>
+            ${(l.council_url || l.planit_url) ? `<a href="${l.council_url || l.planit_url}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 border border-white/10 hover:border-brand/30 hover:text-brand px-2.5 py-1.5 rounded-lg transition-all"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:11px;"></iconify-icon>View Application</a>` : ''}
+          </div>
+        </div>
+
+        <!-- ④ AI reasoning — full width, only if present -->
+        ${l.score_reasoning ? `<div class="border-t border-white/5 pt-3 pb-3">
+          <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5 flex items-center gap-1.5">
+            <iconify-icon icon="solar:magic-stick-3-linear" style="font-size:11px;color:#00d084;"></iconify-icon>AI Reasoning
+          </div>
+          <p class="text-zinc-400 text-xs leading-relaxed">${l.score_reasoning}</p>
+        </div>` : ''}
+
+        <!-- ⑤ Outreach templates — collapsed by default -->
+        <div class="border-t border-white/5 pt-3">
+          <button onclick="event.stopPropagation();toggleAccordion('otmpl-${idx}')"
+            class="flex items-center justify-between w-full mb-0 group">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-600 flex items-center gap-1.5">
+              <iconify-icon icon="solar:chat-round-dots-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
+              Outreach Templates
+            </div>
+            <iconify-icon id="acc-icon-otmpl-${idx}" icon="solar:alt-arrow-down-linear"
+              style="font-size:12px;color:#52525b;transition:transform 0.2s;"></iconify-icon>
+          </button>
+          <div id="acc-otmpl-${idx}" class="hidden mt-2">
+            ${buildOutreachTemplates(l.applicant_name, l.address, l.app_type, idx)}
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleCouncilCard(ci) {
+      const card = document.getElementById('cc-' + ci);
+      const body = document.getElementById('cc-body-' + ci);
+      const icon = document.getElementById('cc-icon-' + ci);
+      if (!body) return;
+      const opening = !body.classList.contains('visible');
+      body.classList.toggle('visible', opening);
+      card.classList.toggle('open', opening);
+      if (icon) icon.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function toggleAccordion(id) {
+      const el = document.getElementById('acc-' + id);
+      const icon = document.getElementById('acc-icon-' + id);
+      if (!el) return;
+      const opening = el.classList.contains('hidden');
+      el.classList.toggle('hidden', !opening);
+      if (icon) icon.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function copyTemplate(id) {
+      const el = document.getElementById('tmpl-' + id);
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText).then(() => {
+        const btn = document.getElementById('copybtn-' + id);
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:11px;"></iconify-icon> Copied';
+        btn.classList.add('text-brand');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); }, 2000);
+      });
+    }
+
+    // Store templates for selectTemplate() to access
+    window._outreachTemplates = window._outreachTemplates || {};
+
+    function buildOutreachTemplates(name, address, appType, key) {
+      const fname = (name || 'there').split(' ')[0];
+      const addr  = address ? address.split(',')[0] : 'your property';
+      const type  = appType || 'planning application';
+      const templates = [
+        { label: 'SMS — First Contact',          icon: 'solar:phone-linear',         color: '#00d084',
+          text: `Hi ${fname}, I came across your ${type} for ${addr} and I'd love to help bring it to life. We specialise in exactly this kind of work and can give you a free quote. Would you be open to a quick chat? Thanks` },
+        { label: 'Email — Introduction',          icon: 'solar:letter-linear',         color: '#60a5fa',
+          text: `Hi ${fname},\n\nI noticed your recent ${type} for ${addr} and wanted to reach out. We're a local contractor with extensive experience in this type of project and would love the opportunity to quote for the works.\n\nWe pride ourselves on quality, competitive pricing, and working closely with homeowners throughout the process.\n\nWould you be available for a brief call or site visit this week?\n\nKind regards` },
+        { label: 'Follow-Up — No Response',       icon: 'solar:refresh-linear',        color: '#fbbf24',
+          text: `Hi ${fname}, just following up on my previous message regarding your project at ${addr}. I understand you're likely busy with the planning process — we work with clients at exactly this stage to get everything lined up ready for approval. Happy to chat at your convenience. No pressure at all.` },
+        { label: 'Email — Urgency / Decision Soon', icon: 'solar:clock-circle-linear', color: '#f87171',
+          text: `Hi ${fname},\n\nI wanted to get in touch as your ${type} at ${addr} looks like it may be approaching its decision date. Now is a great time to get quotes in so you're ready to move quickly once approved.\n\nWe can often start within days of approval and offer flexible payment terms.\n\nWould love to discuss — feel free to call or reply to this email.\n\nBest wishes` },
+      ];
+
+      // Store so selectTemplate() can look them up
+      window._outreachTemplates[key] = templates;
+
+      const opts = templates.map((t, i) => `<option value="${i}">${t.label}</option>`).join('');
+
+      return `
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
+          <!-- Header row -->
+          <div class="flex items-center gap-2.5 px-3 py-2.5 border-b border-white/8 bg-white/[0.02]">
+            <div class="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style="background:${templates[0].color}18">
+              <iconify-icon id="tmpl-icon-${key}" icon="${templates[0].icon}" style="font-size:12px;color:${templates[0].color};"></iconify-icon>
+            </div>
+            <select id="tmpl-sel-${key}"
+              onchange="event.stopPropagation();selectTemplate('${key}')"
+              onclick="event.stopPropagation()"
+              class="flex-1 bg-transparent text-[11px] font-medium text-zinc-200 outline-none cursor-pointer"
+              style="appearance:none;border:none;">
+              ${opts}
+            </select>
+            <iconify-icon icon="solar:alt-arrow-down-linear" style="font-size:11px;color:#71717a;flex-shrink:0;pointer-events:none;"></iconify-icon>
+            <div class="w-px h-3.5 bg-white/10 flex-shrink-0 mx-0.5"></div>
+            <button id="tmpl-copybtn-${key}" onclick="event.stopPropagation();copyTemplateDropdown('${key}')"
+              class="flex-shrink-0 flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-white transition-colors px-1.5 py-0.5 rounded hover:bg-white/8">
+              <iconify-icon icon="solar:copy-linear" style="font-size:11px;"></iconify-icon> Copy
+            </button>
+          </div>
+          <!-- Template text preview -->
+          <p id="tmpl-${key}" class="text-zinc-500 text-[11px] leading-relaxed whitespace-pre-line px-3 py-2.5">${templates[0].text}</p>
+        </div>`;
+    }
+
+    function selectTemplate(key) {
+      const sel = document.getElementById('tmpl-sel-' + key);
+      const txt = document.getElementById('tmpl-' + key);
+      const ico = document.getElementById('tmpl-icon-' + key);
+      if (!sel || !txt) return;
+      const i = parseInt(sel.value, 10);
+      const templates = window._outreachTemplates[key];
+      if (!templates || !templates[i]) return;
+      txt.textContent = templates[i].text;
+      if (ico) {
+        ico.setAttribute('icon', templates[i].icon);
+        ico.style.color = templates[i].color;
+        const wrap = ico.parentElement;
+        if (wrap) wrap.style.background = templates[i].color + '18';
+      }
+    }
+
+    function copyTemplateDropdown(key) {
+      const txt = document.getElementById('tmpl-' + key);
+      const btn = document.getElementById('tmpl-copybtn-' + key);
+      if (!txt || !btn) return;
+      navigator.clipboard.writeText(txt.innerText).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:11px;"></iconify-icon> Copied';
+        btn.classList.add('text-brand');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); }, 2000);
+      });
+    }
+
+    function toggleContactExpand(ci) {
+      const row = document.getElementById('cexpand-row-' + ci);
+      const icon = document.getElementById('cexpand-icon-' + ci);
+      const isHidden = row.classList.contains('hidden');
+      row.classList.toggle('hidden', !isHidden);
+      if (icon) icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function toggleExpand(i) {
+      const expandRow = document.getElementById('expand-row-' + i);
+      const icon = document.getElementById('expand-icon-' + i);
+      const isHidden = expandRow.classList.contains('hidden');
+      expandRow.classList.toggle('hidden', !isHidden);
+      if (icon) icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+      // Auto-fetch detail from PlanIt the first time a row is opened
+      if (isHidden) fetchPlanitDetails(i, true);
+    }
+
+    function copyReportLink() {
+      const url = window.location.origin + '/dashboard.html';
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copyLinkBtn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:13px;"></iconify-icon> Copied!';
+        btn.classList.add('text-brand');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); }, 2000);
+      });
+    }
+
+    async function sendReportEmail() {
+      const btn = document.getElementById('sendReportBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Sending…';
+
+      // Build a simple summary
+      const total = lastScanResults.length;
+      const high  = lastScanResults.filter(l => l.priority === 'HIGH').length;
+      const dashUrl = window.location.origin + '/dashboard.html';
+
+      // If Resend API key is configured server-side via Trigger.dev, call that.
+      // For now, fall back to mailto so it always works.
+      const subject = encodeURIComponent(`PPM Scan Report — ${total} leads found`);
+      const body = encodeURIComponent(
+        `PPM Scan Report\n\nTotal leads: ${total}\nHigh priority: ${high}\n\nView full results: ${dashUrl}\n\nSent from PPM Admin Panel`
+      );
+      window.open(`mailto:nicomistry@gmail.com?subject=${subject}&body=${body}`);
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon> Send report';
+      }, 1500);
+    }
+
+    function setProgress(done, total) {
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressPct').textContent  = pct + '%';
+      document.getElementById('progressLabel').textContent = done === total && total > 0 ? 'COMPLETE' : 'SCANNING…';
+    }
+
+    function clearLog() {
+      document.getElementById('scanLog').innerHTML = '';
+    }
+
+    function appendLog(cls, text) {
+      const log = document.getElementById('scanLog');
+      log.innerHTML += `<span class="${cls}">${text}</span><br>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // ── Auth + admin guard ────────────────────────────────────────────────────
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+
+      const { data: profile } = await sb.from('profiles')
+        .select('is_admin')
+        .eq('user_id', session.user.id)
+        .single();
+      if (!profile?.is_admin) {
+        document.getElementById('accessDenied').classList.remove('hidden');
+        document.getElementById('accessDenied').classList.add('flex');
+        return;
+      }
+
+      document.getElementById('adminContent').classList.remove('hidden');
+      buildChips();
+      buildTradeChips();
+      loadRequests();
+    }
+
+    init();
+
+    // ── Load demo requests ────────────────────────────────────────────────────
+    async function loadRequests() {
+      document.getElementById('tableLoading').classList.remove('hidden');
+      document.getElementById('tableWrap').classList.add('hidden');
+      document.getElementById('tableEmpty').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('demo_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      document.getElementById('tableLoading').classList.add('hidden');
+
+      if (error) {
+        console.error(error);
+        document.getElementById('tableEmpty').classList.remove('hidden');
+        document.getElementById('tableEmpty').classList.add('flex');
+        return;
+      }
+
+      allRequests = data || [];
+      updateStats(allRequests);
+      renderTable();
+    }
+
+    function updateStats(rows) {
+      document.getElementById('statAll').textContent       = rows.length;
+      document.getElementById('statNew').textContent       = rows.filter(r => r.status === 'new').length;
+      document.getElementById('statContacted').textContent = rows.filter(r => r.status === 'contacted').length;
+      document.getElementById('statConverted').textContent = rows.filter(r => r.status === 'converted').length;
+    }
+
+    function renderTable() {
+      const statusFilter = document.getElementById('filterStatus').value;
+      const search       = document.getElementById('filterSearch').value.toLowerCase();
+
+      let rows = allRequests;
+      if (statusFilter) rows = rows.filter(r => r.status === statusFilter);
+      if (search) rows = rows.filter(r =>
+        (r.first_name + ' ' + r.last_name).toLowerCase().includes(search) ||
+        (r.email || '').toLowerCase().includes(search) ||
+        (r.trade || '').toLowerCase().includes(search)
+      );
+
+      if (rows.length === 0) {
+        document.getElementById('tableWrap').classList.add('hidden');
+        document.getElementById('tableEmpty').classList.remove('hidden');
+        document.getElementById('tableEmpty').classList.add('flex');
+        return;
+      }
+
+      document.getElementById('tableEmpty').classList.add('hidden');
+      document.getElementById('tableEmpty').classList.remove('flex');
+      document.getElementById('tableWrap').classList.remove('hidden');
+
+      const statusClass = {
+        new: 'status-new', contacted: 'status-contacted',
+        converted: 'status-converted', closed: 'status-closed'
+      };
+
+      document.getElementById('tableBody').innerHTML = rows.map(r => {
+        const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB') : '—';
+        const cls  = statusClass[r.status] || 'status-new';
+        const notes = r.notes ? r.notes.slice(0, 40) + (r.notes.length > 40 ? '…' : '') : '';
+        return `
+          <tr class="row-hover border-b border-white/5 transition-colors">
+            <td class="px-4 py-3 text-white text-xs font-medium whitespace-nowrap">${r.first_name} ${r.last_name}</td>
+            <td class="px-4 py-3 text-zinc-300 text-xs">${r.email}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">${r.phone}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs">${r.trade}</td>
+            <td class="px-4 py-3">
+              <select onchange="updateStatus('${r.id}', this.value)"
+                class="text-[11px] font-medium px-2 py-0.5 rounded-full ${cls} bg-transparent border-0 cursor-pointer focus:outline-none">
+                <option value="new"       ${r.status==='new'       ?'selected':''}>New</option>
+                <option value="contacted" ${r.status==='contacted' ?'selected':''}>Contacted</option>
+                <option value="converted" ${r.status==='converted' ?'selected':''}>Converted</option>
+                <option value="closed"    ${r.status==='closed'    ?'selected':''}>Closed</option>
+              </select>
+            </td>
+            <td class="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">${date}</td>
+            <td class="px-4 py-3">
+              <button onclick="openNotes('${r.id}', \`${(r.notes||'').replace(/`/g,"'")}\`)"
+                class="text-xs text-zinc-500 hover:text-brand transition-colors flex items-center gap-1">
+                <iconify-icon icon="solar:notes-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+                ${notes || 'Add note'}
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function updateStatus(id, status) {
+      await sb.from('demo_requests').update({ status }).eq('id', id);
+      const row = allRequests.find(r => r.id === id);
+      if (row) { row.status = status; updateStats(allRequests); }
+    }
+
+    function openNotes(id, currentNotes) {
+      activeNoteId = id;
+      document.getElementById('notesText').value = currentNotes;
+      document.getElementById('notesModal').classList.remove('hidden');
+      document.getElementById('notesModal').classList.add('flex');
+    }
+
+    function closeNotes() {
+      activeNoteId = null;
+      document.getElementById('notesModal').classList.add('hidden');
+      document.getElementById('notesModal').classList.remove('flex');
+    }
+
+    async function saveNotes() {
+      const notes = document.getElementById('notesText').value.trim();
+      await sb.from('demo_requests').update({ notes }).eq('id', activeNoteId);
+      const row = allRequests.find(r => r.id === activeNoteId);
+      if (row) row.notes = notes;
+      closeNotes();
+      renderTable();
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      ['demos','leads','contacts'].forEach(t => {
+        document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById('tab-' + t);
+        if (t === tab) {
+          btn.classList.add('bg-white/10','text-white');
+          btn.classList.remove('text-zinc-500');
+        } else {
+          btn.classList.remove('bg-white/10','text-white');
+          btn.classList.add('text-zinc-500');
+        }
+      });
+      if (tab === 'leads')    loadLeads();
+      if (tab === 'contacts') loadContacts();
+    }
+
+    // ── Load all leads (admin) ────────────────────────────────────────────────
+    let allLeads = [];
+
+    async function loadLeads() {
+      document.getElementById('lTableLoading').classList.remove('hidden');
+      document.getElementById('lTableWrap').classList.add('hidden');
+      document.getElementById('lTableEmpty').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('leads')
+        .select('*')
+        .order('opportunity_score', { ascending: false });
+
+      document.getElementById('lTableLoading').classList.add('hidden');
+
+      if (error) {
+        console.error(error);
+        document.getElementById('lTableEmpty').classList.remove('hidden');
+        document.getElementById('lTableEmpty').classList.add('flex');
+        return;
+      }
+
+      allLeads = data || [];
+
+      // populate council filter
+      const councils = [...new Set(allLeads.map(l => l.council).filter(Boolean))].sort();
+      const sel = document.getElementById('lFilterCouncil');
+      sel.innerHTML = '<option value="">All councils</option>' +
+        councils.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      updateLeadStats(allLeads);
+      renderLeads();
+    }
+
+    function updateLeadStats(rows) {
+      document.getElementById('lstatAll').textContent    = rows.length;
+      document.getElementById('lstatHigh').textContent   = rows.filter(r => r.priority === 'HIGH').length;
+      document.getElementById('lstatMedium').textContent = rows.filter(r => r.priority === 'MEDIUM').length;
+      const scores = rows.map(r => r.opportunity_score).filter(Boolean);
+      document.getElementById('lstatAvg').textContent    = scores.length
+        ? Math.round(scores.reduce((a,b) => a+b, 0) / scores.length)
+        : '—';
+    }
+
+    function renderLeads() {
+      const council  = document.getElementById('lFilterCouncil').value;
+      const priority = document.getElementById('lFilterPriority').value;
+      const search   = document.getElementById('lFilterSearch').value.toLowerCase();
+
+      let rows = allLeads;
+      if (council)  rows = rows.filter(r => r.council === council);
+      if (priority) rows = rows.filter(r => r.priority === priority);
+      if (search)   rows = rows.filter(r =>
+        (r.address || '').toLowerCase().includes(search) ||
+        (r.description || '').toLowerCase().includes(search)
+      );
+
+      if (rows.length === 0) {
+        document.getElementById('lTableWrap').classList.add('hidden');
+        document.getElementById('lTableEmpty').classList.remove('hidden');
+        document.getElementById('lTableEmpty').classList.add('flex');
+        return;
+      }
+
+      document.getElementById('lTableEmpty').classList.add('hidden');
+      document.getElementById('lTableEmpty').classList.remove('flex');
+      document.getElementById('lTableWrap').classList.remove('hidden');
+
+      const priClass = { HIGH:'text-green-400', MEDIUM:'text-yellow-400', LOW:'text-zinc-500' };
+
+      document.getElementById('lTableBody').innerHTML = rows.map(r => {
+        const date = r.scraped_date || (r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB') : '—');
+        const pri  = r.priority || '—';
+        return `
+          <tr class="row-hover border-b border-white/5 transition-colors">
+            <td class="px-4 py-3 text-white text-xs font-medium max-w-xs truncate">${r.address || '—'}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">${r.council || '—'}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs">${r.app_type || '—'}</td>
+            <td class="px-4 py-3 text-xs font-medium ${priClass[pri] || 'text-zinc-500'}">${pri}</td>
+            <td class="px-4 py-3 text-brand text-xs font-mono">${r.opportunity_score ?? '—'}</td>
+            <td class="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">${date}</td>
+            <td class="px-4 py-3 text-zinc-600 text-[10px] font-mono truncate max-w-[120px]">${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ── Contacts ──────────────────────────────────────────────────────────────
+    let allContacts = [];
+
+    async function saveContact(rowIdx, uid) {
+      const lead = (window._scanLeads || [])[rowIdx];
+      if (!lead) return;
+      const btn = document.getElementById('savebtn-' + rowIdx);
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:12px;"></iconify-icon>';
+
+      const { error } = await sb.from('contacts').insert({
+        name:                 lead.applicant_name || null,
+        phone:                lead.phone || null,
+        email:                lead.email || null,
+        address:              lead.address || null,
+        council:              lead.council || null,
+        app_type:             lead.app_type || null,
+        priority:             lead.priority || null,
+        score:                lead.score || null,
+        status:               'new',
+        description:          lead.description || null,
+        score_reasoning:      lead.score_reasoning || null,
+        dwelling_type:        lead.dwelling_type || null,
+        development_scale:    lead.development_scale || null,
+        unit_count:           lead.unit_count || null,
+        uid:                  lead.uid || null,
+        start_date:           lead.start_date || null,
+        target_decision_date: lead.target_decision_date || null,
+        agent_name:           lead.agent_name || null,
+        app_state:            lead.app_state || null,
+        planit_url:           lead.planit_url || null,
+      });
+
+      if (error) {
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:user-plus-rounded-linear" style="font-size:12px;"></iconify-icon> Save';
+        appendLog('log-err', '  ✗ Could not save contact: ' + error.message);
+        return;
+      }
+
+      // persist in localStorage so button stays saved after re-render
+      const saved = new Set(JSON.parse(localStorage.getItem('ppm_saved_contacts') || '[]'));
+      saved.add(uid);
+      localStorage.setItem('ppm_saved_contacts', JSON.stringify([...saved]));
+
+      // highlight the whole row green
+      const row = document.getElementById('result-row-' + rowIdx);
+      if (row) row.classList.add('row-saved');
+
+      // update button with pulse animation
+      btn.className = 'flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg whitespace-nowrap bg-brand/10 text-brand border border-brand/30 cursor-default btn-saved-pulse';
+      btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:12px;"></iconify-icon> Saved';
+
+      // refresh contacts tab data in background so it's ready when user switches to it
+      loadContacts();
+    }
+
+    async function loadContacts() {
+      document.getElementById('cTableLoading').classList.remove('hidden');
+      document.getElementById('cTableWrap').classList.add('hidden');
+      document.getElementById('cTableEmpty').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('contacts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      document.getElementById('cTableLoading').classList.add('hidden');
+
+      if (error) {
+        console.error('loadContacts error:', error);
+        document.getElementById('cTableEmpty').innerHTML = `<div class="text-center"><p class="text-red-400 text-sm font-medium">Failed to load contacts</p><p class="text-zinc-600 text-xs mt-1">${error.message}</p></div>`;
+        document.getElementById('cTableEmpty').classList.remove('hidden');
+        document.getElementById('cTableEmpty').classList.add('flex');
+        return;
+      }
+      if (!data || data.length === 0) {
+        document.getElementById('cTableEmpty').innerHTML = `<div class="text-center"><iconify-icon icon="solar:users-group-rounded-linear" style="font-size:32px;color:#27272a;"></iconify-icon><p class="text-zinc-600 text-sm mt-2">No contacts saved yet</p></div>`;
+        document.getElementById('cTableEmpty').classList.remove('hidden');
+        document.getElementById('cTableEmpty').classList.add('flex');
+        return;
+      }
+
+      allContacts = data;
+      const badge = document.getElementById('contactsCountBadge');
+      badge.textContent = data.length; badge.classList.remove('hidden');
+      renderContacts();
+    }
+
+    function renderContacts() {
+      const statusFilter = document.getElementById('cFilterStatus').value;
+      const search       = document.getElementById('cFilterSearch').value.toLowerCase();
+
+      let rows = allContacts;
+      if (statusFilter) rows = rows.filter(r => r.status === statusFilter);
+      if (search) rows = rows.filter(r =>
+        (r.name || '').toLowerCase().includes(search) ||
+        (r.address || '').toLowerCase().includes(search) ||
+        (r.email || '').toLowerCase().includes(search)
+      );
+
+      if (rows.length === 0) {
+        document.getElementById('cTableWrap').classList.add('hidden');
+        document.getElementById('cTableEmpty').classList.remove('hidden');
+        document.getElementById('cTableEmpty').classList.add('flex');
+        return;
+      }
+      document.getElementById('cTableEmpty').classList.add('hidden');
+      document.getElementById('cTableEmpty').classList.remove('flex');
+      const wrap = document.getElementById('cTableWrap');
+      wrap.classList.remove('hidden');
+      wrap.classList.add('fade-in');
+
+      const statusClass = { new:'status-new', contacted:'status-contacted', converted:'status-converted', closed:'status-closed' };
+
+      document.getElementById('cTableBody').innerHTML = rows.map((r, ci) => {
+        const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB') : '—';
+        const cls  = statusClass[r.status] || 'status-new';
+        const daysLeft = r.target_decision_date ? Math.ceil((new Date(r.target_decision_date) - new Date()) / 86400000) : null;
+        const urgencyCls = daysLeft === null ? 'text-zinc-300' : daysLeft < 0 ? 'text-red-400' : daysLeft <= 14 ? 'text-amber-400' : 'text-zinc-300';
+        const daysLabel = daysLeft === null ? null : daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d remaining`;
+        const valueEst = (() => { const s=(r.development_scale||'').toLowerCase(),u=r.unit_count||1; if(s.includes('large')||u>=10) return '£80k–£250k+'; if(s.includes('medium')||u>=3) return '£30k–£80k'; if(s.includes('small')||u>=2) return '£15k–£40k'; return '£8k–£25k'; })();
+        const planUrl = r.planit_url || (r.uid ? `https://www.planit.org.uk/api/applics/json?auth=rbkc&uid=${r.uid}` : null);
+        return `
+          <tr id="crow-${ci}" onclick="toggleContactExpand(${ci})" style="cursor:pointer"
+            class="row-hover border-b border-white/5">
+            <td class="px-4 py-3">
+              <div class="text-white text-xs font-medium whitespace-nowrap">${r.name || '—'}</div>
+              ${r.agent_name ? `<div class="text-zinc-600 text-[10px] mt-0.5">Agent: ${r.agent_name}</div>` : ''}
+            </td>
+            <td class="px-4 py-3 text-xs whitespace-nowrap" onclick="event.stopPropagation()">
+              ${r.phone ? `<a href="tel:${r.phone}" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${r.phone}</a>` : '<span class="text-zinc-600">—</span>'}
+            </td>
+            <td class="px-4 py-3 text-xs whitespace-nowrap" onclick="event.stopPropagation()">
+              ${r.email ? `<a href="mailto:${r.email}" class="text-blue-400 hover:text-blue-300 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:12px;"></iconify-icon>${r.email}</a>` : '<span class="text-zinc-600">—</span>'}
+            </td>
+            <td class="px-4 py-3 text-zinc-400 text-xs max-w-[160px] truncate">${r.address || '—'}</td>
+            <td class="px-4 py-3"><span class="pri-badge pri-${r.priority || 'LOW'}">${r.priority || '—'}</span></td>
+            <td class="px-4 py-3 text-brand text-xs font-mono font-semibold">${r.score ?? '—'}</td>
+            <td class="px-4 py-3" onclick="event.stopPropagation()">
+              <select onchange="updateContactStatus('${r.id}', this.value)"
+                class="text-[11px] font-medium px-2 py-0.5 rounded-full ${cls} bg-transparent border-0 cursor-pointer focus:outline-none">
+                <option value="new"       ${r.status==='new'       ?'selected':''}>New</option>
+                <option value="contacted" ${r.status==='contacted' ?'selected':''}>Contacted</option>
+                <option value="converted" ${r.status==='converted' ?'selected':''}>Converted</option>
+                <option value="closed"    ${r.status==='closed'    ?'selected':''}>Closed</option>
+              </select>
+            </td>
+            <td class="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">${date}</td>
+            <td class="px-4 py-3 text-center">
+              <iconify-icon id="cexpand-icon-${ci}" icon="solar:alt-arrow-down-linear" style="font-size:14px;color:#52525b;transition:transform 0.25s;"></iconify-icon>
+            </td>
+            <td class="px-4 py-3" onclick="event.stopPropagation()">
+              <button onclick="deleteContact('${r.id}')" class="text-zinc-600 hover:text-red-400 transition-colors">
+                <iconify-icon icon="solar:trash-bin-trash-linear" style="font-size:14px;stroke-width:1.5;"></iconify-icon>
+              </button>
+            </td>
+          </tr>
+          <tr id="cexpand-row-${ci}" class="hidden border-b border-white/5">
+            <td colspan="10" class="px-4 pb-4 pt-0">
+              <div class="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+                <div class="flex gap-5">
+                  <!-- LEFT -->
+                  <!-- LEFT: compact accordion -->
+                  <div class="flex flex-col gap-1.5" style="flex:0 0 220px;min-width:180px">
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:target-linear" style="font-size:11px;color:#00d084;"></iconify-icon><span class="text-[11px] text-zinc-500">Score</span></div>
+                        <span class="text-[11px] font-semibold text-brand font-mono">${r.score ?? '—'}/10</span>
+                      </div>
+                      <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:banknote-linear" style="font-size:11px;color:#a78bfa;"></iconify-icon><span class="text-[11px] text-zinc-500">Est. contract</span></div>
+                        <span class="text-[11px] font-semibold text-violet-400">${valueEst}</span>
+                      </div>
+                      ${daysLabel ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:clock-circle-linear" style="font-size:11px;color:#fbbf24;"></iconify-icon><span class="text-[11px] text-zinc-500">Decision</span></div>
+                        <span class="text-[11px] font-semibold ${urgencyCls}">${daysLabel}</span>
+                      </div>` : ''}
+                      ${r.app_state ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:document-linear" style="font-size:11px;color:#94a3b8;"></iconify-icon><span class="text-[11px] text-zinc-500">Status</span></div>
+                        <span class="text-[11px] font-semibold text-slate-300">${r.app_state}</span>
+                      </div>` : ''}
+                      ${r.development_scale ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:scale-linear" style="font-size:11px;color:#34d399;"></iconify-icon><span class="text-[11px] text-zinc-500">Scale</span></div>
+                        <span class="text-[11px] font-semibold text-emerald-400">${r.development_scale}</span>
+                      </div>` : ''}
+                      ${r.unit_count > 1 ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
+                        <div class="flex items-center gap-1.5"><iconify-icon icon="solar:buildings-2-linear" style="font-size:11px;color:#60a5fa;"></iconify-icon><span class="text-[11px] text-zinc-500">Units</span></div>
+                        <span class="text-[11px] font-semibold text-blue-400">${r.unit_count}</span>
+                      </div>` : ''}
+                    </div>
+                    <button onclick="event.stopPropagation();toggleAccordion('cdet-${ci}')" class="flex items-center justify-between w-full py-1.5 px-2 rounded-lg border border-white/6 text-[11px] text-zinc-500 hover:text-zinc-300 hover:border-white/12">
+                      <span>Details</span>
+                      <iconify-icon id="acc-icon-cdet-${ci}" icon="solar:alt-arrow-down-linear" style="font-size:11px;transition:transform 0.2s;"></iconify-icon>
+                    </button>
+                    <div id="acc-cdet-${ci}" class="hidden space-y-1.5 px-1">
+                      ${r.council ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Council</span><span class="text-[10px] text-zinc-400 text-right">${r.council}</span></div>` : ''}
+                      ${r.address ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Address</span><span class="text-[10px] text-zinc-400 text-right truncate max-w-[110px]">${r.address}</span></div>` : ''}
+                      ${r.dwelling_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Dwelling</span><span class="text-[10px] text-zinc-400 text-right">${r.dwelling_type}</span></div>` : ''}
+                      ${r.start_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Submitted</span><span class="text-[10px] text-zinc-400 font-mono">${r.start_date}</span></div>` : ''}
+                      ${r.target_decision_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Decision by</span><span class="text-[10px] ${urgencyCls} font-mono">${r.target_decision_date}</span></div>` : ''}
+                      ${r.uid ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Ref</span><span class="text-[10px] text-zinc-500 font-mono truncate">${r.uid}</span></div>` : ''}
+                      ${r.app_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Type</span><span class="text-[10px] text-zinc-400 text-right">${r.app_type}</span></div>` : ''}
+                      ${r.agent_name ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Agent</span><span class="text-[10px] text-zinc-400 text-right">${r.agent_name}</span></div>` : ''}
+                    </div>
+                    <button onclick="event.stopPropagation();toggleAccordion('cact-${ci}')" class="flex items-center justify-between w-full py-1.5 px-2 rounded-lg border border-white/6 text-[11px] text-zinc-500 hover:text-zinc-300 hover:border-white/12">
+                      <span>Contact</span>
+                      <iconify-icon id="acc-icon-cact-${ci}" icon="solar:alt-arrow-down-linear" style="font-size:11px;transition:transform 0.2s;"></iconify-icon>
+                    </button>
+                    <div id="acc-cact-${ci}" class="hidden flex flex-col gap-1.5 px-1">
+                      ${planUrl ? `<a href="${planUrl}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-brand border border-white/8 hover:border-brand/30 px-2.5 py-1.5 rounded-lg"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:11px;"></iconify-icon>PlanIt</a>` : ''}
+                      ${r.phone ? `<a href="tel:${r.phone}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-brand border border-white/8 hover:border-brand/30 px-2.5 py-1.5 rounded-lg"><iconify-icon icon="solar:phone-linear" style="font-size:11px;"></iconify-icon>Call ${r.name || 'Contact'}</a>` : ''}
+                      ${r.email ? `<a href="mailto:${r.email}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-blue-400 border border-white/8 hover:border-blue-500/30 px-2.5 py-1.5 rounded-lg"><iconify-icon icon="solar:letter-linear" style="font-size:11px;"></iconify-icon>Email</a>` : ''}
+                    </div>
+                  </div>
+                  <!-- DIVIDER -->
+                  <div class="w-px flex-shrink-0" style="background:rgba(255,255,255,0.06)"></div>
+                  <!-- RIGHT: description + reasoning + outreach -->
+                  <div class="flex-1 flex flex-col gap-3 min-w-0">
+                    ${r.description ? `<div>
+                      <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Planning Description</div>
+                      <p class="text-zinc-300 text-xs leading-relaxed">${r.description}</p>
+                    </div>` : ''}
+                    ${r.score_reasoning ? `<div class="${r.description ? 'border-t border-white/5 pt-3' : ''}">
+                      <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5 flex items-center gap-1.5">
+                        <iconify-icon icon="solar:magic-stick-3-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
+                        AI Opportunity Reasoning
+                      </div>
+                      <p class="text-zinc-400 text-xs leading-relaxed">${r.score_reasoning}</p>
+                    </div>` : ''}
+                    ${r.notes ? `<div class="border-t border-white/5 pt-3">
+                      <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Notes</div>
+                      <p class="text-zinc-400 text-xs leading-relaxed">${r.notes}</p>
+                    </div>` : ''}
+                    <div class="${(r.description || r.score_reasoning || r.notes) ? 'border-t border-white/5 pt-3' : ''}">
+                      <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
+                        <iconify-icon icon="solar:chat-round-dots-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
+                        Outreach Templates
+                      </div>
+                      <div class="space-y-2">${buildOutreachTemplates(r.name, r.address, r.app_type, 'c' + ci)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function updateContactStatus(id, status) {
+      await sb.from('contacts').update({ status }).eq('id', id);
+      const row = allContacts.find(r => r.id === id);
+      if (row) row.status = status;
+    }
+
+    async function deleteContact(id) {
+      await sb.from('contacts').delete().eq('id', id);
+      allContacts = allContacts.filter(r => r.id !== id);
+      const badge = document.getElementById('contactsCountBadge');
+      badge.textContent = allContacts.length;
+      if (allContacts.length === 0) badge.classList.add('hidden');
+      renderContacts();
+    }
+
+    async function handleLogout() {
+      await sb.auth.signOut();
+      window.location.href = '/login.html';
+    }
+  </script>
+
+</body>
+</html>

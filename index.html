@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPM - Planning Application Intelligence For UK Tradesmen</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Geist', 'Inter', 'sans-serif'] },
+      colors: {
+        brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f', glow: 'rgba(0, 208, 132, 0.5)' },
+        dark: { bg: '#0a0a0a', surface: '#111111', border: '#1f1f1f' }
+      },
+      letterSpacing: { tighter: '-0.04em', tight: '-0.02em' },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'matrix-fall': 'matrixFall 18s linear infinite',
+        'marquee': 'marquee 38s linear infinite',
+        'marquee2': 'marquee 38s linear infinite',
+        'ping-slow': 'ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'scroll-reveal': 'scrollReveal 0.6s ease-out forwards',
+      },
+      keyframes: {
+        fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        matrixFall: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } },
+        marquee: { '0%': { transform: 'translateX(0%)' }, '100%': { transform: 'translateX(-50%)' } },
+        scrollReveal: { '0%': { opacity: '0', transform: 'translateY(24px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+      }
+    }
+  }
+}
+</script>
+<style>
+body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antialiased; }
+.glass-panel { background: rgba(17, 17, 17, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
+.bg-grid { background-size: 40px 40px; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); mask-image: radial-gradient(circle at center, black, transparent 80%); }
+.feature-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.feature-card:hover { border-color: rgba(0,208,132,0.3); background: rgba(17,17,17,0.95); transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(0,208,132,0.18); }
+.transition-all-ease { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.matrix-layer { background-image: linear-gradient(to bottom, rgba(0,208,132,0.18), transparent 60%); mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); opacity: 0.4; }
+.who-card { transition: box-shadow 0.3s ease, border-color 0.3s ease; }
+.who-card:hover { box-shadow: 0 0 20px rgba(0,208,132,0.25); border-color: rgba(0,208,132,0.5); }
+.input-field { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.2s, box-shadow 0.2s; }
+.input-field:focus { outline: none; border-color: #00d084; box-shadow: 0 0 0 3px rgba(0,208,132,0.12); }
+.marquee-track { display: flex; width: max-content; }
+.marquee-track:hover { animation-play-state: paused; }
+.glow-green { box-shadow: 0 0 40px rgba(0,208,132,0.25), 0 0 80px rgba(0,208,132,0.1); }
+.glow-green-sm { box-shadow: 0 0 20px rgba(0,208,132,0.3); }
+.pricing-featured { border-color: rgba(0,208,132,0.45); box-shadow: 0 0 0 1px rgba(0,208,132,0.2), 0 20px 60px -15px rgba(0,208,132,0.3), inset 0 1px 0 rgba(0,208,132,0.15); }
+.stat-bar-item { position: relative; }
+.stat-bar-item:not(:last-child)::after { content:''; position:absolute; right:0; top:50%; transform:translateY(-50%); width:1px; height:36px; background: rgba(255,255,255,0.08); }
+/* scroll reveal */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+/* live dashboard mockup */
+.mock-row { animation: mockRowIn 0.4s ease both; }
+@keyframes mockRowIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+.live-dot { width:7px; height:7px; border-radius:50%; background:#00d084; position:relative; flex-shrink:0; }
+.live-dot::after { content:''; position:absolute; inset:-3px; border-radius:50%; background:rgba(0,208,132,0.35); animation: livePing 2s ease-in-out infinite; }
+@keyframes livePing { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.8); opacity:0; } }
+/* step connector */
+.step-connector { flex:1; height:1px; background: linear-gradient(to right, rgba(0,208,132,0.4), rgba(0,208,132,0.15)); margin-top:-2px; }
+/* number badge */
+.step-badge { width:32px; height:32px; border-radius:50%; border:1px solid rgba(0,208,132,0.4); background:rgba(0,208,132,0.08); color:#00d084; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+</style>
+</head>
+<body class="overflow-x-hidden selection:bg-brand/20 selection:text-brand-light bg-[#0a0a0a] text-base">
+
+<!-- Animated Background -->
+<div class="fixed inset-0 -z-10 bg-gradient-to-b from-[#111111] via-[#050505] to-black">
+  <div class="absolute inset-0 bg-grid opacity-50"></div>
+  <div class="pointer-events-none absolute inset-0 overflow-hidden">
+    <div class="matrix-layer absolute left-1/4 w-px h-full animate-matrix-fall"></div>
+    <div class="matrix-layer absolute left-1/2 w-px h-full animate-matrix-fall" style="animation-delay:-6s;"></div>
+    <div class="matrix-layer absolute left-3/4 w-px h-full animate-matrix-fall" style="animation-delay:-12s;"></div>
+  </div>
+</div>
+
+<!-- Navbar -->
+<nav class="fixed w-full z-50 top-0 border-b border-white/5 bg-[#0a0a0a]/85 backdrop-blur-xl">
+  <div class="flex h-16 max-w-7xl mr-auto ml-auto pr-6 pl-6 items-center justify-between">
+    <a href="#top" class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center border border-brand/20">
+        <iconify-icon icon="solar:radar-2-linear" class="w-4 h-4" style="color:#00d084;"></iconify-icon>
+      </div>
+      <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm">
+      <a href="#features" class="text-zinc-400 font-medium hover:text-white transition-colors">Product</a>
+      <a href="#who-for" class="text-zinc-400 font-medium hover:text-white transition-colors">Who it's for</a>
+      <a href="#pricing" class="text-zinc-400 font-medium hover:text-white transition-colors">Pricing</a>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <a href="/login.html" class="hidden sm:block text-zinc-400 hover:text-white transition-colors font-medium">Login</a>
+      <button onclick="openDemoModal()" class="bg-brand text-black px-5 py-2 rounded-full font-semibold text-xs hover:bg-brand-light transition-all-ease tracking-wide">Book A Demo</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════ -->
+<section class="relative pt-36 pb-0 overflow-hidden" id="top">
+  <!-- Glow blob -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[42rem] h-[32rem] bg-brand/10 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
+  <div class="absolute top-40 left-1/2 -translate-x-1/2 w-[20rem] h-[14rem] bg-brand/8 blur-[5rem] rounded-full z-0 pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-6">
+    <!-- Pill badge -->
+    <div class="flex justify-center mb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] animate-fade-in-up">
+        <span class="live-dot"></span>
+        <span class="text-[11px] font-medium text-zinc-300 tracking-wide uppercase">Live · 417 UK Council Areas Monitored</span>
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <div class="text-center max-w-4xl mx-auto">
+      <h1 class="text-5xl md:text-7xl font-semibold text-white tracking-tighter leading-[1.05] mb-6 animate-fade-in-up" style="animation-delay:0.1s">
+        Scout new jobs before<br>
+        <span class="text-brand">your competition</span><br>
+        even knows they exist
+      </h1>
+      <p class="text-lg md:text-xl text-zinc-400 font-light max-w-2xl mx-auto mb-10 animate-fade-in-up leading-relaxed" style="animation-delay:0.2s">
+        PPM monitors every UK planning application that matches your trade and territory — then sends qualified leads straight to your inbox.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style="animation-delay:0.3s">
+        <button onclick="openDemoModal()" class="w-full sm:w-auto px-8 py-3.5 bg-brand hover:bg-brand-light text-black rounded-lg font-semibold text-sm transition-all-ease flex items-center justify-center gap-2 group glow-green-sm">
+          Book A Demo
+          <iconify-icon icon="solar:arrow-right-linear" style="font-size:15px; color:#020617;" class="group-hover:translate-x-0.5 transition-transform"></iconify-icon>
+        </button>
+        <a href="#features" class="w-full sm:w-auto px-8 py-3.5 border border-white/10 text-white rounded-lg font-medium text-sm hover:bg-white/5 transition-all-ease text-center">
+          See how it works
+        </a>
+      </div>
+    </div>
+
+    <!-- Live dashboard mockup -->
+    <div class="mt-16 max-w-3xl mx-auto animate-fade-in-up" style="animation-delay:0.4s">
+      <div class="glass-panel rounded-2xl overflow-hidden border border-white/10" style="box-shadow: 0 40px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,208,132,0.08);">
+        <!-- Window chrome -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-red-500/60"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/60"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-brand/60"></div>
+          </div>
+          <div class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-white/[0.04] border border-white/5">
+            <iconify-icon icon="solar:radar-2-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
+            <span class="text-[10px] text-zinc-500 font-mono">PPM · Scan Results</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div class="live-dot" style="width:6px;height:6px;"></div>
+            <span class="text-[10px] text-zinc-500 font-medium">Live</span>
+          </div>
+        </div>
+        <!-- Table header -->
+        <div class="grid grid-cols-12 px-4 py-2 border-b border-white/5 text-[10px] font-medium text-zinc-600 uppercase tracking-wider">
+          <span class="col-span-4">Address</span>
+          <span class="col-span-3">Council</span>
+          <span class="col-span-2">Type</span>
+          <span class="col-span-2 text-center">Score</span>
+          <span class="col-span-1 text-center">Priority</span>
+        </div>
+        <!-- Live rows — populated by JS -->
+        <div id="heroRows" class="divide-y divide-white/[0.04] min-h-[120px]">
+          <div class="flex items-center justify-center py-8 gap-2 text-[11px] text-zinc-600">
+            <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:16px;color:#00d084;"></iconify-icon>
+            Loading live applications…
+          </div>
+        </div>
+        <!-- Footer bar -->
+        <div class="flex items-center justify-between px-4 py-2.5 border-t border-white/5 bg-white/[0.015]">
+          <span id="heroFooterStat" class="text-[10px] text-zinc-600 font-mono">Scanning councils…</span>
+          <span class="text-[10px] font-medium text-brand flex items-center gap-1">
+            <iconify-icon icon="solar:check-circle-linear" style="font-size:11px;"></iconify-icon>
+            Live data
+          </span>
+        </div>
+      </div>
+      <!-- Bottom fade -->
+      <div class="h-16 bg-gradient-to-b from-transparent to-[#0a0a0a] -mt-1 relative z-10"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     STATS BAR
+══════════════════════════════════════════════════════════ -->
+<section class="border-y border-white/5 bg-white/[0.015] py-5 reveal">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-0">
+      <div class="stat-bar-item text-center py-2 px-4">
+        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">417</div>
+        <div class="text-[11px] text-zinc-500 font-medium">UK councils monitored</div>
+      </div>
+      <div class="stat-bar-item text-center py-2 px-4">
+        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">50k+</div>
+        <div class="text-[11px] text-zinc-500 font-medium">Applications scanned</div>
+      </div>
+      <div class="stat-bar-item text-center py-2 px-4">
+        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">10</div>
+        <div class="text-[11px] text-zinc-500 font-medium">Trade categories</div>
+      </div>
+      <div class="stat-bar-item text-center py-2 px-4">
+        <div class="text-2xl font-semibold text-brand tracking-tighter mb-0.5">24–48h</div>
+        <div class="text-[11px] text-zinc-500 font-medium">First-mover advantage</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     COUNCIL MARQUEE
+══════════════════════════════════════════════════════════ -->
+<div class="py-4 overflow-hidden border-b border-white/5 bg-[#080808]">
+  <div class="relative">
+    <div class="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#080808] to-transparent z-10 pointer-events-none"></div>
+    <div class="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#080808] to-transparent z-10 pointer-events-none"></div>
+    <div class="marquee-track animate-marquee" style="animation-duration:55s;">
+      <span id="marqueeInner"></span><span id="marqueeInner2"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CORE FEATURES
+══════════════════════════════════════════════════════════ -->
+<section class="py-28 md:py-36" id="features">
+  <div class="max-w-7xl mx-auto px-6">
+
+    <!-- Section label -->
+    <div class="flex items-center gap-3 mb-6 reveal">
+      <span class="text-[10px] font-semibold text-brand uppercase tracking-widest">The Platform</span>
+      <div class="h-px flex-1 max-w-[3rem] bg-brand/30"></div>
+    </div>
+
+    <div class="max-w-3xl mb-16 reveal reveal-delay-1">
+      <h2 class="text-4xl md:text-5xl font-semibold text-white mb-5 tracking-tighter leading-[1.1]">Planning Application Intelligence<br><span class="text-zinc-400 font-light">for UK Tradesmen</span></h2>
+      <p class="text-lg font-light text-zinc-400 leading-relaxed">Automated monitoring across every active UK council. Choose your councils, set your project types, get qualified leads delivered before the competition even know they exist.</p>
+    </div>
+
+    <!-- Asymmetric feature grid -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+
+      <!-- Large feature card — spans 3 cols -->
+      <div class="md:col-span-3 glass-panel rounded-2xl p-8 feature-card border border-white/8 reveal">
+        <div class="w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-6">
+          <iconify-icon icon="solar:target-linear" style="font-size:22px; color:#00d084;"></iconify-icon>
+        </div>
+        <h3 class="text-2xl font-semibold text-white mb-3 tracking-tight">First-Mover Advantage</h3>
+        <p class="text-base text-zinc-400 font-light leading-relaxed mb-6">Contact homeowners within 24–48 hours of planning submission. Be there before competitors even know the project exists. Most enquiries are won on speed — PPM makes you the fastest every time.</p>
+        <div class="flex items-center gap-3 pt-5 border-t border-white/5">
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand/8 border border-brand/15">
+            <div class="live-dot" style="width:6px;height:6px;"></div>
+            <span class="text-[11px] font-medium text-brand">Real-time alerts</span>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/8">
+            <iconify-icon icon="solar:inbox-linear" style="font-size:12px;color:#71717a;"></iconify-icon>
+            <span class="text-[11px] font-medium text-zinc-400">Email digest</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two stacked smaller cards — spans 2 cols -->
+      <div class="md:col-span-2 flex flex-col gap-5">
+        <div class="glass-panel rounded-2xl p-7 feature-card border border-white/8 flex-1 reveal reveal-delay-1">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <iconify-icon icon="solar:map-point-linear" style="font-size:18px; color:#00d084;"></iconify-icon>
+          </div>
+          <h3 class="text-lg font-semibold text-white tracking-tight mb-2">Your Area, Your Rules</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Select any of 417 UK council areas and choose your ideal job types. Only receive applications that match your territory and trade.</p>
+        </div>
+        <div class="glass-panel rounded-2xl p-7 feature-card border border-white/8 flex-1 reveal reveal-delay-2">
+          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <iconify-icon icon="solar:bolt-linear" style="font-size:18px; color:#00d084;"></iconify-icon>
+          </div>
+          <h3 class="text-lg font-semibold text-white tracking-tight mb-2">Fully Automated</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">No manual searching, scraping, or spreadsheets. AI filters and scores every application so you only see the jobs worth chasing.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     HOW IT WORKS
+══════════════════════════════════════════════════════════ -->
+<section class="py-24 border-y border-white/5 bg-gradient-to-b from-[#0e0e0e] to-[#060606]">
+  <div class="max-w-7xl mx-auto px-6">
+
+    <div class="flex items-center gap-3 mb-6 reveal">
+      <span class="text-[10px] font-semibold text-brand uppercase tracking-widest">Process</span>
+      <div class="h-px flex-1 max-w-[3rem] bg-brand/30"></div>
+    </div>
+
+    <div class="max-w-xl mb-14 reveal reveal-delay-1">
+      <h2 class="text-3xl md:text-4xl font-semibold text-white mb-3 tracking-tighter">How it works</h2>
+      <p class="text-lg font-light text-zinc-400">From zero planning visibility to a predictable stream of high‑quality enquiries — in four simple steps.</p>
+    </div>
+
+    <!-- Steps with connecting lines on desktop -->
+    <div class="relative">
+      <!-- Desktop connecting line -->
+      <div class="hidden md:block absolute top-4 left-[4%] right-[4%] h-px bg-gradient-to-r from-transparent via-brand/20 to-transparent z-0"></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
+        <!-- Step 1 -->
+        <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal hover:border-brand/25 transition-colors duration-300">
+          <div class="step-badge mb-5">1</div>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Book A Demo</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Jump on a call with our team. We'll show you exactly how PPM works and whether it's right for your trade.</p>
+        </div>
+        <!-- Step 2 -->
+        <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal reveal-delay-1 hover:border-brand/25 transition-colors duration-300">
+          <div class="step-badge mb-5">2</div>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Customise Your Setup</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Tell us your sweet spot. We train the system on your ideal job types, project size, and service areas.</p>
+        </div>
+        <!-- Step 3 -->
+        <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal reveal-delay-2 hover:border-brand/25 transition-colors duration-300">
+          <div class="step-badge mb-5">3</div>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">In-House Setup</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">We set this up in your office — in person or virtually — so your team can start winning work from day one.</p>
+        </div>
+        <!-- Step 4 -->
+        <div class="glass-panel rounded-2xl p-6 border border-brand/20 reveal reveal-delay-3 hover:border-brand/40 transition-colors duration-300" style="background: linear-gradient(135deg, rgba(0,208,132,0.05) 0%, rgba(17,17,17,0.9) 100%);">
+          <div class="step-badge mb-5" style="border-color:rgba(0,208,132,0.6); background:rgba(0,208,132,0.12);">4</div>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Leads Start Landing</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Matched planning applications land in your inbox or CRM — ready for your team to contact and convert.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     WHO IT'S FOR
+══════════════════════════════════════════════════════════ -->
+<section id="who-for" class="py-24 md:py-32">
+  <div class="max-w-7xl mx-auto px-6">
+
+    <div class="flex items-center gap-3 mb-6 reveal">
+      <span class="text-[10px] font-semibold text-brand uppercase tracking-widest">Trades</span>
+      <div class="h-px flex-1 max-w-[3rem] bg-brand/30"></div>
+    </div>
+
+    <div class="flex flex-col md:flex-row justify-between items-end mb-14 gap-6">
+      <div class="max-w-xl reveal reveal-delay-1">
+        <h2 class="text-3xl md:text-4xl font-semibold text-white tracking-tighter mb-3 leading-tight">Built for serious UK trades</h2>
+        <p class="text-lg text-zinc-400 font-light">Whether you specialise in high-end extensions or large-scale developments, we surface the planning applications that match your ideal jobs.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:buildings-2-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Builders &amp; Contractors</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">General builders looking for a steady stream of local projects.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:buildings-3-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Loft Conversion Specialists</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Target homeowners adding bedrooms, dormers, and attic conversions.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:home-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Renovation Contractors</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Whole-house refurbishments and structural reconfigurations.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:window-frame-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Window &amp; Door Installers</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Bi-folds, glazing upgrades, and replacement windows.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:leaf-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Landscaping</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Patios, driveways, garden walls, and outdoor features.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:home-angle-bold" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Roofing Specialists</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Roof replacements, dormers, and structural roof work.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:plug-circle-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Electricians (major projects)</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Large rewires, new builds, and major renovation work.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:palette-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Interior Designers</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Residential refurbishments, space planning, and design-build projects.</p>
+      </div>
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:chef-hat-minimalistic-outline" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Kitchen &amp; Bathroom</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Showrooms targeting homeowners planning extensions and renovations.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     PRICING
+══════════════════════════════════════════════════════════ -->
+<section id="pricing" class="py-24 md:py-32 border-t border-white/5 bg-gradient-to-b from-[#0a0a0a] to-[#0e0e0e]">
+  <div class="max-w-7xl mx-auto px-6">
+
+    <div class="flex items-center gap-3 mb-6 justify-center reveal">
+      <div class="h-px w-8 bg-brand/30"></div>
+      <span class="text-[10px] font-semibold text-brand uppercase tracking-widest">Pricing</span>
+      <div class="h-px w-8 bg-brand/30"></div>
+    </div>
+
+    <div class="max-w-2xl mb-16 text-center mx-auto reveal reveal-delay-1">
+      <h2 class="text-3xl md:text-4xl font-semibold text-white mb-3 tracking-tighter">Pricing that scales with your territory</h2>
+      <p class="text-lg text-zinc-400 font-light">Start small in one council, or roll out across regions and teams. Upgrade or change coverage at any time.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+
+      <!-- Starter -->
+      <div class="glass-panel rounded-2xl p-7 flex flex-col border border-white/8 reveal hover:border-white/15 transition-colors duration-300">
+        <div class="mb-6">
+          <h3 class="text-base font-semibold text-white tracking-tight mb-1">Starter</h3>
+          <p class="text-xs text-zinc-500">Lifetime licence for lean teams</p>
+        </div>
+        <div class="mb-7">
+          <div class="flex items-baseline gap-1.5">
+            <span class="text-4xl font-semibold text-white tracking-tighter">£2,447</span>
+            <span class="text-xs text-zinc-500">lifetime</span>
+          </div>
+        </div>
+        <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 designated area</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+        </ul>
+        <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl border border-white/12 text-white hover:bg-white/5 hover:border-white/20 transition-all-ease">Get started</button>
+      </div>
+
+      <!-- Professional — featured -->
+      <div class="rounded-2xl p-7 flex flex-col pricing-featured relative overflow-hidden reveal reveal-delay-1" style="background: linear-gradient(160deg, rgba(0,208,132,0.06) 0%, rgba(17,17,17,0.95) 50%);">
+        <!-- Glow orb behind -->
+        <div class="absolute -top-10 -right-10 w-40 h-40 bg-brand/15 blur-3xl rounded-full pointer-events-none"></div>
+        <div class="relative z-10">
+          <div class="flex items-start justify-between mb-6">
+            <div>
+              <h3 class="text-base font-semibold text-white tracking-tight mb-1">Professional</h3>
+              <p class="text-xs text-zinc-500">Lifetime licence for growing teams</p>
+            </div>
+            <span class="text-[9px] uppercase tracking-widest font-semibold bg-brand text-black px-3 py-1.5 rounded-full whitespace-nowrap">Most popular</span>
+          </div>
+          <div class="mb-7">
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-4xl font-semibold text-white tracking-tighter">£2,963</span>
+              <span class="text-xs text-zinc-500">lifetime</span>
+            </div>
+          </div>
+          <ul class="space-y-3 text-xs text-zinc-300 mb-8">
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 designated area</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+          </ul>
+          <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl bg-brand text-black hover:bg-brand-light transition-all-ease">Get started</button>
+        </div>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="glass-panel rounded-2xl p-7 flex flex-col border border-white/8 reveal reveal-delay-2 hover:border-white/15 transition-colors duration-300">
+        <div class="mb-6">
+          <h3 class="text-base font-semibold text-white tracking-tight mb-1">Enterprise</h3>
+          <p class="text-xs text-zinc-500">For multi-team and national coverage</p>
+        </div>
+        <div class="mb-7">
+          <div class="flex items-baseline gap-1.5">
+            <span class="text-4xl font-semibold text-white tracking-tighter">Custom</span>
+            <span class="text-xs text-zinc-500">pricing</span>
+          </div>
+        </div>
+        <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Custom number of areas</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+        </ul>
+        <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl border border-white/12 text-white hover:bg-white/5 hover:border-white/20 transition-all-ease">Talk to sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     CTA
+══════════════════════════════════════════════════════════ -->
+<section class="py-24 px-6 relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-[#0e0e0e] to-[#050505]"></div>
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[32rem] h-[20rem] bg-brand/8 blur-[7rem] rounded-full pointer-events-none"></div>
+  <div class="relative z-10 max-w-3xl mx-auto text-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand/25 bg-brand/8 mb-8 reveal">
+      <iconify-icon icon="solar:flash-linear" style="font-size:12px;color:#00d084;"></iconify-icon>
+      <span class="text-[11px] font-medium text-brand">Ready when you are</span>
+    </div>
+    <h2 class="text-4xl md:text-5xl font-semibold text-white mb-5 tracking-tighter leading-tight reveal reveal-delay-1">Turn planning applications<br>into your next jobs</h2>
+    <p class="text-lg text-zinc-400 mb-10 font-light reveal reveal-delay-2">Be first to every relevant application in your area — before the competition even picks up the phone.</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center reveal reveal-delay-3">
+      <button onclick="openDemoModal()" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-brand text-black text-sm font-semibold rounded-lg hover:bg-brand-light transition-colors group glow-green-sm">
+        Book A Demo
+        <iconify-icon icon="solar:arrow-right-linear" style="font-size:14px; color:#020617;" class="group-hover:translate-x-0.5 transition-transform"></iconify-icon>
+      </button>
+      <a href="#who-for" class="inline-flex items-center justify-center px-8 py-3.5 bg-white/5 border border-white/12 text-white text-sm font-medium rounded-lg hover:bg-white/10 transition-colors">Who It's For</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════ -->
+<footer class="bg-[#0a0a0a] border-t border-white/5 py-14">
+  <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start gap-12">
+    <div>
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-7 h-7 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
+          <iconify-icon icon="solar:radar-2-linear" style="font-size:14px;color:#00d084;"></iconify-icon>
+        </div>
+        <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
+      </div>
+      <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">Planning Application Intelligence For UK Tradesmen.</p>
+    </div>
+    <div class="flex gap-12 md:gap-16 text-xs">
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-xs tracking-wide">Product</h4>
+        <ul class="space-y-2.5 text-zinc-500">
+          <li><a href="#features" class="hover:text-brand transition-colors">Overview</a></li>
+          <li><a href="#who-for" class="hover:text-brand transition-colors">Who it's for</a></li>
+          <li><a href="#pricing" class="hover:text-brand transition-colors">Pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-xs tracking-wide">Company</h4>
+        <ul class="space-y-2.5 text-zinc-500">
+          <li><a href="#" class="hover:text-brand transition-colors">Blog</a></li>
+          <li><a href="#" class="hover:text-brand transition-colors">Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-xs tracking-wide">Account</h4>
+        <ul class="space-y-2.5 text-zinc-500">
+          <li><a href="/login.html" class="hover:text-brand transition-colors">Login</a></li>
+          <li><button onclick="openDemoModal()" class="hover:text-brand transition-colors text-left">Book A Demo</button></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="max-w-7xl mx-auto px-6 mt-10 pt-6 border-t border-white/[0.04] text-center text-[0.68rem] text-zinc-700">
+    &copy; 2025 PPM. All rights reserved.
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     BOOK A DEMO MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="demoModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeDemoModal()"></div>
+  <div class="relative w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl" style="border-color:rgba(0,208,132,0.2);">
+    <button onclick="closeDemoModal()" class="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+      <iconify-icon icon="solar:close-circle-linear" style="font-size:20px;"></iconify-icon>
+    </button>
+    <div class="mb-6">
+      <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+        <iconify-icon icon="solar:calendar-add-linear" style="font-size:18px;color:#00d084;"></iconify-icon>
+      </div>
+      <h2 class="text-xl font-semibold text-white tracking-tight mb-1">Book A Demo</h2>
+      <p class="text-sm text-zinc-500">We'll reach out within one business day to schedule a call.</p>
+    </div>
+    <div id="demoError" class="hidden mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400"></div>
+    <div id="demoSuccess" class="hidden text-center py-8">
+      <div class="text-4xl mb-3">✅</div>
+      <div class="text-white font-semibold mb-1">Request received!</div>
+      <div class="text-sm text-zinc-400">We'll be in touch within one business day.</div>
+    </div>
+    <form id="demoForm" onsubmit="handleDemoSubmit(event)" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1.5">First name</label>
+          <input type="text" name="first_name" required placeholder="John" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+        </div>
+        <div>
+          <label class="block text-xs text-zinc-400 mb-1.5">Last name</label>
+          <input type="text" name="last_name" required placeholder="Smith" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1.5">Email</label>
+        <input type="email" name="email" required placeholder="john@yourcompany.co.uk" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1.5">Phone</label>
+        <input type="tel" name="phone" required placeholder="07700 900000" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1.5">Your trade</label>
+        <select name="trade" required class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white bg-transparent">
+          <option value="" disabled selected class="bg-[#111]">Select your trade…</option>
+          <option value="Builder/Contractor" class="bg-[#111]">Builder / Contractor</option>
+          <option value="Loft Conversion" class="bg-[#111]">Loft Conversion Specialist</option>
+          <option value="Renovation Contractor" class="bg-[#111]">Renovation Contractor</option>
+          <option value="Window & Door Installer" class="bg-[#111]">Window &amp; Door Installer</option>
+          <option value="Landscaping" class="bg-[#111]">Landscaping</option>
+          <option value="Roofing Specialist" class="bg-[#111]">Roofing Specialist</option>
+          <option value="Electrician" class="bg-[#111]">Electrician</option>
+          <option value="Interior Designer" class="bg-[#111]">Interior Designer</option>
+          <option value="Kitchen Showroom" class="bg-[#111]">Kitchen Showroom</option>
+          <option value="Bathroom Showroom" class="bg-[#111]">Bathroom Showroom</option>
+          <option value="Other" class="bg-[#111]">Other</option>
+        </select>
+      </div>
+      <button type="submit" id="demoSubmitBtn" class="w-full py-3 rounded-xl bg-brand text-black font-semibold hover:bg-brand-light transition-colors flex items-center justify-center gap-2 text-sm">
+        <span id="demoSubmitText">Request Demo</span>
+        <span id="demoSubmitSpinner" class="hidden">
+          <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:16px;color:black;"></iconify-icon>
+        </span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── Supabase ──────────────────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Modal helpers ─────────────────────────────────────────────────────────
+function openDemoModal() {
+  const modal = document.getElementById('demoModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.style.overflow = 'hidden';
+}
+function closeDemoModal() {
+  const modal = document.getElementById('demoModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.body.style.overflow = '';
+  setTimeout(() => {
+    document.getElementById('demoForm').reset();
+    document.getElementById('demoForm').classList.remove('hidden');
+    document.getElementById('demoError').classList.add('hidden');
+    document.getElementById('demoSuccess').classList.add('hidden');
+  }, 300);
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDemoModal(); });
+
+// ── Demo form submit ──────────────────────────────────────────────────────
+async function handleDemoSubmit(e) {
+  e.preventDefault();
+  const form    = e.target;
+  const errorEl = document.getElementById('demoError');
+  const btn     = document.getElementById('demoSubmitBtn');
+  const btnText = document.getElementById('demoSubmitText');
+  const spinner = document.getElementById('demoSubmitSpinner');
+  errorEl.classList.add('hidden');
+  btn.disabled = true;
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  const data = {
+    first_name: form.first_name.value.trim(),
+    last_name:  form.last_name.value.trim(),
+    email:      form.email.value.trim(),
+    phone:      form.phone.value.trim(),
+    trade:      form.trade.value,
+  };
+  const { error } = await sb.from('demo_requests').insert([data]);
+  btn.disabled = false;
+  btnText.classList.remove('hidden');
+  spinner.classList.add('hidden');
+  if (error) {
+    errorEl.textContent = 'Something went wrong. Please try again or email us directly.';
+    errorEl.classList.remove('hidden');
+  } else {
+    form.classList.add('hidden');
+    document.getElementById('demoSuccess').classList.remove('hidden');
+  }
+}
+
+// ── Council marquee ──────────────────────────────────────────────────────
+const COUNCILS = [
+  'Adur','Allerdale','Amber Valley','Arun','Ashfield','Ashford','Aylesbury Vale','Babergh',
+  'Barking & Dagenham','Barnet','Barnsley','Barrow-in-Furness','Basildon','Basingstoke & Deane',
+  'Bassetlaw','Bath & N.E. Somerset','Bedford','Birmingham','Blaby','Blackburn with Darwen',
+  'Blackpool','Bolsover','Bolton','Boston','Bournemouth','Bracknell Forest','Bradford',
+  'Braintree','Breckland','Brent','Brentwood','Brighton & Hove','Bristol','Broadland',
+  'Bromley','Bromsgrove','Broxbourne','Broxtowe','Buckinghamshire','Burnley','Bury',
+  'Cambridge','Camden','Cannock Chase','Canterbury','Carlisle','Castle Point','Central Bedfordshire',
+  'Charnwood','Chelmsford','Cheltenham','Cherwell','Cheshire East','Cheshire West','Chichester',
+  'Chiltern','Chorley','Christchurch','City of London','Colchester','Copeland','Corby',
+  'Cotswold','Coventry','Craven','Crawley','Croydon','Dacorum','Darlington','Dartford',
+  'Daventry','Derby','Derbyshire Dales','Doncaster','Dover','Dudley','Ealing','East Cambridgeshire',
+  'East Devon','East Hampshire','East Hertfordshire','East Lindsey','East Northants','East Riding',
+  'East Staffordshire','Eastbourne','Eastleigh','Eden','Elmbridge','Enfield','Epping Forest',
+  'Epsom & Ewell','Exeter','Fareham','Fenland','Folkestone & Hythe','Forest of Dean',
+  'Fylde','Gateshead','Gedling','Gloucester','Gosport','Gravesham','Great Yarmouth',
+  'Greenwich','Guildford','Hackney','Halton','Hammersmith & Fulham','Harborough','Haringey',
+  'Harlow','Harrogate','Harrow','Hart','Hastings','Havant','Havering','Herefordshire',
+  'Hertsmere','High Peak','Hillingdon','Hinckley & Bosworth','Horsham','Hounslow',
+  'Huntingdonshire','Hyndburn','Ipswich','Isle of Wight','Islington','Kensington & Chelsea',
+  'Kings Lynn & W Norfolk','Kingston upon Hull','Kingston upon Thames','Kirklees','Knowsley',
+  'Lambeth','Lancaster','Leeds','Leicester','Lewes','Lewisham','Lichfield','Lincoln',
+  'Liverpool','Luton','Maidstone','Maldon','Malvern Hills','Manchester','Mansfield',
+  'Medway','Melton','Mendip','Merton','Mid Devon','Mid Suffolk','Mid Sussex',
+  'Milton Keynes','Mole Valley','New Forest','Newark & Sherwood','Newcastle under Lyme',
+  'Newcastle upon Tyne','North Devon','North East Derbyshire','North Hertfordshire',
+  'North Kesteven','North Norfolk','North Somerset','North Tyneside','North Warwickshire',
+  'North West Leicestershire','Northampton','Norwich','Nottingham','Nuneaton & Bedworth',
+  'Oadby & Wigston','Oldham','Oxford','Pendle','Peterborough','Plymouth','Portsmouth',
+  'Preston','Reading','Redbridge','Reigate & Banstead','Ribble Valley','Richmond upon Thames',
+  'Richmondshire','Rochdale','Rochford','Rossendale','Rotherham','Rugby','Runnymede',
+  'Rushcliffe','Rushmoor','Ryedale','Salford','Sandwell','Scarborough','Sedgemoor',
+  'Sefton','Selby','Sevenoaks','Sheffield','Shropshire','Slough','Solihull','Somerset West',
+  'South Cambridgeshire','South Derbyshire','South Gloucestershire','South Hams',
+  'South Holland','South Kesteven','South Lakeland','South Norfolk','South Northants',
+  'South Oxfordshire','South Ribble','South Somerset','South Staffordshire','South Tyneside',
+  'Southampton','Southend-on-Sea','Spelthorne','St Albans','St Helens','Stafford',
+  'Staffordshire Moorlands','Stevenage','Stockport','Stockton-on-Tees','Stoke-on-Trent',
+  'Stratford-on-Avon','Stroud','Sunderland','Surrey Heath','Sutton','Swale','Swindon',
+  'Tameside','Tamworth','Tandridge','Taunton Deane','Teignbridge','Tendring','Test Valley',
+  'Tewkesbury','Thanet','Three Rivers','Thurrock','Tonbridge & Malling','Torbay','Torridge',
+  'Tower Hamlets','Trafford','Tunbridge Wells','Uttlesford','Vale of White Horse',
+  'Wakefield','Walsall','Wandsworth','Warrington','Warwick','Watford','Waverley',
+  'Wealden','Wellingborough','Welwyn Hatfield','Westminster','Wigan','Winchester',
+  'Windsor & Maidenhead','Wirral','Woking','Wokingham','Wolverhampton','Worcester',
+  'Worthing','Wychavon','Wycombe','Wyre','Wyre Forest','York'
+];
+
+function buildMarquee() {
+  const items = COUNCILS.map(c =>
+    `<span class="inline-flex items-center gap-1.5 px-3 mx-2 py-1 text-[11px] text-zinc-600 font-medium whitespace-nowrap">
+      <span style="width:4px;height:4px;border-radius:50%;background:rgba(0,208,132,0.3);display:inline-block;flex-shrink:0;"></span>
+      ${c}
+    </span>`
+  ).join('');
+  // Duplicate for seamless loop
+  document.getElementById('marqueeInner').innerHTML  = items;
+  document.getElementById('marqueeInner2').innerHTML = items;
+}
+buildMarquee();
+
+// ── Scroll reveal ──────────────────────────────────────────────────────────
+const revealEls = document.querySelectorAll('.reveal');
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12 });
+revealEls.forEach(el => revealObserver.observe(el));
+
+lucide.createIcons();
+
+// ── Live hero dashboard ───────────────────────────────────────────────────
+(async function loadHeroDashboard() {
+  // Councils to sample — varied regions, reliable data
+  const SAMPLE_COUNCILS = ['Ashford', 'Hillingdon', 'Birmingham', 'Leeds', 'Bristol'];
+
+  const INCLUDE = [
+    /\bdwelling/,/\bhouse\b/,/\bextension\b/,/\bloft\b/,/\bconversion\b/,
+    /\bbasement\b/,/\bdormer\b/,/\brenovation\b/,/\bnew\s+build\b/,/\bflat\b/,
+    /\bannex/,/\bconservatory\b/,/\berection of\b/,/\bresidential\b/,
+  ];
+  const EXCLUDE = [
+    /\badvertisement\b/,/\btelecoms?\b/,/\bmast\b/,/\bretail\b/,/\bindustrial\b/,
+    /\bwarehouse\b/,/\bsolar\s+farm\b/,/\bwind\s+turbine\b/,/\bdemolition\s+only\b/,
+    /\bcommercial\s+(?:unit|premises|office|block)\b/,/\bwaste\s+(?:disposal|management)\b/,
+    /\btree\s+preservation\b/,
+  ];
+
+  function score(desc, type) {
+    const d = (desc + ' ' + type).toLowerCase();
+    let s = 5;
+    if (/new\s+dwelling|new\s+build/.test(d)) s += 3;
+    if (/two-?storey|double\s+storey/.test(d)) s += 2;
+    if (/loft\s+conversion|dormer/.test(d))   s += 2;
+    if (/basement/.test(d))                   s += 2;
+    if (/extension/.test(d))                  s += 1;
+    if (/orangery|bi-?fold|glazed/.test(d))   s += 1;
+    if (/single[\s-]storey/.test(d))          s -= 1;
+    if (/prior\s+approval/.test(d))           s -= 1;
+    if (/lawful\s+development/.test(d))       s -= 2;
+    return Math.min(10, Math.max(1, s));
+  }
+
+  function typeLabel(t) {
+    return (t || '')
+      .replace('Full Planning Permission','Full PP')
+      .replace('Householder Application','Householder')
+      .replace('Prior Approval','Prior Approval')
+      .replace('Lawful Development Certificate','LDC');
+  }
+
+  function typeBadge(t) {
+    const label = typeLabel(t);
+    const cls = /full/i.test(t)   ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
+              : /loft|dormer/i.test(t) ? 'bg-orange-500/15 text-orange-400 border-orange-500/20'
+              : /dwelling|build/i.test(t) ? 'bg-purple-500/15 text-purple-400 border-purple-500/20'
+              : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20';
+    return `<span class="px-1.5 py-0.5 rounded text-[9px] border ${cls}">${label}</span>`;
+  }
+
+  function priorityBadge(p) {
+    const cls = p === 'HIGH'   ? 'bg-brand/15 text-brand border-brand/20'
+              : p === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+              :                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/15';
+    return `<span class="px-1.5 py-0.5 rounded text-[9px] border font-medium ${cls}">${p === 'MEDIUM' ? 'MED' : p}</span>`;
+  }
+
+  const allLeads = [];
+
+  await Promise.all(SAMPLE_COUNCILS.map(async council => {
+    try {
+      const params = new URLSearchParams({ council, recent: '30', pg_sz: '100', app_state: 'Undecided' });
+      const resp = await fetch(`/api/planit?${params}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const records = data.records || [];
+      records.forEach(r => {
+        const desc = r.description || '';
+        const type = r.app_type || '';
+        const text = (desc + ' ' + type).toLowerCase();
+        if (EXCLUDE.some(rx => rx.test(text))) return;
+        if (!INCLUDE.some(rx => rx.test(text))) return;
+        const s = score(desc, type);
+        const priority = s >= 8 ? 'HIGH' : s >= 6 ? 'MEDIUM' : 'LOW';
+        allLeads.push({ address: r.address || '', council, app_type: type, score: s, priority, postcode: r.postcode || '' });
+      });
+    } catch {}
+  }));
+
+  const top = allLeads.sort((a,b) => b.score - a.score).slice(0, 5);
+  const high = allLeads.filter(l => l.priority === 'HIGH').length;
+  const now  = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const heroRows = document.getElementById('heroRows');
+  const heroFooter = document.getElementById('heroFooterStat');
+
+  if (top.length === 0) {
+    heroRows.innerHTML = `<div class="flex items-center justify-center py-8 text-[11px] text-zinc-600">No results loaded</div>`;
+    return;
+  }
+
+  heroRows.innerHTML = top.map((l, i) => {
+    const parts = l.address.split(',');
+    const street = parts[0] || l.address;
+    const rest   = parts.slice(1).join(',').trim() || l.council;
+    const scoreColor = l.score >= 8 ? 'text-brand' : 'text-zinc-300';
+    return `<div class="grid grid-cols-12 px-4 py-3 text-[11px] hover:bg-white/[0.02] transition-colors" style="animation: mockRowIn 0.4s ease ${i * 0.12}s both">
+      <div class="col-span-4">
+        <span class="text-white font-medium leading-snug block truncate">${street}</span>
+        <span class="text-zinc-600 text-[10px]">${rest}</span>
+      </div>
+      <div class="col-span-3 flex items-center text-zinc-400 truncate">${l.council}</div>
+      <div class="col-span-2 flex items-center">${typeBadge(l.app_type)}</div>
+      <div class="col-span-2 flex items-center justify-center"><span class="font-mono font-semibold ${scoreColor}">${l.score}.0</span></div>
+      <div class="col-span-1 flex items-center justify-center">${priorityBadge(l.priority)}</div>
+    </div>`;
+  }).join('');
+
+  if (heroFooter) {
+    heroFooter.textContent = `${allLeads.length} qualified leads · ${SAMPLE_COUNCILS.length} councils · scanned at ${now}`;
+  }
+})();
+</script>
+</body></html>

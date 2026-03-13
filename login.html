@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Aura Build</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Geist', 'sans-serif'] },
+          colors: {
+            brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    .input-field {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #00d084;
+      box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.12);
+    }
+    .tab-active {
+      color: white;
+      border-bottom: 2px solid #00d084;
+    }
+    .tab-inactive {
+      color: #71717a;
+      border-bottom: 2px solid transparent;
+    }
+    .bg-grid {
+      background-size: 40px 40px;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="min-h-screen font-sans text-zinc-400 flex flex-col">
+
+  <!-- Background grid -->
+  <div class="fixed inset-0 -z-10 bg-grid"></div>
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[30rem] h-[20rem] bg-brand/8 blur-[6rem] rounded-full -z-10 pointer-events-none"></div>
+
+  <!-- Nav -->
+  <nav class="h-14 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur flex items-center px-6">
+    <a href="/index.html" class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center">
+        <iconify-icon icon="solar:radar-2-linear" class="w-4 h-4" style="color:#00d084;stroke-width:1.5;"></iconify-icon>
+      </div>
+      <span class="text-sm font-medium text-white tracking-tight">Aura Build</span>
+    </a>
+  </nav>
+
+  <!-- Form card -->
+  <div class="flex-1 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-sm">
+
+      <!-- Heading -->
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-medium text-white tracking-tight mb-2">Welcome back</h1>
+        <p class="text-sm text-zinc-500">Sign in to access your planning leads</p>
+      </div>
+
+      <!-- Card -->
+      <div style="background:rgba(17,17,17,0.9);border:1px solid rgba(255,255,255,0.08);" class="rounded-2xl p-6 backdrop-blur">
+
+        <!-- Tabs -->
+        <div class="flex border-b border-white/8 mb-6">
+          <button id="signinTab" class="flex-1 pb-3 text-sm font-medium tab-active transition-all" onclick="switchTab('signin')">
+            Sign in
+          </button>
+          <button id="signupTab" class="flex-1 pb-3 text-sm font-medium tab-inactive transition-all" onclick="switchTab('signup')">
+            Create account
+          </button>
+        </div>
+
+        <!-- Error message -->
+        <div id="errorMsg" class="hidden mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400"></div>
+
+        <!-- Success message -->
+        <div id="successMsg" class="hidden mb-4 px-3 py-2.5 rounded-lg bg-brand/10 border border-brand/20 text-xs text-brand"></div>
+
+        <!-- Sign In Form -->
+        <form id="signinForm" onsubmit="handleSignin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs text-zinc-400 mb-1.5">Email</label>
+            <input type="email" id="signinEmail" required placeholder="you@company.com"
+              class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+          </div>
+          <div>
+            <label class="block text-xs text-zinc-400 mb-1.5">Password</label>
+            <input type="password" id="signinPassword" required placeholder="••••••••"
+              class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+          </div>
+          <button type="submit" id="signinBtn"
+            class="w-full py-2.5 rounded-lg bg-brand text-black text-sm font-medium hover:bg-brand-light transition-colors flex items-center justify-center gap-2">
+            <span id="signinBtnText">Sign in</span>
+            <span id="signinSpinner" class="hidden">
+              <iconify-icon icon="svg-spinners:3-dots-fade" class="w-4 h-4" style="color:black;"></iconify-icon>
+            </span>
+          </button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="signupForm" onsubmit="handleSignup(event)" class="space-y-4 hidden">
+          <div>
+            <label class="block text-xs text-zinc-400 mb-1.5">Email</label>
+            <input type="email" id="signupEmail" required placeholder="you@company.com"
+              class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+          </div>
+          <div>
+            <label class="block text-xs text-zinc-400 mb-1.5">Password</label>
+            <input type="password" id="signupPassword" required placeholder="Min. 8 characters" minlength="8"
+              class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+          </div>
+          <button type="submit" id="signupBtn"
+            class="w-full py-2.5 rounded-lg bg-brand text-black text-sm font-medium hover:bg-brand-light transition-colors flex items-center justify-center gap-2">
+            <span id="signupBtnText">Create account</span>
+            <span id="signupSpinner" class="hidden">
+              <iconify-icon icon="svg-spinners:3-dots-fade" class="w-4 h-4" style="color:black;"></iconify-icon>
+            </span>
+          </button>
+        </form>
+
+      </div>
+
+      <p class="text-center text-xs text-zinc-600 mt-6">
+        <a href="/index.html" class="hover:text-zinc-400 transition-colors">← Back to home</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ── Supabase setup ────────────────────────────────────────────────────────
+    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // Redirect if already logged in
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = '/dashboard.html';
+    });
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      const signin = tab === 'signin';
+      document.getElementById('signinForm').classList.toggle('hidden', !signin);
+      document.getElementById('signupForm').classList.toggle('hidden', signin);
+      document.getElementById('signinTab').className = `flex-1 pb-3 text-sm font-medium transition-all ${signin ? 'tab-active' : 'tab-inactive'}`;
+      document.getElementById('signupTab').className = `flex-1 pb-3 text-sm font-medium transition-all ${signin ? 'tab-inactive' : 'tab-active'}`;
+      clearMessages();
+    }
+
+    // ── Message helpers ───────────────────────────────────────────────────────
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      document.getElementById('successMsg').classList.add('hidden');
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('successMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      document.getElementById('errorMsg').classList.add('hidden');
+    }
+
+    function clearMessages() {
+      document.getElementById('errorMsg').classList.add('hidden');
+      document.getElementById('successMsg').classList.add('hidden');
+    }
+
+    function setLoading(form, loading) {
+      const btn     = document.getElementById(form + 'Btn');
+      const txt     = document.getElementById(form + 'BtnText');
+      const spinner = document.getElementById(form + 'Spinner');
+      btn.disabled  = loading;
+      txt.classList.toggle('hidden', loading);
+      spinner.classList.toggle('hidden', !loading);
+    }
+
+    // ── Sign in ───────────────────────────────────────────────────────────────
+    async function handleSignin(e) {
+      e.preventDefault();
+      clearMessages();
+      setLoading('signin', true);
+
+      const email    = document.getElementById('signinEmail').value.trim();
+      const password = document.getElementById('signinPassword').value;
+
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        showError(error.message);
+        setLoading('signin', false);
+      } else {
+        window.location.href = '/dashboard.html';
+      }
+    }
+
+    // ── Sign up ───────────────────────────────────────────────────────────────
+    async function handleSignup(e) {
+      e.preventDefault();
+      clearMessages();
+      setLoading('signup', true);
+
+      const email    = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+
+      const { error } = await sb.auth.signUp({ email, password });
+
+      if (error) {
+        showError(error.message);
+        setLoading('signup', false);
+      } else {
+        showSuccess('Account created! Check your email to confirm, then sign in.');
+        setLoading('signup', false);
+        document.getElementById('signupForm').reset();
+      }
+    }
+  </script>
+
+</body>
+</html>

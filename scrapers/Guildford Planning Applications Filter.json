@@ -1,0 +1,418 @@
+{
+  "name": "Guildford Planning Applications Filter",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Get ALL input items\nconst allItems = $input.all();\n\n// Get the first item's JSON\nconst firstItem = allItems[0].json;\n\n// Handle array wrapping\nconst dataObj = Array.isArray(firstItem) ? firstItem[0] : firstItem;\n\n// Get records\nconst applications = dataObj.records;\n\n// STAGE 1: Remove obvious junk\nconst potentialLeads = applications.filter(app => {\n  const appType = (app.app_type || '').toLowerCase();\n  const desc = (app.description || '').toLowerCase();\n  \n  // EXCLUDE: Administrative applications\n  if (appType === 'conditions') return false;\n  if (appType === 'trees') return false;\n  if (desc.includes('discharge of condition')) return false;\n  if (desc.includes('non material amendment')) return false;\n  \n  // EXCLUDE: Non-residential\n  if (desc.includes('commercial')) return false;\n  if (desc.includes('industrial')) return false;\n  if (desc.includes('telecommunications')) return false;\n  if (desc.includes('advertising')) return false;\n  if (desc.includes('signage')) return false;\n  \n  return true;\n});\n\n// Return only fields AI needs\nreturn potentialLeads.map(app => ({\n  json: {\n    uid: app.uid,\n    address: app.address,\n    postcode: app.postcode,\n    description: app.description,\n    app_type: app.app_type,\n    app_state: app.app_state,\n    start_date: app.start_date,\n    url: app.url,\n    link: app.link,\n    target_decision_date: app.other_fields?.target_decision_date || null\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2032,
+        336
+      ],
+      "id": "416dd714-e4d1-4897-906a-da358e2eab4b",
+      "name": "Code Filter Stage 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// RESTORE FULL DATA CODE NODE\n// ============================================\n// Purpose: Match AI-filtered UIDs back to original full records\n// Input: AI Agent output (array of UIDs in JSON string)\n// Output: Complete planning application records\n\n// STEP 1: Get AI output and parse UIDs\nconst aiOutput = $input.first().json.output;\n\nlet qualifiedUIDs;\ntry {\n  // Clean any markdown formatting if present\n  const cleaned = aiOutput.replace(/```json|```/g, '').trim();\n  \n  // Parse the JSON array of UIDs\n  qualifiedUIDs = JSON.parse(cleaned);\n  \n} catch (e) {\n  // Fallback: Extract UIDs using regex if JSON parsing fails\n  qualifiedUIDs = aiOutput.match(/\"[\\d\\/A-Z]+\"/g)\n    ?.map(uid => uid.replace(/\"/g, '')) || [];\n}\n\n// STEP 2: Get original full data from HTTP Request node\nconst httpData = $('HTTP Request1').first().json;\n\n// Handle potential array wrapping\nconst originalData = Array.isArray(httpData) \n  ? (httpData[0].records || httpData) \n  : (httpData.records || httpData);\n\n// STEP 3: Match UIDs and restore complete records\nconst qualifiedLeads = originalData.filter(app => \n  qualifiedUIDs.includes(app.uid)\n);\n\n// STEP 4: Return full records with all fields\nreturn qualifiedLeads.map(app => ({ \n  json: {\n    // Application identifiers\n    uid: app.uid,\n    reference: app.uid, // Duplicate for clarity\n    \n    // Location details\n    address: app.address,\n    postcode: app.postcode,\n    \n    // Application details\n    description: app.description,\n    app_type: app.app_type,\n    app_state: app.app_state,\n    \n    // Dates\n    start_date: app.start_date,\n    target_decision_date: app.other_fields?.target_decision_date || null,\n    \n    // Links\n    url: app.url,\n    link: app.link,\n    \n    // Additional fields (if present)\n    decision_date: app.decision_date || null,\n    decision: app.decision || null,\n    agent_name: app.agent_name || null,\n    agent_address: app.agent_address || null,\n    applicant_name: app.applicant_name || null,\n    applicant_address: app.applicant_address || null,\n    \n    // Store all other fields\n    other_fields: app.other_fields || null\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        320
+      ],
+      "id": "4271fd76-0779-4c59-ac57-54ee7e0f4049",
+      "name": "Restore Full Data"
+    },
+    {
+      "parameters": {
+        "url": "https://www.planit.org.uk/api/applics/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "auth",
+              "value": "Guildford"
+            },
+            {
+              "name": "recent",
+              "value": "60"
+            },
+            {
+              "name": "pg_sz",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1808,
+        336
+      ],
+      "id": "54402447-f729-4609-8731-dcc81ffb66e5",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ JSON.stringify($input.all().map(item => item.json)) }}",
+        "options": {
+          "systemMessage": "You filter planning applications for residential builders in Guildford, UK.\n\nTASK: Process ALL applications and return UIDs of qualified projects.\n\nKEEP - Residential construction:\n- Extensions (rear, side, front, single/double storey)\n- Loft conversions, dormers, hip-to-gable\n- Outbuildings (garages, studios, garden rooms)\n- Porches, conservatories, orangeries\n- New dwellings, barn conversions\n- Garage conversions with structural work\n\nREJECT - Non-construction:\n- Change of use only (no building)\n- Window/door replacements only\n- Landscaping/boundaries only\n- Materials approval only\n- Drainage/infrastructure only\n- Advertising signs\n\nOUTPUT: Return ONLY a JSON array of UIDs. No explanation. No markdown.\nExample: [\"26/P/00062\",\"26/P/00067\",\"26/P/00061\"]"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2256,
+        336
+      ],
+      "id": "f0a086a0-daec-46ba-afa3-0cc1ec1e7413",
+      "name": "AI Agent1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-haiku",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        496
+      ],
+      "id": "a81f6d58-32db-40b9-810b-691688a96d9f",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "evQ7fKP9dktGYHkj",
+          "name": "Dylan open router"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1HFO86jlpkdd8iwbSNQwYhj09pior-boa9FmUq_YJkcg",
+          "mode": "list",
+          "cachedResultName": "Planning portal (AI)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HFO86jlpkdd8iwbSNQwYhj09pior-boa9FmUq_YJkcg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HFO86jlpkdd8iwbSNQwYhj09pior-boa9FmUq_YJkcg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "uid",
+              "displayName": "uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reference",
+              "displayName": "reference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "postcode",
+              "displayName": "postcode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "app_type",
+              "displayName": "app_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "app_state",
+              "displayName": "app_state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "target_decision_date",
+              "displayName": "target_decision_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "link",
+              "displayName": "link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "decision_date",
+              "displayName": "decision_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "agent_name",
+              "displayName": "agent_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "agent_address",
+              "displayName": "agent_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "applicant_name",
+              "displayName": "applicant_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "applicant_address",
+              "displayName": "applicant_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "other_fields",
+              "displayName": "other_fields",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2816,
+        320
+      ],
+      "id": "9594b85c-4d5a-4c54-ab74-70bf7804c265",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6FDOaDwWjqKUnaA3",
+          "name": "Dylan google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "7b42ed17-57ee-478d-bc92-4c5dae07955b",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1584,
+        352
+      ],
+      "id": "0ea26102-41d8-4993-b7d1-b0aea55d13cb",
+      "name": "Webhook",
+      "webhookId": "7b42ed17-57ee-478d-bc92-4c5dae07955b"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code Filter Stage 1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code Filter Stage 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Restore Full Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Full Data": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c298d6f7-a8c0-4b32-a622-2cec8fd77ae3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d14cfb1aef30125b6ef93c7d59f4a71b3a1b7bf02cefe5f10e54c5c97cf71dfb"
+  },
+  "id": "sHeTcp3pWtcrP5i7",
+  "tags": []
+}
