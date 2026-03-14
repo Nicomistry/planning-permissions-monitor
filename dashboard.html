@@ -44,6 +44,16 @@
       </a>
       <div class="flex items-center gap-4">
         <div class="hidden sm:block text-[0.7rem] text-zinc-500">Dashboard</div>
+        <div class="relative group">
+          <button id="cpNavBtn" onclick="openCPRequest()"
+            class="flex items-center gap-1.5 text-xs border border-white/10 bg-white/5 text-zinc-500 hover:text-zinc-300 hover:border-white/20 transition-colors rounded-lg px-3 py-1.5 cursor-pointer">
+            <iconify-icon icon="solar:cpu-bolt-linear" class="w-3.5 h-3.5"></iconify-icon>
+            <span id="cpNavLabel">Control Panel deactivated</span>
+          </button>
+          <div id="cpNavTooltip" class="hidden group-hover:block absolute right-0 top-full mt-2 w-52 bg-[#111] border border-white/10 rounded-xl p-3 shadow-xl z-50 pointer-events-none">
+            <p id="cpTooltipText" class="text-xs text-zinc-400 leading-relaxed">Request access to the Control Panel to run a scan.</p>
+          </div>
+        </div>
         <div class="relative">
           <button id="accountMenuButton" class="flex hover:bg-white/5 transition-colors text-xs text-zinc-200 bg-black/30 border-white/10 border rounded-full pt-1.5 pr-3 pb-1.5 pl-3 items-center gap-2">
             <div id="userInitials" class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[0.7rem] text-emerald-300 font-medium">?</div>
@@ -229,13 +239,14 @@
       document.getElementById('userEmail').textContent    = email;
       document.getElementById('userInitials').textContent = email.slice(0, 2).toUpperCase();
       const { data: profile } = await sb.from('profiles')
-        .select('is_admin')
+        .select('is_admin, cp_runs_remaining, cp_last_run_at')
         .eq('user_id', currentUser.id)
         .single();
       if (profile?.is_admin) {
         window.location.href = '/admin.html';
         return;
       }
+      updateCPNavState(profile);
       loadLeads();
     }
 
@@ -466,6 +477,279 @@
       window.location.href = '/login.html';
     }
 
+    // ── Control Panel nav state ────────────────────────────────────────────────
+    let cpCooldownTimer = null;
+
+    function updateCPNavState(profile) {
+      const btn   = document.getElementById('cpNavBtn');
+      const label = document.getElementById('cpNavLabel');
+      const tip   = document.getElementById('cpTooltipText');
+      if (!btn) return;
+
+      const runsLeft = profile?.cp_runs_remaining || 0;
+      const lastRun  = profile?.cp_last_run_at ? new Date(profile.cp_last_run_at) : null;
+      const cooldownMs = 30 * 60 * 1000;
+      const now = Date.now();
+      const inCooldown = lastRun && (now - lastRun.getTime()) < cooldownMs;
+
+      if (runsLeft > 0) {
+        // Granted — show activated state
+        btn.className = btn.className
+          .replace(/border-white\/10|bg-white\/5|text-zinc-500|hover:text-zinc-300|hover:border-white\/20/g, '')
+          .trim();
+        btn.classList.add('border-purple-500/40', 'bg-purple-500/10', 'text-purple-300', 'hover:bg-purple-500/20');
+        label.textContent = 'Control Panel activated';
+        tip.textContent = 'You have 1 scan available. Click to run it.';
+      } else if (inCooldown) {
+        // Cooldown active
+        label.textContent = 'Control Panel deactivated';
+        tip.textContent = '';
+        startCooldownTick(lastRun, cooldownMs);
+      } else {
+        // Can request
+        label.textContent = 'Control Panel deactivated';
+        tip.textContent = 'Request access to the Control Panel to run a scan.';
+      }
+    }
+
+    function startCooldownTick(lastRun, cooldownMs) {
+      if (cpCooldownTimer) clearInterval(cpCooldownTimer);
+      const tip = document.getElementById('cpTooltipText');
+      function tick() {
+        const remaining = Math.max(0, cooldownMs - (Date.now() - lastRun.getTime()));
+        if (remaining <= 0) {
+          clearInterval(cpCooldownTimer);
+          tip.textContent = 'Request access to the Control Panel to run a scan.';
+          return;
+        }
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        tip.textContent = `Cooldown: ${mins}m ${secs}s remaining. Use Help to contact admin for an exception.`;
+      }
+      tick();
+      cpCooldownTimer = setInterval(tick, 1000);
+    }
+
+    // ── Open CP request / run modal ───────────────────────────────────────────
+    async function openCPRequest() {
+      const { data: profile } = await sb.from('profiles')
+        .select('cp_runs_remaining, cp_last_run_at')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      const runsLeft   = profile?.cp_runs_remaining || 0;
+      const lastRun    = profile?.cp_last_run_at ? new Date(profile.cp_last_run_at) : null;
+      const cooldownMs = 30 * 60 * 1000;
+      const inCooldown = lastRun && (Date.now() - lastRun.getTime()) < cooldownMs;
+
+      if (runsLeft > 0) {
+        openCPRunModal();
+        return;
+      }
+
+      // Check for existing pending request
+      const { data: existing } = await sb.from('control_panel_requests')
+        .select('id, status')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existing) {
+        showCPModal('request-pending');
+        return;
+      }
+
+      if (inCooldown) {
+        showCPModal('cooldown', lastRun, cooldownMs);
+        return;
+      }
+
+      showCPModal('request');
+    }
+
+    function showCPModal(mode, lastRun, cooldownMs) {
+      const modal = document.getElementById('cpModal');
+      const body  = document.getElementById('cpModalBody');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      if (mode === 'request') {
+        body.innerHTML = `
+          <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
+            <iconify-icon icon="solar:shield-keyhole-linear" style="color:#9333ea;font-size:18px;"></iconify-icon>
+          </div>
+          <h3 class="text-white font-semibold mb-1">Request Control Panel Access</h3>
+          <p class="text-xs text-zinc-500 mb-4">Send a request to the admin. You'll be notified by email when it's reviewed.</p>
+          <textarea id="cpReqMsg" placeholder="Optional: tell the admin why you need access…" rows="3"
+            class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 resize-none mb-4"></textarea>
+          <div class="flex gap-2 justify-end">
+            <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
+            <button onclick="submitCPRequest()" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Send Request</button>
+          </div>`;
+      } else if (mode === 'request-pending') {
+        body.innerHTML = `
+          <iconify-icon icon="solar:clock-circle-linear" class="w-8 h-8 text-yellow-400 mb-3" style="font-size:32px;"></iconify-icon>
+          <h3 class="text-white font-semibold mb-1">Request Pending</h3>
+          <p class="text-xs text-zinc-500 mb-4">Your request is waiting for admin review. You'll receive an email once it's decided.</p>
+          <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Close</button>`;
+      } else if (mode === 'cooldown') {
+        const remaining = Math.max(0, cooldownMs - (Date.now() - lastRun.getTime()));
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        body.innerHTML = `
+          <iconify-icon icon="solar:stopwatch-linear" class="w-8 h-8 text-zinc-400 mb-3" style="font-size:32px;"></iconify-icon>
+          <h3 class="text-white font-semibold mb-1">Cooldown Active</h3>
+          <p class="text-xs text-zinc-500 mb-1">You can request access again in <span id="cpCooldownDisplay" class="text-white font-medium">${mins}m ${secs}s</span>.</p>
+          <p class="text-xs text-zinc-600 mb-4">Had a problem with your scan? Use the Help button to contact the admin.</p>
+          <div class="flex gap-2 justify-end">
+            <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Close</button>
+            <button onclick="openHelpModal()" class="text-xs px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors font-medium">Help</button>
+          </div>`;
+        // Tick the countdown inside modal
+        const ticker = setInterval(() => {
+          const el = document.getElementById('cpCooldownDisplay');
+          if (!el) { clearInterval(ticker); return; }
+          const r = Math.max(0, cooldownMs - (Date.now() - lastRun.getTime()));
+          if (r <= 0) { clearInterval(ticker); el.textContent = '0m 0s'; return; }
+          el.textContent = `${Math.floor(r/60000)}m ${Math.floor((r%60000)/1000)}s`;
+        }, 1000);
+      }
+    }
+
+    async function submitCPRequest() {
+      const msg = document.getElementById('cpReqMsg')?.value?.trim() || '';
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      const { error } = await sb.from('control_panel_requests').insert({
+        user_id: currentUser.id,
+        message: msg || null,
+      });
+
+      if (error) { btn.disabled = false; btn.textContent = 'Send Request'; alert('Error submitting request. Try again.'); return; }
+
+      // Email admin
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'request', userEmail: currentUser.email, userName: currentUser.email, message: msg }),
+        });
+      } catch (_) {}
+
+      closeCPModal();
+      showCPModal('request-pending');
+    }
+
+    function openCPRunModal() {
+      const modal = document.getElementById('cpModal');
+      const body  = document.getElementById('cpModalBody');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      body.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
+          <iconify-icon icon="solar:cpu-bolt-linear" style="color:#9333ea;font-size:18px;"></iconify-icon>
+        </div>
+        <h3 class="text-white font-semibold mb-1">Control Panel — 1 Run Available</h3>
+        <p class="text-xs text-zinc-500 mb-4">You have one scan run available. This will scan your councils and display results on your dashboard. After the run, access will be revoked until you request again.</p>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
+          <button onclick="runCPScan()" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors flex items-center gap-1.5">
+            <iconify-icon icon="solar:play-linear" style="font-size:12px;"></iconify-icon>
+            Run Scan
+          </button>
+        </div>`;
+    }
+
+    async function runCPScan() {
+      const btn = event.target.closest('button');
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Running…';
+
+      // Deduct the run
+      await sb.from('profiles').update({
+        cp_runs_remaining: 0,
+        cp_last_run_at: new Date().toISOString(),
+      }).eq('user_id', currentUser.id);
+
+      closeCPModal();
+
+      // Show status
+      const status = document.getElementById('runStatus');
+      status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-brand/30 bg-brand/10 text-brand';
+      status.textContent = 'Scan triggered — results will appear below shortly.';
+      status.classList.remove('hidden');
+
+      // Trigger the scraper via Trigger.dev
+      try {
+        const resp = await fetch('https://api.trigger.dev/v3/runs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${window.TRIGGER_PUBLIC_KEY || ''}`,
+          },
+          body: JSON.stringify({ taskId: 'process-council', payload: { userId: currentUser.id } }),
+        });
+        if (!resp.ok) throw new Error('trigger failed');
+      } catch (_) {
+        status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-300';
+        status.textContent = 'Scan queued — check back in a few minutes for results.';
+      }
+
+      // Update nav
+      updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
+    }
+
+    function openHelpModal() {
+      closeCPModal();
+      const modal = document.getElementById('cpModal');
+      const body  = document.getElementById('cpModalBody');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      body.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+          <iconify-icon icon="solar:question-circle-linear" style="color:#f59e0b;font-size:18px;"></iconify-icon>
+        </div>
+        <h3 class="text-white font-semibold mb-1">Request Scan Exception</h3>
+        <p class="text-xs text-zinc-500 mb-4">Explain what went wrong with your scan and why you need an extra run. The admin will review your request.</p>
+        <textarea id="helpMsg" placeholder="Describe the issue with your scan…" rows="3"
+          class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none mb-4"></textarea>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
+          <button onclick="submitHelp()" class="text-xs px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors font-medium">Send to Admin</button>
+        </div>`;
+    }
+
+    async function submitHelp() {
+      const msg = document.getElementById('helpMsg')?.value?.trim() || '';
+      if (!msg) { alert('Please describe the issue first.'); return; }
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      await sb.from('control_panel_requests').insert({
+        user_id: currentUser.id,
+        help_message: msg,
+      });
+
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'help', userEmail: currentUser.email, userName: currentUser.email, message: msg }),
+        });
+      } catch (_) {}
+
+      closeCPModal();
+    }
+
+    function closeCPModal() {
+      const modal = document.getElementById('cpModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
     // ── Account dropdown ──────────────────────────────────────────────────────
     document.getElementById('accountMenuButton').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -477,6 +761,14 @@
 
     lucide.createIcons();
   </script>
+
+  <!-- Control Panel modal -->
+  <div id="cpModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeCPModal()"></div>
+    <div class="relative w-full max-w-sm glass-panel rounded-2xl p-6 flex flex-col items-center text-center" style="border-color:rgba(147,51,234,0.2);">
+      <div id="cpModalBody"></div>
+    </div>
+  </div>
 
 </body>
 </html>

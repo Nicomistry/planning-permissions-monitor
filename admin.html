@@ -354,9 +354,10 @@
           <iconify-icon icon="solar:users-group-rounded-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
           Saved
         </button>
-        <a href="#scanBtn" onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth'})" class="flex items-center gap-1.5 text-xs border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
+        <a href="#scanBtn" onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth'})" class="relative flex items-center gap-1.5 text-xs border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
           <iconify-icon icon="solar:cpu-bolt-linear" class="w-3.5 h-3.5"></iconify-icon>
-          Control Panel
+          Control Panel activated
+          <span id="cpRequestsBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"></span>
         </a>
         <button onclick="handleLogout()" class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
           <iconify-icon icon="solar:logout-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
@@ -783,6 +784,36 @@
               </table>
             </div>
           </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             ACCESS REQUESTS
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-access-requests" class="glass-panel rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                <iconify-icon icon="solar:shield-keyhole-linear" style="color:#9333ea;font-size:16px;"></iconify-icon>
+              </div>
+              <div>
+                <div class="text-white text-sm font-semibold tracking-tight">Control Panel Access Requests</div>
+                <div class="text-xs text-zinc-500 mt-0.5">Grant or deny user requests to run the scanner</div>
+              </div>
+            </div>
+            <button onclick="loadCPRequests()" class="text-xs text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all rounded-lg px-3 py-1.5">
+              Refresh
+            </button>
+          </div>
+          <div id="cpReqLoading" class="flex items-center justify-center py-12 gap-3 text-zinc-500">
+            <iconify-icon icon="svg-spinners:3-dots-fade" class="w-5 h-5" style="color:#00d084;"></iconify-icon>
+            <span class="text-sm">Loading…</span>
+          </div>
+          <div id="cpReqEmpty" class="hidden flex-col items-center justify-center py-12 text-center px-6">
+            <iconify-icon icon="solar:inbox-linear" class="w-10 h-10 text-zinc-600 mb-3" style="stroke-width:1;"></iconify-icon>
+            <div class="text-white font-medium mb-1">No requests</div>
+            <div class="text-sm text-zinc-500">Access requests from users will appear here.</div>
+          </div>
+          <div id="cpReqList" class="hidden divide-y divide-white/5"></div>
         </div>
 
       </div>
@@ -1897,9 +1928,104 @@
       buildChips();
       buildTradeChips();
       loadRequests();
+      loadCPRequests();
     }
 
     init();
+
+    // ── Control Panel access requests ─────────────────────────────────────────
+    async function loadCPRequests() {
+      document.getElementById('cpReqLoading').classList.remove('hidden');
+      document.getElementById('cpReqEmpty').classList.add('hidden');
+      document.getElementById('cpReqList').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('control_panel_requests')
+        .select('*, profiles(cp_runs_remaining)')
+        .order('requested_at', { ascending: false });
+
+      document.getElementById('cpReqLoading').classList.add('hidden');
+
+      if (error || !data || data.length === 0) {
+        document.getElementById('cpReqEmpty').classList.remove('hidden');
+        document.getElementById('cpReqEmpty').classList.add('flex');
+        updateCPBadge(0);
+        return;
+      }
+
+      const pending = data.filter(r => r.status === 'pending');
+      updateCPBadge(pending.length);
+
+      const list = document.getElementById('cpReqList');
+      list.innerHTML = data.map(r => {
+        const date = new Date(r.requested_at).toLocaleString('en-GB', { dateStyle:'short', timeStyle:'short' });
+        const statusColors = { pending: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30', granted: 'text-green-400 bg-green-400/10 border-green-400/30', denied: 'text-red-400 bg-red-400/10 border-red-400/30' };
+        const sc = statusColors[r.status] || '';
+        const isPending = r.status === 'pending';
+        return `
+          <div class="flex items-start justify-between gap-4 px-6 py-4" id="cpreq-${r.id}">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm text-white font-medium">${r.user_id.slice(0,8)}…</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full border ${sc} font-medium uppercase">${r.status}</span>
+                ${r.help_message ? '<span class="text-[10px] px-2 py-0.5 rounded-full border border-amber-400/30 text-amber-400 bg-amber-400/10 font-medium">HELP REQUEST</span>' : ''}
+              </div>
+              <div class="text-xs text-zinc-500 mt-1">${date}</div>
+              ${r.message ? `<div class="text-xs text-zinc-400 mt-1.5 italic">"${r.message}"</div>` : ''}
+              ${r.help_message ? `<div class="text-xs text-amber-300 mt-1.5 italic">"${r.help_message}"</div>` : ''}
+            </div>
+            ${isPending ? `
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button onclick="reviewCPRequest('${r.id}','granted')" class="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors font-medium">Grant</button>
+              <button onclick="reviewCPRequest('${r.id}','denied')" class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors font-medium">Deny</button>
+            </div>` : ''}
+          </div>`;
+      }).join('');
+      list.classList.remove('hidden');
+    }
+
+    function updateCPBadge(count) {
+      const badge = document.getElementById('cpRequestsBadge');
+      if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+      } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+      }
+    }
+
+    async function reviewCPRequest(id, decision) {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '…';
+
+      // Get the request to find the user_id
+      const { data: req } = await sb.from('control_panel_requests').select('user_id, user_id').eq('id', id).single();
+
+      // Update request status
+      await sb.from('control_panel_requests').update({
+        status: decision,
+        reviewed_at: new Date().toISOString(),
+      }).eq('id', id);
+
+      // If granted, set cp_runs_remaining = 1
+      if (decision === 'granted' && req?.user_id) {
+        await sb.from('profiles').update({ cp_runs_remaining: 1 }).eq('user_id', req.user_id);
+      }
+
+      // Send email notification
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: decision, userEmail: req?.user_id, userName: '' }),
+        });
+      } catch (_) {}
+
+      loadCPRequests();
+    }
 
     // ── Load demo requests ────────────────────────────────────────────────────
     async function loadRequests() {
