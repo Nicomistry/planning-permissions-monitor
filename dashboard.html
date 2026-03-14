@@ -82,9 +82,9 @@
     .d-sector-chip.active { border-color: rgba(147,51,234,0.6); background: rgba(147,51,234,0.15); color: #c084fc; font-weight: 500; }
 
     /* wrap each trade row + its panel together */
-    .d-trade-wrap { border-radius: 12px; overflow: hidden; }
-    .d-trade-wrap .d-trade-row { border-radius: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-    .d-trade-wrap:not(:has(.d-sectors-panel.open)) .d-trade-row { border-radius: 12px; }
+    .d-trade-wrap { border-radius: 12px; }
+    .d-trade-wrap .d-trade-row { border-radius: 12px; }
+    .d-trade-wrap:has(.d-sectors-panel.open) .d-trade-row { border-radius: 12px 12px 0 0; }
     .d-trade-pill {
       width: 32px; height: 18px; border-radius: 99px; flex-shrink: 0;
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: all 0.18s; position: relative;
@@ -245,7 +245,7 @@
           <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/5">
 
             <!-- LEFT: Trades -->
-            <div class="ss-left lg:w-72 xl:w-80 flex-shrink-0 p-5 self-stretch">
+            <div class="ss-left lg:w-80 xl:w-96 flex-shrink-0 p-5 self-stretch">
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <div class="text-sm font-semibold text-white flex items-center gap-2">
