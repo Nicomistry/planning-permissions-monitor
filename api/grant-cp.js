@@ -17,18 +17,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Supabase env vars not configured' });
   }
 
+  // Service role client — bypasses RLS
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
   // Verify caller is an admin via their JWT
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No auth token' });
 
-  const callerClient = createClient(SUPABASE_URL, authHeader.replace('Bearer ', ''));
-  const { data: { user }, error: authErr } = await callerClient.auth.getUser();
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authErr } = await admin.auth.getUser(token);
   if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
 
-  // Service role client — bypasses RLS
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  // Verify caller is admin
   const { data: callerProfile } = await admin.from('profiles').select('is_admin').eq('user_id', user.id).single();
   if (!callerProfile?.is_admin) return res.status(403).json({ error: 'Not admin' });
 
