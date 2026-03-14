@@ -4,7 +4,8 @@ import { processCouncilTask, type MergedLead } from "./process-council";
 
 // ─── Councils ─────────────────────────────────────────────────────────────────
 
-const COUNCILS = [
+// Default councils (admin / no-selection fallback)
+const DEFAULT_COUNCILS = [
   { name: "Windsor & Maidenhead", auth: "Windsor" },
   { name: "Hillingdon",           auth: "Hillingdon" },
   { name: "Dacorum",              auth: "Dacorum" },
@@ -12,6 +13,25 @@ const COUNCILS = [
   { name: "Surrey Heath",         auth: "SurreyHeath" },
   { name: "Runnymede",            auth: "Runnymede" },
 ];
+
+// Known name → PlanIT auth exceptions (where auth differs from the name)
+const AUTH_EXCEPTIONS: Record<string, string> = {
+  "Windsor & Maidenhead": "Windsor",
+  "Surrey Heath":         "SurreyHeath",
+  "Babergh Mid Suffolk":  "BaberghMidSuffolk",
+  "Bromsgrove Redditch":  "BromsgrovRedditch",
+  "South Norfolk Broadland": "SouthNorfolkBroadland",
+};
+
+function councilToAuth(name: string): string {
+  if (AUTH_EXCEPTIONS[name]) return AUTH_EXCEPTIONS[name];
+  // Default: remove spaces and special characters
+  return name.replace(/\s+/g, "").replace(/[^a-zA-Z0-9]/g, "");
+}
+
+function buildCouncilList(names: string[]): { name: string; auth: string }[] {
+  return names.map((name) => ({ name, auth: councilToAuth(name) }));
+}
 
 // ─── Email builder ────────────────────────────────────────────────────────────
 
@@ -154,8 +174,8 @@ export const scrapePlanningLeadsTask = task({
   id: "planning-scraper",
   maxDuration: 1800, // 30 minutes total
 
-  run: async (payload: { userId?: string } = {}) => {
-    const { userId } = payload;
+  run: async (payload: { userId?: string; councils?: string[] | null } = {}) => {
+    const { userId, councils } = payload;
     const runDate = new Date().toLocaleDateString("en-GB", {
       weekday: "long",
       year: "numeric",
@@ -163,13 +183,19 @@ export const scrapePlanningLeadsTask = task({
       day: "numeric",
     });
 
+    // Use user's selected councils if provided, otherwise fall back to defaults
+    const councilList =
+      councils && councils.length > 0
+        ? buildCouncilList(councils)
+        : DEFAULT_COUNCILS;
+
     logger.info(`Planning scraper started — ${runDate}`);
-    logger.info(`Councils to process: ${COUNCILS.map((c) => c.name).join(", ")}`);
+    logger.info(`Councils to process: ${councilList.map((c) => c.name).join(", ")}`);
 
     const allLeads: MergedLead[] = [];
 
     // Process each council sequentially via triggerAndWait
-    for (const council of COUNCILS) {
+    for (const council of councilList) {
       logger.info(`Triggering: ${council.name}`);
 
       const result = await processCouncilTask.triggerAndWait({
