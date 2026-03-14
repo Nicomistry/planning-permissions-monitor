@@ -44,10 +44,6 @@
       </a>
       <div class="flex items-center gap-4">
         <div class="hidden sm:block text-[0.7rem] text-zinc-500">Dashboard</div>
-        <a id="adminBtn" href="/admin.html" class="hidden items-center gap-1.5 text-xs text-brand border border-brand/30 bg-brand/10 hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
-          <iconify-icon icon="solar:settings-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
-          Command Centre
-        </a>
         <div class="relative">
           <button id="accountMenuButton" class="flex hover:bg-white/5 transition-colors text-xs text-zinc-200 bg-black/30 border-white/10 border rounded-full pt-1.5 pr-3 pb-1.5 pl-3 items-center gap-2">
             <div id="userInitials" class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[0.7rem] text-emerald-300 font-medium">?</div>
@@ -237,9 +233,8 @@
         .eq('user_id', currentUser.id)
         .single();
       if (profile?.is_admin) {
-        const btn = document.getElementById('adminBtn');
-        btn.classList.remove('hidden');
-        btn.classList.add('flex');
+        window.location.href = '/admin.html';
+        return;
       }
       loadLeads();
     }
