@@ -506,6 +506,44 @@
           </div>
         </div>
 
+        <!-- ══ GRANT FREE SCANS ═════════════════════════════ -->
+        <div class="glass-panel rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-white/5" style="background:rgba(0,208,132,0.03);">
+            <div class="flex items-center gap-2.5">
+              <iconify-icon icon="solar:gift-linear" style="color:#00d084;font-size:15px;"></iconify-icon>
+              <span class="text-sm font-medium text-white">Grant Free Scans</span>
+              <span class="text-[10px] text-zinc-600">Search a client account and grant scan credits</span>
+            </div>
+          </div>
+
+          <div class="p-4 space-y-4">
+            <!-- Search row -->
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <iconify-icon icon="solar:magnifer-linear" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;color:#52525b;pointer-events:none;"></iconify-icon>
+                <input id="grantSearchInput" type="email" placeholder="Search by email address…"
+                  class="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm text-white placeholder-zinc-600 outline-none transition-all"
+                  style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                  onfocus="this.style.borderColor='rgba(0,208,132,0.4)';this.style.boxShadow='0 0 0 3px rgba(0,208,132,0.07)'"
+                  onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'"
+                  onkeydown="if(event.key==='Enter')searchGrantUser()">
+              </div>
+              <button onclick="searchGrantUser()"
+                class="px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95 flex items-center gap-1.5"
+                style="background:#00d084;color:#000;"
+                onmouseover="this.style.background='#33e39f'"
+                onmouseout="this.style.background='#00d084'">
+                <iconify-icon icon="solar:magnifer-bold" style="font-size:13px;color:#000;"></iconify-icon>
+                Search
+              </button>
+            </div>
+
+            <!-- Results -->
+            <div id="grantSearchStatus" class="hidden text-xs text-zinc-500 font-mono py-1"></div>
+            <div id="grantResults" class="hidden space-y-2"></div>
+          </div>
+        </div>
+
         <!-- ══════════════════════════════════════════════════
              COUNCIL SCANNER — MOTHERBOARD
         ═══════════════════════════════════════════════════ -->
@@ -2170,6 +2208,101 @@
           </div>`;
       }).join('');
       list.classList.remove('hidden');
+    }
+
+    // ── Grant Free Scans ──────────────────────────────────────────────────────
+    async function searchGrantUser() {
+      const input  = document.getElementById('grantSearchInput');
+      const status = document.getElementById('grantSearchStatus');
+      const results= document.getElementById('grantResults');
+      const q = (input.value || '').trim();
+      if (q.length < 2) { status.textContent = '⚠ Enter at least 2 characters'; status.classList.remove('hidden'); return; }
+
+      status.textContent = 'Searching…';
+      status.classList.remove('hidden');
+      results.classList.add('hidden');
+      results.innerHTML = '';
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const resp = await fetch('/api/admin-grant-runs', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body:    JSON.stringify({ action: 'search', query: q }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) { status.textContent = '✗ ' + (json.error || 'Search failed'); return; }
+
+        if (!json.users || json.users.length === 0) {
+          status.textContent = 'No accounts found matching "' + q + '"';
+          return;
+        }
+
+        status.classList.add('hidden');
+        results.classList.remove('hidden');
+        results.innerHTML = json.users.map(u => `
+          <div class="flex items-center justify-between px-4 py-3 rounded-lg" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);">
+            <div>
+              <div class="text-sm font-medium text-white">${u.email}</div>
+              <div class="text-[11px] text-zinc-600 mt-0.5 font-mono">ID: ${u.id.slice(0,12)}… &nbsp;·&nbsp; Scans remaining: <span id="runs-${u.id}" class="text-brand font-semibold">${u.cp_runs_remaining}</span></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="runCount-${u.id}" type="number" value="1" min="1" max="99"
+                class="w-14 text-center rounded-lg text-sm text-white font-semibold outline-none"
+                style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);padding:6px 0;">
+              <button onclick="grantRuns('${u.id}', '${u.email}')"
+                class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
+                style="background:#00d084;color:#000;"
+                onmouseover="this.style.background='#33e39f'"
+                onmouseout="this.style.background='#00d084'">
+                <iconify-icon icon="solar:gift-bold" style="font-size:13px;color:#000;"></iconify-icon>
+                Grant
+              </button>
+            </div>
+          </div>`).join('');
+      } catch(e) {
+        status.textContent = '✗ Network error: ' + e.message;
+      }
+    }
+
+    async function grantRuns(userId, email) {
+      const runCountEl = document.getElementById('runCount-' + userId);
+      const runsDisplay= document.getElementById('runs-' + userId);
+      const runs = parseInt(runCountEl?.value || '1', 10);
+      if (isNaN(runs) || runs < 1) return;
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const resp = await fetch('/api/admin-grant-runs', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body:    JSON.stringify({ action: 'grant', userId, runs }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) { alert('Grant failed: ' + (json.error || 'Unknown error')); return; }
+
+        if (runsDisplay) runsDisplay.textContent = runs;
+        // Flash the row green briefly
+        const row = runsDisplay?.closest('div[style]');
+        if (row) {
+          row.style.borderColor = 'rgba(0,208,132,0.5)';
+          row.style.background  = 'rgba(0,208,132,0.07)';
+          setTimeout(() => {
+            row.style.borderColor = 'rgba(255,255,255,0.07)';
+            row.style.background  = 'rgba(255,255,255,0.03)';
+          }, 2000);
+        }
+        const log = document.getElementById('scanLog');
+        if (log) {
+          const line = document.createElement('div');
+          line.className = 'text-brand text-xs font-mono';
+          line.textContent = `[${new Date().toLocaleTimeString()}] ✓ Granted ${runs} scan run${runs > 1 ? 's' : ''} to ${email}`;
+          log.appendChild(line);
+          log.scrollTop = log.scrollHeight;
+        }
+      } catch(e) {
+        alert('Network error: ' + e.message);
+      }
     }
 
     function toggleCPRequests() {
