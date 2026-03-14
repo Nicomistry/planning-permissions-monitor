@@ -755,6 +755,11 @@
             Contacts
             <span id="contactsCountBadge" class="hidden text-[10px] bg-brand/20 text-brand px-1.5 rounded-full"></span>
           </button>
+          <button id="tab-intelligence" onclick="switchTab('intelligence')"
+            class="tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-zinc-500 hover:text-zinc-300 flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8h6.1l-4.95 3.6 1.9 5.8L12 14.6l-4.95 3.6 1.9-5.8L4 8.8h6.1z"/></svg>
+            Intelligence
+          </button>
         </div>
 
         <!-- ══════════════════════════════════════════════════
@@ -953,6 +958,74 @@
             </div>
           </div>
         </div>
+
+        <!-- ══════════════════════════════════════════════════
+             INTELLIGENCE TAB
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-intelligence" class="hidden space-y-8">
+
+          <!-- ── PANEL 1: Prospect Conversations ────────────────────────── -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                Prospect Conversations
+              </h3>
+              <button onclick="loadProspectConversations()" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+                <iconify-icon icon="solar:refresh-linear" style="font-size:14px;"></iconify-icon>
+                Refresh
+              </button>
+            </div>
+
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+              <input id="convSearchInput" type="text" placeholder="Search by email…"
+                oninput="renderConversations()"
+                class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-56 placeholder-zinc-600">
+              <div class="flex gap-1">
+                <button id="convFilterAll" onclick="setConvFilter('all',this)"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white transition-all">All</button>
+                <button id="convFilterSent" onclick="setConvFilter('sent',this)"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-all">Report Sent</button>
+                <button id="convFilterNot" onclick="setConvFilter('not',this)"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-all">Not Sent</button>
+              </div>
+              <span id="convCount" class="ml-auto text-xs text-zinc-500"></span>
+            </div>
+
+            <!-- Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden">
+              <div id="convLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
+                <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:20px;color:#00d084;"></iconify-icon>
+                <span class="text-sm">Loading…</span>
+              </div>
+              <div id="convEmpty" class="hidden flex-col items-center justify-center py-16 text-center">
+                <iconify-icon icon="solar:chat-line-linear" style="font-size:40px;" class="text-zinc-600 mb-3"></iconify-icon>
+                <div class="text-white font-medium mb-1">No prospect conversations yet</div>
+                <div class="text-sm text-zinc-500">Conversations will appear here as prospects use the demo chat.</div>
+              </div>
+              <div id="convTableWrap" class="hidden overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-white/5 text-left">
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Name</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Trade</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Area</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Msgs</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Report</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Follow-up</th>
+                      <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Time</th>
+                      <th class="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="convTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /panel-intelligence -->
 
       </div>
     </div>
@@ -2495,7 +2568,7 @@
 
     // ── Tab switching ─────────────────────────────────────────────────────────
     function switchTab(tab) {
-      ['demos','leads','contacts'].forEach(t => {
+      ['demos','leads','contacts','intelligence'].forEach(t => {
         document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById('tab-' + t);
         if (t === tab) {
@@ -2506,8 +2579,9 @@
           btn.classList.add('text-zinc-500');
         }
       });
-      if (tab === 'leads')    loadLeads();
-      if (tab === 'contacts') loadContacts();
+      if (tab === 'leads')         loadLeads();
+      if (tab === 'contacts')      loadContacts();
+      if (tab === 'intelligence')  loadProspectConversations();
     }
 
     // ── Load all leads (admin) ────────────────────────────────────────────────
@@ -2864,6 +2938,166 @@
     async function handleLogout() {
       await sb.auth.signOut();
       window.location.href = '/login.html';
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // INTELLIGENCE TAB — Panel 1: Prospect Conversations
+    // ══════════════════════════════════════════════════════════════════════════
+
+    let allConversations  = [];
+    let convFilter        = 'all';   // 'all' | 'sent' | 'not'
+    let convRefreshTimer  = null;
+
+    function timeAgo(iso) {
+      if (!iso) return '—';
+      const diff = Date.now() - new Date(iso).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return 'just now';
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(h / 24) + 'd ago';
+    }
+
+    const followUpLabels = {
+      new:           { label: 'New',           color: '#60a5fa' },
+      contacted:     { label: 'Contacted',      color: '#facc15' },
+      converted:     { label: 'Converted',      color: '#4ade80' },
+      not_interested:{ label: 'Not Interested', color: '#71717a' },
+    };
+
+    async function loadProspectConversations() {
+      document.getElementById('convLoading').classList.remove('hidden');
+      document.getElementById('convTableWrap').classList.add('hidden');
+      document.getElementById('convEmpty').classList.add('hidden');
+
+      try {
+        const { data, error } = await sb
+          .from('prospect_conversations')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        allConversations = data || [];
+      } catch (e) {
+        console.error('loadProspectConversations:', e);
+        allConversations = [];
+      }
+
+      document.getElementById('convLoading').classList.add('hidden');
+      renderConversations();
+
+      // Auto-refresh every 60s
+      clearInterval(convRefreshTimer);
+      convRefreshTimer = setInterval(loadProspectConversations, 60000);
+    }
+
+    function setConvFilter(f, btn) {
+      convFilter = f;
+      ['convFilterAll','convFilterSent','convFilterNot'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('bg-white/10','text-white');
+        el.classList.add('text-zinc-500');
+      });
+      btn.classList.add('bg-white/10','text-white');
+      btn.classList.remove('text-zinc-500');
+      renderConversations();
+    }
+
+    function renderConversations() {
+      const search = (document.getElementById('convSearchInput')?.value || '').toLowerCase();
+      let rows = allConversations.filter(c => {
+        if (search && !(c.prospect_email || '').toLowerCase().includes(search)) return false;
+        if (convFilter === 'sent' && !c.report_sent)  return false;
+        if (convFilter === 'not'  &&  c.report_sent)  return false;
+        return true;
+      });
+
+      document.getElementById('convCount').textContent = rows.length + ' conversation' + (rows.length !== 1 ? 's' : '');
+
+      if (!rows.length) {
+        document.getElementById('convEmpty').classList.remove('hidden');
+        document.getElementById('convTableWrap').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('convEmpty').classList.add('hidden');
+      document.getElementById('convTableWrap').classList.remove('hidden');
+
+      const statusColors = { new:'#60a5fa', contacted:'#facc15', converted:'#4ade80', not_interested:'#71717a' };
+
+      document.getElementById('convTableBody').innerHTML = rows.map(c => {
+        const msgCount = Array.isArray(c.messages) ? c.messages.length : 0;
+        const fu       = c.follow_up_status || 'new';
+        return `
+          <tr id="conv-row-${c.id}" class="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
+              onclick="toggleConvRow('${c.id}')">
+            <td class="px-4 py-3 text-xs text-white">${c.prospect_name || 'Unknown'}</td>
+            <td class="px-4 py-3 text-xs text-zinc-300">${c.prospect_email || '—'}</td>
+            <td class="px-4 py-3 text-xs text-zinc-400">${c.trade || '—'}</td>
+            <td class="px-4 py-3 text-xs text-zinc-400">${c.area || '—'}</td>
+            <td class="px-4 py-3 text-xs text-center text-zinc-400">${msgCount}</td>
+            <td class="px-4 py-3 text-center">
+              ${c.report_sent
+                ? '<span style="color:#4ade80;font-size:16px;">✓</span>'
+                : '<span class="text-zinc-600 text-xs">—</span>'}
+            </td>
+            <td class="px-4 py-3" onclick="event.stopPropagation()">
+              <select onchange="updateFollowUpStatus('${c.id}', this.value)"
+                class="text-[11px] bg-[#111] border border-white/10 rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
+                style="color:${statusColors[fu] || '#60a5fa'}">
+                <option value="new"            ${fu==='new'?'selected':''}>New</option>
+                <option value="contacted"      ${fu==='contacted'?'selected':''}>Contacted</option>
+                <option value="converted"      ${fu==='converted'?'selected':''}>Converted</option>
+                <option value="not_interested" ${fu==='not_interested'?'selected':''}>Not Interested</option>
+              </select>
+            </td>
+            <td class="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">${timeAgo(c.updated_at)}</td>
+            <td class="px-4 py-3 text-zinc-500" id="conv-chevron-${c.id}">▶</td>
+          </tr>
+          <tr id="conv-expand-${c.id}" class="hidden border-b border-white/5">
+            <td colspan="9" class="px-4 pb-4 pt-2 bg-white/[0.015]">
+              ${renderMessageThread(c.messages)}
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function renderMessageThread(messages) {
+      if (!Array.isArray(messages) || !messages.length) {
+        return '<p class="text-xs text-zinc-600 italic">No messages recorded.</p>';
+      }
+      return '<div class="flex flex-col gap-2 max-h-72 overflow-y-auto py-1">' +
+        messages.map(m => {
+          const isUser  = m.role === 'user';
+          const isAgent = m.role === 'assistant';
+          const bg      = isUser ? 'bg-[#1a1a1a] text-zinc-300' : 'bg-[#00d084]/10 text-[#00d084]';
+          const align   = isUser ? 'items-start' : 'items-end';
+          return `<div class="flex flex-col ${align}">
+            <div class="max-w-xs text-[11px] px-3 py-2 rounded-xl ${bg} leading-relaxed">${m.content || ''}</div>
+          </div>`;
+        }).join('') +
+      '</div>';
+    }
+
+    function toggleConvRow(id) {
+      const expandRow  = document.getElementById('conv-expand-' + id);
+      const chevron    = document.getElementById('conv-chevron-' + id);
+      const isOpen     = !expandRow.classList.contains('hidden');
+      expandRow.classList.toggle('hidden', isOpen);
+      chevron.textContent = isOpen ? '▶' : '▼';
+    }
+
+    async function updateFollowUpStatus(id, value) {
+      const { error } = await sb
+        .from('prospect_conversations')
+        .update({ follow_up_status: value })
+        .eq('id', id);
+      if (error) console.error('updateFollowUpStatus:', error);
+      // Update local data so re-renders stay consistent
+      const row = allConversations.find(c => c.id === id);
+      if (row) row.follow_up_status = value;
     }
   </script>
 
