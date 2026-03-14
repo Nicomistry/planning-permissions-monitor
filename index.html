@@ -765,116 +765,76 @@ revealEls.forEach(el => revealObserver.observe(el));
 lucide.createIcons();
 
 // ── Live hero dashboard ───────────────────────────────────────────────────
-(async function loadHeroDashboard() {
-  // Councils to sample — varied regions, reliable data
-  const SAMPLE_COUNCILS = ['Ashford', 'Hillingdon', 'Birmingham', 'Leeds', 'Bristol'];
+function typeLabel(t) {
+  return (t || '')
+    .replace('Full Planning Permission','Full PP')
+    .replace('Householder Application','Householder')
+    .replace('Prior Approval','Prior Approval')
+    .replace('Lawful Development Certificate','LDC');
+}
 
-  const INCLUDE = [
-    /\bdwelling/,/\bhouse\b/,/\bextension\b/,/\bloft\b/,/\bconversion\b/,
-    /\bbasement\b/,/\bdormer\b/,/\brenovation\b/,/\bnew\s+build\b/,/\bflat\b/,
-    /\bannex/,/\bconservatory\b/,/\berection of\b/,/\bresidential\b/,
-  ];
-  const EXCLUDE = [
-    /\badvertisement\b/,/\btelecoms?\b/,/\bmast\b/,/\bretail\b/,/\bindustrial\b/,
-    /\bwarehouse\b/,/\bsolar\s+farm\b/,/\bwind\s+turbine\b/,/\bdemolition\s+only\b/,
-    /\bcommercial\s+(?:unit|premises|office|block)\b/,/\bwaste\s+(?:disposal|management)\b/,
-    /\btree\s+preservation\b/,
-  ];
+function typeBadge(t) {
+  const label = typeLabel(t);
+  const cls = /full/i.test(t)          ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
+            : /loft|dormer/i.test(t)   ? 'bg-orange-500/15 text-orange-400 border-orange-500/20'
+            : /dwelling|build/i.test(t) ? 'bg-purple-500/15 text-purple-400 border-purple-500/20'
+            :                             'bg-zinc-500/15 text-zinc-400 border-zinc-500/20';
+  return `<span class="px-1.5 py-0.5 rounded text-[9px] border ${cls}">${label}</span>`;
+}
 
-  function score(desc, type) {
-    const d = (desc + ' ' + type).toLowerCase();
-    let s = 5;
-    if (/new\s+dwelling|new\s+build/.test(d)) s += 3;
-    if (/two-?storey|double\s+storey/.test(d)) s += 2;
-    if (/loft\s+conversion|dormer/.test(d))   s += 2;
-    if (/basement/.test(d))                   s += 2;
-    if (/extension/.test(d))                  s += 1;
-    if (/orangery|bi-?fold|glazed/.test(d))   s += 1;
-    if (/single[\s-]storey/.test(d))          s -= 1;
-    if (/prior\s+approval/.test(d))           s -= 1;
-    if (/lawful\s+development/.test(d))       s -= 2;
-    return Math.min(10, Math.max(1, s));
-  }
+function priorityBadge(p) {
+  const cls = p === 'HIGH'   ? 'bg-brand/15 text-brand border-brand/20'
+            : p === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+            :                   'bg-zinc-500/10 text-zinc-500 border-zinc-500/15';
+  return `<span class="px-1.5 py-0.5 rounded text-[9px] border font-medium ${cls}">${p === 'MEDIUM' ? 'MED' : p}</span>`;
+}
 
-  function typeLabel(t) {
-    return (t || '')
-      .replace('Full Planning Permission','Full PP')
-      .replace('Householder Application','Householder')
-      .replace('Prior Approval','Prior Approval')
-      .replace('Lawful Development Certificate','LDC');
-  }
-
-  function typeBadge(t) {
-    const label = typeLabel(t);
-    const cls = /full/i.test(t)   ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
-              : /loft|dormer/i.test(t) ? 'bg-orange-500/15 text-orange-400 border-orange-500/20'
-              : /dwelling|build/i.test(t) ? 'bg-purple-500/15 text-purple-400 border-purple-500/20'
-              : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20';
-    return `<span class="px-1.5 py-0.5 rounded text-[9px] border ${cls}">${label}</span>`;
-  }
-
-  function priorityBadge(p) {
-    const cls = p === 'HIGH'   ? 'bg-brand/15 text-brand border-brand/20'
-              : p === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-              :                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/15';
-    return `<span class="px-1.5 py-0.5 rounded text-[9px] border font-medium ${cls}">${p === 'MEDIUM' ? 'MED' : p}</span>`;
-  }
-
-  const allLeads = [];
-
-  await Promise.all(SAMPLE_COUNCILS.map(async council => {
-    try {
-      const params = new URLSearchParams({ council, recent: '30', pg_sz: '100', app_state: 'Undecided' });
-      const resp = await fetch(`/api/planit?${params}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const records = data.records || [];
-      records.forEach(r => {
-        const desc = r.description || '';
-        const type = r.app_type || '';
-        const text = (desc + ' ' + type).toLowerCase();
-        if (EXCLUDE.some(rx => rx.test(text))) return;
-        if (!INCLUDE.some(rx => rx.test(text))) return;
-        const s = score(desc, type);
-        const priority = s >= 8 ? 'HIGH' : s >= 6 ? 'MEDIUM' : 'LOW';
-        allLeads.push({ address: r.address || '', council, app_type: type, score: s, priority, postcode: r.postcode || '' });
-      });
-    } catch {}
-  }));
-
-  const top = allLeads.sort((a,b) => b.score - a.score).slice(0, 5);
-  const high = allLeads.filter(l => l.priority === 'HIGH').length;
-  const now  = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-  const heroRows = document.getElementById('heroRows');
+async function loadHeroDashboard() {
+  const heroRows   = document.getElementById('heroRows');
   const heroFooter = document.getElementById('heroFooterStat');
 
-  if (top.length === 0) {
-    heroRows.innerHTML = `<div class="flex items-center justify-center py-8 text-[11px] text-zinc-600">No results loaded</div>`;
-    return;
-  }
+  try {
+    const resp = await fetch('/api/live-leads');
+    if (!resp.ok) throw new Error('fetch failed');
+    const { leads, fetched_at } = await resp.json();
 
-  heroRows.innerHTML = top.map((l, i) => {
-    const parts = l.address.split(',');
-    const street = parts[0] || l.address;
-    const rest   = parts.slice(1).join(',').trim() || l.council;
-    const scoreColor = l.score >= 8 ? 'text-brand' : 'text-zinc-300';
-    return `<div class="grid grid-cols-12 px-4 py-3 text-[11px] hover:bg-white/[0.02] transition-colors" style="animation: mockRowIn 0.4s ease ${i * 0.12}s both">
-      <div class="col-span-4">
-        <span class="text-white font-medium leading-snug block truncate">${street}</span>
-        <span class="text-zinc-600 text-[10px]">${rest}</span>
-      </div>
-      <div class="col-span-3 flex items-center text-zinc-400 truncate">${l.council}</div>
-      <div class="col-span-2 flex items-center">${typeBadge(l.app_type)}</div>
-      <div class="col-span-2 flex items-center justify-center"><span class="font-mono font-semibold ${scoreColor}">${l.score}.0</span></div>
-      <div class="col-span-1 flex items-center justify-center">${priorityBadge(l.priority)}</div>
-    </div>`;
-  }).join('');
+    if (!leads || leads.length === 0) {
+      heroRows.innerHTML = `<div class="flex items-center justify-center py-8 text-[11px] text-zinc-600">No results loaded</div>`;
+      return;
+    }
 
-  if (heroFooter) {
-    heroFooter.textContent = `${allLeads.length} qualified leads · ${SAMPLE_COUNCILS.length} councils · scanned at ${now}`;
+    const uniqueCouncils = new Set(leads.map(l => l.council)).size;
+    const highCount      = leads.filter(l => l.priority === 'HIGH').length;
+    const now            = new Date(fetched_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    heroRows.innerHTML = leads.slice(0, 5).map((l, i) => {
+      const parts  = (l.address || '').split(',');
+      const street = parts[0] || l.address;
+      const rest   = parts.slice(1).join(',').trim() || l.council;
+      const scoreColor = l.score >= 8 ? 'text-brand' : 'text-zinc-300';
+      return `<div class="grid grid-cols-12 px-4 py-3 text-[11px] hover:bg-white/[0.02] transition-colors" style="animation: mockRowIn 0.4s ease ${i * 0.12}s both">
+        <div class="col-span-4">
+          <span class="text-white font-medium leading-snug block truncate">${street}</span>
+          <span class="text-zinc-600 text-[10px]">${rest}</span>
+        </div>
+        <div class="col-span-3 flex items-center text-zinc-400 truncate">${l.council}</div>
+        <div class="col-span-2 flex items-center">${typeBadge(l.app_type)}</div>
+        <div class="col-span-2 flex items-center justify-center"><span class="font-mono font-semibold ${scoreColor}">${l.score}.0</span></div>
+        <div class="col-span-1 flex items-center justify-center">${priorityBadge(l.priority)}</div>
+      </div>`;
+    }).join('');
+
+    if (heroFooter) {
+      heroFooter.textContent = `${leads.length} qualified leads · ${uniqueCouncils} councils · scanned at ${now}`;
+    }
+  } catch {
+    // Silently fail — hero mockup just stays as skeleton
   }
-})();
+}
+
+loadHeroDashboard();
+// Refresh every 20 minutes
+setInterval(loadHeroDashboard, 20 * 60 * 1000);
 
 // ── Auth state: swap Login → Dashboard if already signed in ───────────────
 (async () => {
