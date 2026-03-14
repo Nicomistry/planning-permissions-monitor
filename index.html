@@ -176,14 +176,21 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 </head>
 <body class="overflow-x-hidden selection:bg-brand/20 selection:text-brand-light bg-[#0a0a0a] text-base">
 
-<!-- Background — subtle grid + border vignette only -->
+<!-- Background — grid + faint green border frame -->
 <div class="fixed inset-0 -z-10 bg-[#080808]">
-  <!-- Fine code grid -->
+  <!-- Fine code grid — uniform across the whole page -->
   <div class="absolute inset-0" style="background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px;"></div>
-  <!-- Edge vignette — fades grid towards centre so it feels like a border frame -->
-  <div class="absolute inset-0" style="background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(8,8,8,0.85) 100%);"></div>
-  <!-- Very faint top-centre bloom so the hero text reads cleanly -->
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[28rem] pointer-events-none" style="background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%);"></div>
+  <!-- Faint neon green border glow — top edge -->
+  <div class="absolute top-0 left-0 right-0 h-[2px] pointer-events-none" style="background: linear-gradient(90deg, transparent 0%, rgba(0,208,132,0.35) 30%, rgba(0,208,132,0.55) 50%, rgba(0,208,132,0.35) 70%, transparent 100%);"></div>
+  <!-- Faint neon green border glow — bottom edge -->
+  <div class="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none" style="background: linear-gradient(90deg, transparent 0%, rgba(0,208,132,0.2) 30%, rgba(0,208,132,0.35) 50%, rgba(0,208,132,0.2) 70%, transparent 100%);"></div>
+  <!-- Faint neon green border glow — left edge -->
+  <div class="absolute top-0 bottom-0 left-0 w-[2px] pointer-events-none" style="background: linear-gradient(180deg, transparent 0%, rgba(0,208,132,0.25) 30%, rgba(0,208,132,0.35) 50%, rgba(0,208,132,0.25) 70%, transparent 100%);"></div>
+  <!-- Faint neon green border glow — right edge -->
+  <div class="absolute top-0 bottom-0 right-0 w-[2px] pointer-events-none" style="background: linear-gradient(180deg, transparent 0%, rgba(0,208,132,0.25) 30%, rgba(0,208,132,0.35) 50%, rgba(0,208,132,0.25) 70%, transparent 100%);"></div>
+  <!-- Very soft inner green bleed from each edge — gives depth without blobs -->
+  <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to bottom, rgba(0,208,132,0.03) 0%, transparent 12%, transparent 88%, rgba(0,208,132,0.02) 100%);"></div>
+  <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to right, rgba(0,208,132,0.025) 0%, transparent 8%, transparent 92%, rgba(0,208,132,0.025) 100%);"></div>
 </div>
 
 <!-- Navbar -->
