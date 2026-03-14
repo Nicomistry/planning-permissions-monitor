@@ -101,9 +101,9 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
       <a href="#who-for" class="text-zinc-400 font-medium hover:text-white transition-colors">Who it's for</a>
       <a href="#pricing" class="text-zinc-400 font-medium hover:text-white transition-colors">Pricing</a>
     </div>
-    <div class="flex items-center gap-4 text-sm">
-      <a href="/login.html" class="hidden sm:block text-zinc-400 hover:text-white transition-colors font-medium">Login</a>
-      <button onclick="openDemoModal()" class="bg-brand text-black px-5 py-2 rounded-full font-semibold text-xs hover:bg-brand-light transition-all-ease tracking-wide">Book A Demo</button>
+    <div class="flex items-center gap-3 text-sm">
+      <a id="navAuthBtn" href="/login.html" class="text-zinc-400 hover:text-white transition-colors font-medium text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5">Login</a>
+      <button onclick="openDemoModal()" class="bg-brand text-black px-4 sm:px-5 py-2 rounded-full font-semibold text-xs hover:bg-brand-light transition-all-ease tracking-wide">Book A Demo</button>
     </div>
   </div>
 </nav>
@@ -874,6 +874,26 @@ lucide.createIcons();
   if (heroFooter) {
     heroFooter.textContent = `${allLeads.length} qualified leads · ${SAMPLE_COUNCILS.length} councils · scanned at ${now}`;
   }
+})();
+
+// ── Auth state: swap Login → Dashboard if already signed in ───────────────
+(async () => {
+  try {
+    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const { data } = await sb.auth.getSession();
+    if (data.session) {
+      const btn = document.getElementById('navAuthBtn');
+      if (btn) {
+        btn.textContent = 'Dashboard';
+        btn.href = '/dashboard.html';
+        btn.classList.add('text-brand', 'border-brand/30');
+        btn.classList.remove('text-zinc-400', 'border-white/10');
+      }
+    }
+  } catch (_) {}
 })();
 </script>
 </body></html>
