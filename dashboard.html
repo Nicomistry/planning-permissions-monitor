@@ -109,6 +109,14 @@
     .d-council-chip.active .chip-region { color: rgba(0,208,132,0.6); }
 
     /* selected council pills (top of councils panel) */
+    @keyframes asSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .as-spin { display: inline-block; animation: asSpin 0.9s linear infinite; }
+    .auto-scan-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(0,208,132,0.3); background: rgba(0,208,132,0.08); color: #00d084; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .auto-scan-btn:hover:not(:disabled) { background: rgba(0,208,132,0.15); border-color: rgba(0,208,132,0.5); }
+    .auto-scan-btn:disabled { cursor: wait; opacity: 0.7; }
+    .auto-scan-btn.as-loading { color: #a1a1aa; border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
+    .auto-scan-btn.as-success { color: #4ade80; border-color: rgba(74,222,128,0.35); background: rgba(74,222,128,0.08); }
+    .auto-scan-btn.as-error   { color: #f87171; border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.08); }
     @keyframes chipIn {
       from { opacity:0; transform:translateY(-6px) scale(0.92); }
       to   { opacity:1; transform:translateY(0)    scale(1); }
@@ -323,6 +331,9 @@
                 <span class="w-5 h-5 rounded-full bg-brand/15 border border-brand/30 text-brand text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
                 <span class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Select Councils</span>
                 <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand/12 border border-brand/25 text-brand font-medium"><span id="dCouncilCount">0</span> selected</span>
+                <button id="autoScanBtn" onclick="autoScanLocation(this)" class="auto-scan-btn">
+                  <iconify-icon icon="solar:map-point-bold" style="font-size:12px;"></iconify-icon>Auto Scan
+                </button>
                 <button onclick="dClearCouncils()" class="text-[11px] text-zinc-500 hover:text-red-400 border border-white/8 hover:border-red-500/30 rounded-lg px-2 py-1 transition-all">Clear</button>
               </div>
               <div id="dSelectedPills" class="hidden flex-wrap gap-1.5 mb-3"></div>
@@ -728,6 +739,184 @@
       updateDCouncilCount();
       renderDSelectedPills();
       markSSDirty();
+    }
+
+    // ─── Auto Scan: detect location → select nearest 4 councils ──────────────
+
+    // Maps postcodes.io admin_district names that differ from our PlanIT council names
+    const DISTRICT_MAP = {
+      'Windsor and Maidenhead':              'Windsor',
+      'Bath and North East Somerset':        'Bath',
+      'Bournemouth, Christchurch and Poole': 'BCP',
+      'Herefordshire, County of':            'Herefordshire',
+      'Kingston upon Hull, City of':         'Hull',
+      'Babergh':                             'Babergh Mid Suffolk',
+      'Mid Suffolk':                         'Babergh Mid Suffolk',
+      'Broadland':                           'South Norfolk Broadland',
+      'South Norfolk':                       'South Norfolk Broadland',
+      'Bromsgrove':                          'Bromsgrove Redditch',
+      'Redditch':                            'Bromsgrove Redditch',
+      'Barrow-in-Furness':                   'Barrow',
+      'Eden':                                'Westmorland and Furness',
+      'South Lakeland':                      'Westmorland and Furness',
+      'Allerdale':                           'Westmorland and Furness',
+      'Copeland':                            'Copeland',
+      'Northumberland':                      'Northumberland (County)',
+      'New Forest':                          'New Forest (District)',
+      'Stoke-on-Trent':                      'Stoke on Trent',
+      'Newcastle-under-Lyme':                'Newcastle under Lyme',
+      'Kensington and Chelsea':              'Kensington',
+      'City of London':                      'City',
+      'Aylesbury Vale':                      'Buckinghamshire',
+      'Chiltern':                            'Buckinghamshire',
+      'South Bucks':                         'Buckinghamshire',
+      'Wycombe':                             'Buckinghamshire',
+      'Mendip':                              'Mendip',
+      'Somerset West and Taunton':           'South Somerset',
+      'Taunton Deane':                       'South Somerset',
+      'West Somerset':                       'South Somerset',
+      'Shepway':                             'Folkestone',
+      'Adur':                                'Adur and Worthing',
+      'Worthing':                            'Adur and Worthing',
+      'North East Lincolnshire':             'North East Lincs',
+      'North Lincolnshire':                  'North Lincs',
+    };
+
+    function matchDistrictToCouncil(district) {
+      if (!district) return null;
+      if (DISTRICT_MAP[district]) return DISTRICT_MAP[district];
+      if (D_COUNCILS.includes(district)) return district;
+
+      // Normalize: lowercase, strip "and/of/the", strip non-alphanumeric
+      const norm = s => s.toLowerCase()
+        .replace(/\band\b|\bof\b|\bthe\b/g, ' ')
+        .replace(/[^a-z0-9]+/g, '');
+
+      const nd = norm(district);
+      // Exact normalized match
+      for (const c of D_COUNCILS) {
+        if (norm(c) === nd) return c;
+      }
+      // Substring match (longer string contains shorter)
+      for (const c of D_COUNCILS) {
+        const nc = norm(c);
+        if (nc.length >= 4 && (nd.includes(nc) || nc.includes(nd))) return c;
+      }
+      return null;
+    }
+
+    function setAutoScanState(btn, state, text) {
+      const cfgs = {
+        idle:    { icon: 'solar:map-point-bold',   spin: false, extra: '' },
+        loading: { icon: 'solar:refresh-bold',     spin: true,  extra: 'as-loading' },
+        success: { icon: 'solar:check-circle-bold',spin: false, extra: 'as-success' },
+        error:   { icon: 'solar:danger-circle-bold',spin:false, extra: 'as-error' },
+      };
+      const cfg = cfgs[state] || cfgs.idle;
+      const label = text || 'Auto Scan';
+      btn.disabled = (state === 'loading');
+      btn.className = 'auto-scan-btn' + (cfg.extra ? ' ' + cfg.extra : '');
+      btn.innerHTML = `<iconify-icon icon="${cfg.icon}" style="font-size:12px;" class="${cfg.spin ? 'as-spin' : ''}"></iconify-icon>${label}`;
+      clearTimeout(btn._resetTimer);
+      if (state === 'error') {
+        btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 5000);
+      }
+    }
+
+    async function autoScanLocation(btn) {
+      if (!navigator.geolocation) {
+        setAutoScanState(btn, 'error', 'Geolocation not supported');
+        return;
+      }
+
+      setAutoScanState(btn, 'loading', 'Detecting location…');
+
+      // 1. Get browser coordinates
+      let coords;
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 12000,
+            maximumAge: 300000,
+          })
+        );
+        coords = pos.coords;
+      } catch (err) {
+        const msgs = {
+          1: 'Location access denied',
+          2: 'Location unavailable',
+          3: 'Location timed out',
+        };
+        setAutoScanState(btn, 'error', msgs[err.code] || 'Location failed');
+        return;
+      }
+
+      const { latitude: lat, longitude: lon } = coords;
+      setAutoScanState(btn, 'loading', 'Finding nearby councils…');
+
+      // 2. Parallel fetch: nearest postcode (own council) + nearby outcodes (wider area)
+      const [pcResp, ocResp] = await Promise.allSettled([
+        fetch(`https://api.postcodes.io/postcodes?lon=${lon}&lat=${lat}&limit=1`)
+          .then(r => r.ok ? r.json() : null),
+        fetch(`https://api.postcodes.io/outcodes?lon=${lon}&lat=${lat}&limit=100&radius=20000`)
+          .then(r => r.ok ? r.json() : null),
+      ]);
+
+      // 3. Tally districts — own council gets +10 weight to ensure it's always #1
+      const freq = {};
+
+      if (pcResp.status === 'fulfilled' && pcResp.value?.result?.length) {
+        const d = pcResp.value.result[0].admin_district;
+        if (d) freq[d] = (freq[d] || 0) + 10;
+      }
+
+      if (ocResp.status === 'fulfilled' && ocResp.value?.result?.length) {
+        for (const oc of ocResp.value.result) {
+          const districts = Array.isArray(oc.admin_district) ? oc.admin_district : [oc.admin_district];
+          for (const d of districts) {
+            if (d) freq[d] = (freq[d] || 0) + 1;
+          }
+        }
+      }
+
+      if (Object.keys(freq).length === 0) {
+        setAutoScanState(btn, 'error', 'No council data found');
+        return;
+      }
+
+      // 4. Sort by frequency, match to D_COUNCILS, take top 4 unique
+      const sorted = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name]) => name);
+
+      const matched = [];
+      for (const district of sorted) {
+        if (matched.length >= 4) break;
+        const council = matchDistrictToCouncil(district);
+        if (council && !matched.includes(council)) matched.push(council);
+      }
+
+      if (matched.length === 0) {
+        setAutoScanState(btn, 'error', 'No supported councils found nearby');
+        return;
+      }
+
+      // 5. Apply selection — clear current, set matched
+      dActiveCouncils.clear();
+      matched.forEach(c => dActiveCouncils.add(c));
+
+      // Reset to ALL region tab so chips are visible
+      const allTab = document.querySelector('.d-region-tab');
+      if (allTab) setDRegion(null, allTab);
+
+      filterDCouncils();
+      updateDCouncilCount();
+      renderDSelectedPills();
+      markSSDirty();
+
+      setAutoScanState(btn, 'success', `${matched.length} councils near you selected`);
+      btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 4000);
     }
 
     function renderDSelectedPills() {
