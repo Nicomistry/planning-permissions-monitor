@@ -1,8 +1,6 @@
 // POST /api/grant-cp
 // Body: { requestId, userId, decision: 'granted' | 'denied' }
-// Uses service role to bypass RLS when updating profiles
-
-import { createClient } from '@supabase/supabase-js';
+// Uses Supabase service role via REST API — no SDK import needed
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,37 +15,66 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Supabase env vars not configured' });
   }
 
-  // Service role client — bypasses RLS
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  // Helpers
+  const base = SUPABASE_URL;
+  const svcHeaders = {
+    'Content-Type':  'application/json',
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'apikey':        SUPABASE_SERVICE_KEY,
+    'Prefer':        'return=minimal',
+  };
 
-  // Verify caller is an admin via their JWT
+  // Verify caller JWT
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No auth token' });
 
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authErr } = await admin.auth.getUser(token);
-  if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+  const userResp = await fetch(`${base}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: SUPABASE_SERVICE_KEY },
+  });
+  if (!userResp.ok) return res.status(401).json({ error: 'Invalid token' });
+  const caller = await userResp.json();
 
-  const { data: callerProfile } = await admin.from('profiles').select('is_admin').eq('user_id', user.id).single();
-  if (!callerProfile?.is_admin) return res.status(403).json({ error: 'Not admin' });
+  // Verify caller is admin
+  const profileResp = await fetch(
+    `${base}/rest/v1/profiles?user_id=eq.${caller.id}&select=is_admin`,
+    { headers: { ...svcHeaders, Prefer: 'return=representation' } }
+  );
+  const profiles = await profileResp.json();
+  if (!profiles?.[0]?.is_admin) return res.status(403).json({ error: 'Not admin' });
 
   const { requestId, userId, decision } = req.body || {};
-  if (!requestId || !userId || !decision) return res.status(400).json({ error: 'requestId, userId, decision required' });
+  if (!requestId || !userId || !decision) {
+    return res.status(400).json({ error: 'requestId, userId, decision required' });
+  }
 
   // Update request status
-  const { error: reqErr } = await admin.from('control_panel_requests').update({
-    status: decision,
-    reviewed_at: new Date().toISOString(),
-    reviewed_by: user.id,
-  }).eq('id', requestId);
-  if (reqErr) return res.status(500).json({ error: reqErr.message });
+  const reqResp = await fetch(
+    `${base}/rest/v1/control_panel_requests?id=eq.${requestId}`,
+    {
+      method:  'PATCH',
+      headers: svcHeaders,
+      body: JSON.stringify({ status: decision, reviewed_at: new Date().toISOString(), reviewed_by: caller.id }),
+    }
+  );
+  if (!reqResp.ok) {
+    const err = await reqResp.text();
+    return res.status(500).json({ error: 'Failed to update request: ' + err });
+  }
 
   // If granted, set cp_runs_remaining = 1
   if (decision === 'granted') {
-    const { error: profErr } = await admin.from('profiles')
-      .update({ cp_runs_remaining: 1 })
-      .eq('user_id', userId);
-    if (profErr) return res.status(500).json({ error: 'Request updated but profile failed: ' + profErr.message });
+    const profResp = await fetch(
+      `${base}/rest/v1/profiles?user_id=eq.${userId}`,
+      {
+        method:  'PATCH',
+        headers: svcHeaders,
+        body: JSON.stringify({ cp_runs_remaining: 1 }),
+      }
+    );
+    if (!profResp.ok) {
+      const err = await profResp.text();
+      return res.status(500).json({ error: 'Request updated but profile failed: ' + err });
+    }
   }
 
   return res.status(200).json({ ok: true });
