@@ -685,68 +685,160 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
      BOOK A DEMO MODAL
 ══════════════════════════════════════════════════════════ -->
 <div id="demoModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeDemoModal()"></div>
-  <div class="relative w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl" style="border-color:rgba(0,208,132,0.2);">
-    <button onclick="closeDemoModal()" class="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
-      <iconify-icon icon="solar:close-circle-linear" style="font-size:20px;"></iconify-icon>
-    </button>
-    <div class="mb-6">
-      <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
-        <iconify-icon icon="solar:calendar-add-linear" style="font-size:18px;color:#00d084;"></iconify-icon>
-      </div>
-      <h2 class="text-xl font-semibold text-white tracking-tight mb-1">Book A Demo</h2>
-      <p class="text-sm text-zinc-500">We'll reach out within one business day to schedule a call.</p>
-    </div>
-    <div id="demoError" class="hidden mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400"></div>
-    <div id="demoSuccess" class="hidden text-center py-8">
-      <div class="text-4xl mb-3">✅</div>
-      <div class="text-white font-semibold mb-1">Request received!</div>
-      <div class="text-sm text-zinc-400">We'll be in touch within one business day.</div>
-    </div>
-    <form id="demoForm" onsubmit="handleDemoSubmit(event)" class="space-y-4">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-zinc-400 mb-1.5">First name</label>
-          <input type="text" name="first_name" required placeholder="John" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeDemoModal()"></div>
+
+  <!-- Modal shell — gradient border via wrapper -->
+  <div class="relative w-full max-w-lg" style="filter: drop-shadow(0 40px 80px rgba(0,0,0,0.9));">
+    <!-- Gradient border ring -->
+    <div class="absolute -inset-px rounded-2xl pointer-events-none" style="background: linear-gradient(135deg, rgba(0,208,132,0.4) 0%, rgba(168,85,247,0.4) 100%); border-radius: 18px;"></div>
+
+    <div class="relative rounded-2xl overflow-hidden" style="background:#0e0e0e;">
+
+      <!-- Top accent bar -->
+      <div class="h-px w-full" style="background: linear-gradient(90deg, #00d084 0%, #a855f7 100%);"></div>
+
+      <!-- Header band -->
+      <div class="px-7 pt-7 pb-5 border-b border-white/[0.06]" style="background: linear-gradient(135deg, rgba(0,208,132,0.04) 0%, rgba(168,85,247,0.04) 100%);">
+        <button onclick="closeDemoModal()" class="absolute top-5 right-5 w-7 h-7 rounded-full flex items-center justify-center border border-white/10 text-zinc-500 hover:text-white hover:border-white/25 hover:bg-white/5 transition-all">
+          <iconify-icon icon="solar:close-linear" style="font-size:14px;"></iconify-icon>
+        </button>
+
+        <!-- Brand mark + badge -->
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,rgba(0,208,132,0.15) 0%,rgba(168,85,247,0.15) 100%);border:1px solid rgba(255,255,255,0.08);">
+            <iconify-icon icon="solar:radar-2-linear" style="font-size:18px;color:#00d084;"></iconify-icon>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-brand/20 bg-brand/8">
+            <div class="live-dot" style="width:5px;height:5px;"></div>
+            <span class="text-[10px] font-medium text-brand tracking-wide">Booking now open</span>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-zinc-400 mb-1.5">Last name</label>
-          <input type="text" name="last_name" required placeholder="Smith" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
+
+        <h2 class="text-2xl font-semibold text-white tracking-tight mb-1">Book A Demo</h2>
+        <p class="text-sm text-zinc-500">See PPM live in your area — we'll be in touch within one business day.</p>
+      </div>
+
+      <!-- Form body -->
+      <div class="px-7 py-6">
+        <div id="demoError" class="hidden mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
+          <iconify-icon icon="solar:danger-circle-linear" style="font-size:14px;flex-shrink:0;margin-top:1px;"></iconify-icon>
+          <span id="demoErrorText">Something went wrong. Please try again.</span>
         </div>
+
+        <!-- Success state -->
+        <div id="demoSuccess" class="hidden text-center py-10">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background:linear-gradient(135deg,rgba(0,208,132,0.15) 0%,rgba(168,85,247,0.1) 100%);border:1px solid rgba(0,208,132,0.2);">
+            <iconify-icon icon="solar:check-circle-bold" style="font-size:32px;color:#00d084;"></iconify-icon>
+          </div>
+          <div class="text-lg font-semibold text-white mb-2">Request received!</div>
+          <div class="text-sm text-zinc-400 max-w-xs mx-auto">We'll reach out within one business day to schedule your personalised demo.</div>
+          <div class="mt-6 flex items-center justify-center gap-5 text-[11px] text-zinc-600">
+            <span class="flex items-center gap-1.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:12px;color:#00d084;"></iconify-icon>No commitment required</span>
+            <span class="flex items-center gap-1.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:12px;color:#00d084;"></iconify-icon>30-min call</span>
+          </div>
+        </div>
+
+        <form id="demoForm" onsubmit="handleDemoSubmit(event)" class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-zinc-400 mb-2">First name</label>
+              <input type="text" name="first_name" required placeholder="John"
+                class="w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-all duration-200"
+                style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                onfocus="this.style.borderColor='rgba(0,208,132,0.5)';this.style.boxShadow='0 0 0 3px rgba(0,208,132,0.08)'"
+                onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-zinc-400 mb-2">Last name</label>
+              <input type="text" name="last_name" required placeholder="Smith"
+                class="w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-all duration-200"
+                style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                onfocus="this.style.borderColor='rgba(0,208,132,0.5)';this.style.boxShadow='0 0 0 3px rgba(0,208,132,0.08)'"
+                onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-2">Work email</label>
+            <input type="email" name="email" required placeholder="john@yourcompany.co.uk"
+              class="w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-all duration-200"
+              style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+              onfocus="this.style.borderColor='rgba(0,208,132,0.5)';this.style.boxShadow='0 0 0 3px rgba(0,208,132,0.08)'"
+              onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-2">Phone</label>
+            <input type="tel" name="phone" required placeholder="07700 900000"
+              class="w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-all duration-200"
+              style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+              onfocus="this.style.borderColor='rgba(0,208,132,0.5)';this.style.boxShadow='0 0 0 3px rgba(0,208,132,0.08)'"
+              onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-2">Your trade</label>
+            <div class="relative">
+              <select name="trade" required
+                class="w-full rounded-xl px-3.5 py-2.5 text-sm text-white outline-none appearance-none transition-all duration-200 cursor-pointer"
+                style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                onfocus="this.style.borderColor='rgba(168,85,247,0.5)';this.style.boxShadow='0 0 0 3px rgba(168,85,247,0.08)'"
+                onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.boxShadow='none'">
+                <option value="" disabled selected class="bg-[#111]">Select your trade…</option>
+                <option value="New Home Builder" class="bg-[#111]">New Home Builder</option>
+                <option value="Builder/Contractor" class="bg-[#111]">Builder / Contractor</option>
+                <option value="Loft Conversion" class="bg-[#111]">Loft Conversion Specialist</option>
+                <option value="Renovation Contractor" class="bg-[#111]">Renovation Contractor</option>
+                <option value="Window & Door Installer" class="bg-[#111]">Window &amp; Door Installer</option>
+                <option value="Landscaping" class="bg-[#111]">Landscaping</option>
+                <option value="Roofing Specialist" class="bg-[#111]">Roofing Specialist</option>
+                <option value="Electrician" class="bg-[#111]">Electrician</option>
+                <option value="Interior Designer" class="bg-[#111]">Interior Designer</option>
+                <option value="Kitchen Showroom" class="bg-[#111]">Kitchen Showroom</option>
+                <option value="Bathroom Showroom" class="bg-[#111]">Bathroom Showroom</option>
+                <option value="Other" class="bg-[#111]">Other</option>
+              </select>
+              <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                <iconify-icon icon="solar:alt-arrow-down-linear" style="font-size:14px;"></iconify-icon>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit button -->
+          <div class="pt-1">
+            <button type="submit" id="demoSubmitBtn"
+              class="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 group"
+              style="background:linear-gradient(135deg,#00d084 0%,#00b872 100%);color:#000;box-shadow:0 0 24px rgba(0,208,132,0.25);"
+              onmouseover="this.style.boxShadow='0 0 32px rgba(0,208,132,0.4)'"
+              onmouseout="this.style.boxShadow='0 0 24px rgba(0,208,132,0.25)'">
+              <span id="demoSubmitText" class="flex items-center gap-2">
+                Request My Demo
+                <iconify-icon icon="solar:arrow-right-linear" style="font-size:15px;color:#000;" class="group-hover:translate-x-0.5 transition-transform"></iconify-icon>
+              </span>
+              <span id="demoSubmitSpinner" class="hidden">
+                <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:16px;color:black;"></iconify-icon>
+              </span>
+            </button>
+          </div>
+
+          <!-- Trust strip -->
+          <div class="flex items-center justify-center gap-5 pt-1">
+            <span class="text-[10px] text-zinc-600 flex items-center gap-1">
+              <iconify-icon icon="solar:lock-linear" style="font-size:11px;color:#52525b;"></iconify-icon>
+              No spam, ever
+            </span>
+            <span class="text-[10px] text-zinc-600 flex items-center gap-1">
+              <iconify-icon icon="solar:clock-circle-linear" style="font-size:11px;color:#52525b;"></iconify-icon>
+              Reply within 1 business day
+            </span>
+            <span class="text-[10px] text-zinc-600 flex items-center gap-1">
+              <iconify-icon icon="solar:calendar-linear" style="font-size:11px;color:#52525b;"></iconify-icon>
+              30-min call
+            </span>
+          </div>
+        </form>
       </div>
-      <div>
-        <label class="block text-xs text-zinc-400 mb-1.5">Email</label>
-        <input type="email" name="email" required placeholder="john@yourcompany.co.uk" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
-      </div>
-      <div>
-        <label class="block text-xs text-zinc-400 mb-1.5">Phone</label>
-        <input type="tel" name="phone" required placeholder="07700 900000" class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600">
-      </div>
-      <div>
-        <label class="block text-xs text-zinc-400 mb-1.5">Your trade</label>
-        <select name="trade" required class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white bg-transparent">
-          <option value="" disabled selected class="bg-[#111]">Select your trade…</option>
-          <option value="New Home Builder" class="bg-[#111]">New Home Builder</option>
-          <option value="Builder/Contractor" class="bg-[#111]">Builder / Contractor</option>
-          <option value="Loft Conversion" class="bg-[#111]">Loft Conversion Specialist</option>
-          <option value="Renovation Contractor" class="bg-[#111]">Renovation Contractor</option>
-          <option value="Window & Door Installer" class="bg-[#111]">Window &amp; Door Installer</option>
-          <option value="Landscaping" class="bg-[#111]">Landscaping</option>
-          <option value="Roofing Specialist" class="bg-[#111]">Roofing Specialist</option>
-          <option value="Electrician" class="bg-[#111]">Electrician</option>
-          <option value="Interior Designer" class="bg-[#111]">Interior Designer</option>
-          <option value="Kitchen Showroom" class="bg-[#111]">Kitchen Showroom</option>
-          <option value="Bathroom Showroom" class="bg-[#111]">Bathroom Showroom</option>
-          <option value="Other" class="bg-[#111]">Other</option>
-        </select>
-      </div>
-      <button type="submit" id="demoSubmitBtn" class="w-full py-3 rounded-xl bg-brand text-black font-semibold hover:bg-brand-light transition-colors flex items-center justify-center gap-2 text-sm">
-        <span id="demoSubmitText">Request Demo</span>
-        <span id="demoSubmitSpinner" class="hidden">
-          <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:16px;color:black;"></iconify-icon>
-        </span>
-      </button>
-    </form>
+    </div>
   </div>
 </div>
 
@@ -802,7 +894,7 @@ async function handleDemoSubmit(e) {
   btnText.classList.remove('hidden');
   spinner.classList.add('hidden');
   if (error) {
-    errorEl.textContent = 'Something went wrong. Please try again or email us directly.';
+    document.getElementById('demoErrorText').textContent = 'Something went wrong. Please try again or email us directly.';
     errorEl.classList.remove('hidden');
   } else {
     form.classList.add('hidden');
