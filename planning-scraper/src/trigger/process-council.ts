@@ -225,8 +225,13 @@ export const processCouncilTask = task({
   id: "process-council",
   maxDuration: 300, // 5 minutes per council
 
-  run: async (payload: { council_name: string; council_auth: string; userId?: string }) => {
-    const { council_name, council_auth, userId } = payload;
+  run: async (payload: {
+    council_name: string;
+    council_auth: string;
+    userId?: string;           // single-user (user-triggered) mode
+    fanOutUserIds?: string[];  // fan-out mode: set by orchestrator
+  }) => {
+    const { council_name, council_auth, userId, fanOutUserIds } = payload;
     logger.info(`▶ Processing council: ${council_name}`);
 
     // 1. Fetch from planit.org.uk
@@ -382,48 +387,59 @@ Return ONLY a valid JSON array. No markdown. No explanation.`,
     logger.info(`${council_name}: ✓ ${leads.length} enriched leads`);
 
     // ── Supabase upsert ───────────────────────────────────────────────────────
-    // TODO: Replace ADMIN_USER_ID with per-user fan-out once the user→council
-    // preferences table is built (Gap #2). Every lead currently goes to one
-    // fallback user only.
+    // Resolve which user IDs receive these leads:
+    //   fanOutUserIds → fan-out mode (all users who want this council)
+    //   userId        → single-user mode (user-triggered scan)
+    //   neither       → skip upsert (no fallback to ADMIN_USER_ID)
+    let resolvedUserIds: string[];
+    if (fanOutUserIds && fanOutUserIds.length > 0) {
+      resolvedUserIds = fanOutUserIds;
+    } else if (userId) {
+      resolvedUserIds = [userId];
+    } else {
+      logger.warn(`${council_name}: no user IDs to upsert leads for — skipping`);
+      return { leads };
+    }
+
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    const resolvedUserId = userId ?? process.env.ADMIN_USER_ID;
+    for (const uid_user of resolvedUserIds) {
+      const rows = leads.map((lead) => ({
+        user_id:              uid_user,
+        uid:                  lead.uid,
+        council:              lead.council,
+        address:              lead.address,
+        postcode:             lead.postcode,
+        description:          lead.description,
+        app_type:             lead.app_type,
+        app_state:            lead.app_state,
+        start_date:           lead.start_date,
+        target_decision_date: lead.target_decision_date,
+        applicant_name:       lead.applicant_name,
+        agent_name:           lead.agent_name,
+        planit_url:           lead.planit_url,
+        opportunity_score:    lead.opportunity_score,
+        priority:             lead.priority,
+        score_reasoning:      lead.score_reasoning,
+        dwelling_type:        lead.dwelling_type,
+        development_scale:    lead.development_scale,
+        unit_count:           lead.unit_count,
+        scraped_date:         today,
+      }));
 
-    const rows = leads.map((lead) => ({
-      user_id:              resolvedUserId,
-      uid:                  lead.uid,
-      council:              lead.council,
-      address:              lead.address,
-      postcode:             lead.postcode,
-      description:          lead.description,
-      app_type:             lead.app_type,
-      app_state:            lead.app_state,
-      start_date:           lead.start_date,
-      target_decision_date: lead.target_decision_date,
-      applicant_name:       lead.applicant_name,
-      agent_name:           lead.agent_name,
-      planit_url:           lead.planit_url,
-      opportunity_score:    lead.opportunity_score,
-      priority:             lead.priority,
-      score_reasoning:      lead.score_reasoning,
-      dwelling_type:        lead.dwelling_type,
-      development_scale:    lead.development_scale,
-      unit_count:           lead.unit_count,
-      scraped_date:         today,
-    }));
+      const { data: upserted, error: upsertError } = await supabase
+        .from("leads")
+        .upsert(rows, { onConflict: "user_id,uid", ignoreDuplicates: true })
+        .select("id");
 
-    const { data: upserted, error: upsertError } = await supabase
-      .from("leads")
-      .upsert(rows, { onConflict: "user_id,uid", ignoreDuplicates: true })
-      .select("id");
-
-    if (upsertError) {
-      logger.error(`${council_name}: upsert failed`, { error: upsertError.message });
-    } else {
-      logger.info(`${council_name}: upserted ${upserted?.length ?? 0} leads into Supabase (new or updated)`);
+      if (upsertError) {
+        logger.error(`${council_name}: upsert failed for user ${uid_user}`, { error: upsertError.message });
+      } else {
+        logger.info(`${council_name}: upserted ${upserted?.length ?? 0} leads for user ${uid_user}`);
+      }
     }
     // ─────────────────────────────────────────────────────────────────────────
 

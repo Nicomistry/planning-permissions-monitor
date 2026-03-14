@@ -1,5 +1,6 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 import { processCouncilTask, type MergedLead } from "./process-council";
 
 // ─── Councils ─────────────────────────────────────────────────────────────────
@@ -174,14 +175,117 @@ export const scrapePlanningLeadsTask = task({
   id: "planning-scraper",
   maxDuration: 1800, // 30 minutes total
 
-  run: async (payload: { userId?: string; councils?: string[] | null } = {}) => {
-    const { userId, councils } = payload;
+  run: async (payload: {
+    userId?: string;
+    councils?: string[] | null;
+    fanOut?: boolean;  // triggers all-user scan: scrape once, deliver to every user
+  } = {}) => {
+    const { userId, councils, fanOut } = payload;
     const runDate = new Date().toLocaleDateString("en-GB", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+
+    // ── Fan-out mode ───────────────────────────────────────────────────────────
+    // Triggered by admin (no userId). Queries all users' council preferences,
+    // scrapes each unique council once, then delivers leads to every user who
+    // wants that council.
+    if (fanOut) {
+      logger.info("Fan-out mode: querying all users' council preferences");
+
+      const supabase = createClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      );
+
+      // 1. Fetch all profiles with non-empty scan_settings
+      const { data: profiles, error: profilesErr } = await supabase
+        .from("profiles")
+        .select("user_id, scan_settings")
+        .not("scan_settings", "is", null);
+
+      if (profilesErr) {
+        logger.error("Fan-out: failed to load profiles", { error: profilesErr.message });
+        return { leads_found: 0, email_sent: false };
+      }
+
+      // 2. Build council → [userId, ...] map
+      const councilMap = new Map<string, string[]>();
+      for (const p of profiles ?? []) {
+        const userCouncils: string[] = p.scan_settings?.councils ?? [];
+        for (const name of userCouncils) {
+          if (!councilMap.has(name)) councilMap.set(name, []);
+          councilMap.get(name)!.push(p.user_id);
+        }
+      }
+
+      if (councilMap.size === 0) {
+        logger.warn("Fan-out: no users have council preferences configured — aborting");
+        return { leads_found: 0, email_sent: false };
+      }
+
+      logger.info(
+        `Fan-out: ${councilMap.size} unique council(s) across ${profiles?.length ?? 0} user(s)`,
+      );
+
+      // 3. Translate council names → PlanIT auth codes (reuses existing helper)
+      const fanOutCouncilList = buildCouncilList([...councilMap.keys()]);
+
+      // 4. Scrape each council once, pass fanOutUserIds so process-council fans out
+      const allLeads: MergedLead[] = [];
+      for (const council of fanOutCouncilList) {
+        const fanOutUserIds = councilMap.get(council.name) ?? [];
+        logger.info(`Fan-out: triggering ${council.name} → ${fanOutUserIds.length} user(s)`);
+        try {
+          const result = await processCouncilTask.triggerAndWait({
+            council_name: council.name,
+            council_auth: council.auth,
+            fanOutUserIds,
+          });
+          if (result.ok) {
+            allLeads.push(...(result.output.leads ?? []));
+          } else {
+            logger.error(`Fan-out: ${council.name} task failed`, { error: result.error });
+          }
+        } catch (e) {
+          logger.error(`Fan-out: ${council.name} threw`, { error: e });
+        }
+      }
+
+      logger.info(`Fan-out complete. Total leads: ${allLeads.length}`);
+
+      if (allLeads.length === 0) {
+        logger.info("Fan-out: no leads — skipping email");
+        return { leads_found: 0, email_sent: false };
+      }
+
+      // 5. Send digest email (same as single-user path below)
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const html = buildEmailHtml(allLeads, runDate);
+      const subject = `🏗️ Planning Leads — ${runDate} (${allLeads.length} leads, ${allLeads.filter((l) => l.priority === "HIGH").length} HIGH)`;
+      const emailResult = await resend.emails.send({
+        from: "Planning Leads <onboarding@resend.dev>",
+        to: process.env.DIGEST_EMAIL ?? "nicomistry@gmail.com",
+        subject,
+        html,
+      });
+
+      if (emailResult.error) {
+        logger.error("Fan-out: email failed", { error: emailResult.error });
+      } else {
+        logger.info(`Fan-out: ✉ email sent`, { id: emailResult.data?.id });
+      }
+
+      return {
+        leads_found: allLeads.length,
+        high_priority: allLeads.filter((l) => l.priority === "HIGH").length,
+        email_sent: !emailResult.error,
+        email_id: emailResult.data?.id,
+      };
+    }
+    // ── End fan-out mode ───────────────────────────────────────────────────────
 
     // Use user's selected councils if provided, otherwise fall back to defaults
     const councilList =

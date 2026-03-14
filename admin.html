@@ -140,6 +140,21 @@
       animation: shimmer 1.2s infinite;
     }
     @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    .scan-btn-secondary {
+      background: transparent;
+      color: #a1a1aa;
+      font-weight: 600;
+      font-size: 12px;
+      border-radius: 8px;
+      padding: 9px 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+    .scan-btn-secondary:hover:not(:disabled) { border-color: rgba(0,208,132,0.4); color: #00d084; }
+    .scan-btn-secondary:disabled { opacity:0.4; cursor:not-allowed; }
 
     /* scan log */
     .scan-log {
@@ -561,9 +576,14 @@
             <div class="text-[10px] font-mono text-brand/40">
               <span id="selectedCount">0</span> COUNCILS SELECTED
             </div>
-            <button class="scan-btn" id="scanBtn" onclick="runScan()">
-              ⬡ INITIATE SCAN
-            </button>
+            <div class="flex items-center gap-2">
+              <button class="scan-btn-secondary" id="bgScanBtn" onclick="runBackgroundScan()">
+                ⬡ ALL USERS
+              </button>
+              <button class="scan-btn" id="scanBtn" onclick="runScan()">
+                ⬡ INITIATE SCAN
+              </button>
+            </div>
           </div>
 
         </div>
@@ -1472,6 +1492,33 @@
       btn.textContent = '⬡ INITIATE SCAN';
 
       renderScanResults(councilResults);
+    }
+
+    async function runBackgroundScan() {
+      const btn = document.getElementById('bgScanBtn');
+      btn.disabled = true;
+      btn.textContent = '⬡ QUEUING…';
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) throw new Error('Not authenticated');
+        const resp = await fetch('/api/trigger-fan-out', {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Unknown error');
+        appendLog('log-ok', `✓ Background scan queued for all users — run ID: ${data.runId}`);
+        appendLog('log-dim', '  → Leads will appear in each user\'s dashboard when complete');
+      } catch (e) {
+        appendLog('log-err', `✗ Background scan failed: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⬡ ALL USERS';
+      }
     }
 
     function renderScanResults(councilResults) {
