@@ -48,13 +48,43 @@
     }
     .d-trade-row.active .d-trade-row-icon { background: rgba(147,51,234,0.18); border-color: rgba(147,51,234,0.4); color: #c084fc; }
     .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; }
-    .d-trade-tag {
-      font-size: 10px; padding: 1px 7px; border-radius: 5px;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-      color: #3f3f46; transition: all 0.18s; white-space: nowrap;
-    }
-    .d-trade-row.active .d-trade-tag { background: rgba(147,51,234,0.1); border-color: rgba(147,51,234,0.25); color: #a855f7; }
     .d-trade-row.active .d-trade-row-name { color: #f3e8ff; }
+
+    /* sector dropdown button */
+    .d-sectors-btn {
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+      font-size: 10px; padding: 3px 8px 3px 9px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+      color: #52525b; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .d-sectors-btn:hover { border-color: rgba(147,51,234,0.35); color: #a78bfa; background: rgba(147,51,234,0.07); }
+    .d-sectors-btn .d-sectors-chevron { font-size: 11px; transition: transform 0.2s; }
+    .d-sectors-btn.open .d-sectors-chevron { transform: rotate(180deg); }
+    .d-sectors-btn.filtered { border-color: rgba(147,51,234,0.45); color: #c084fc; background: rgba(147,51,234,0.1); }
+    .d-trade-row.active .d-sectors-btn { border-color: rgba(147,51,234,0.25); color: #9d71da; }
+    .d-trade-row.active .d-sectors-btn:hover { border-color: rgba(147,51,234,0.5); color: #c084fc; }
+
+    /* sector dropdown panel */
+    .d-sectors-panel {
+      display: none; flex-wrap: wrap; gap: 5px;
+      padding: 8px 10px 10px 10px;
+      border: 1px solid rgba(147,51,234,0.15);
+      border-top: none; border-radius: 0 0 10px 10px;
+      background: rgba(147,51,234,0.04);
+    }
+    .d-sectors-panel.open { display: flex; }
+    .d-sector-chip {
+      font-size: 10px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+      color: #52525b; transition: all 0.14s; white-space: nowrap;
+    }
+    .d-sector-chip:hover { border-color: rgba(147,51,234,0.4); color: #a78bfa; background: rgba(147,51,234,0.08); }
+    .d-sector-chip.active { border-color: rgba(147,51,234,0.6); background: rgba(147,51,234,0.15); color: #c084fc; font-weight: 500; }
+
+    /* wrap each trade row + its panel together */
+    .d-trade-wrap { border-radius: 12px; overflow: hidden; }
+    .d-trade-wrap .d-trade-row { border-radius: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .d-trade-wrap:not(:has(.d-sectors-panel.open)) .d-trade-row { border-radius: 12px; }
     .d-trade-pill {
       width: 32px; height: 18px; border-radius: 99px; flex-shrink: 0;
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: all 0.18s; position: relative;
@@ -396,16 +426,16 @@
 
     // ── Scan Settings ─────────────────────────────────────────────────────────
     const D_TRADES = [
-      { id: 'builder',     name: 'Builder',        icon: 'solar:sledgehammer-bold',  tags: ['New Builds','Conversions','Structural Work'] },
-      { id: 'plumber',     name: 'Plumber',         icon: 'solar:waterdrops-bold',    tags: ['Bathrooms','Drainage','Heating Systems'] },
-      { id: 'electrician', name: 'Electrician',     icon: 'solar:bolt-circle-bold',   tags: ['Rewiring','EV Charging','Solar Installs'] },
-      { id: 'roofer',      name: 'Roofer',          icon: 'solar:home-angle-bold',    tags: ['Flat Roofs','Repairs','Guttering'] },
-      { id: 'landscaper',  name: 'Landscaper',      icon: 'solar:leaf-bold',          tags: ['Gardens','Driveways','Patios'] },
-      { id: 'kitchen',     name: 'Kitchen Fitter',  icon: 'solar:cup-hot-bold',       tags: ['Renovations','Worktops','Appliances'] },
-      { id: 'loft',        name: 'Loft Specialist', icon: 'solar:arrow-up-bold',      tags: ['Conversions','Dormers','Insulation'] },
-      { id: 'extension',   name: 'Extensions',      icon: 'solar:buildings-3-bold',   tags: ['Rear Extension','Side Return','Two-Storey'] },
-      { id: 'decorator',   name: 'Decorator',       icon: 'solar:paint-roller-bold',  tags: ['Interior','Exterior','Plastering'] },
-      { id: 'windows',     name: 'Windows & Doors', icon: 'solar:window-frame-bold',  tags: ['uPVC','Bi-fold','Double Glazing'] },
+      { id: 'builder',     name: 'Builder',        icon: 'solar:sledgehammer-bold',  sectors: ['New Build','Conversion','Demolition & Rebuild','Structural Extension','Change of Use','Basement'] },
+      { id: 'plumber',     name: 'Plumber',         icon: 'solar:waterdrops-bold',    sectors: ['Bathroom Fit-out','Drainage Works','Heating System','Water Supply','Underfloor Heating','En-suite'] },
+      { id: 'electrician', name: 'Electrician',     icon: 'solar:bolt-circle-bold',   sectors: ['Full Rewire','EV Charging','Solar PV','Consumer Unit','Smart Home','Lighting Design'] },
+      { id: 'roofer',      name: 'Roofer',          icon: 'solar:home-angle-bold',    sectors: ['Flat Roof','Pitched Roof','Dormer','Guttering','Roof Terrace','Fascia & Soffit'] },
+      { id: 'landscaper',  name: 'Landscaper',      icon: 'solar:leaf-bold',          sectors: ['Garden Design','Driveway','Patio','Boundary Walls','Decking','Artificial Grass'] },
+      { id: 'kitchen',     name: 'Kitchen Fitter',  icon: 'solar:cup-hot-bold',       sectors: ['Full Renovation','Worktop Install','Units & Appliances','Kitchen Extension','Utility Room','Open Plan'] },
+      { id: 'loft',        name: 'Loft Specialist', icon: 'solar:arrow-up-bold',      sectors: ['Full Conversion','Dormer','Velux Only','Hip to Gable','Loft Stairs','Storage'] },
+      { id: 'extension',   name: 'Extensions',      icon: 'solar:buildings-3-bold',   sectors: ['Rear Extension','Side Return','Wrap Around','Two-Storey','Garage Conversion','Annexe'] },
+      { id: 'decorator',   name: 'Decorator',       icon: 'solar:paint-roller-bold',  sectors: ['Interior Painting','Exterior Painting','Plastering','Wallpaper','Coving','Commercial'] },
+      { id: 'windows',     name: 'Windows & Doors', icon: 'solar:window-frame-bold',  sectors: ['uPVC Windows','Bi-fold Doors','French Doors','Skylights','Double Glazing','Front Door'] },
     ];
     const D_COUNCILS = ['Aberdeen','Aberdeenshire','Adur and Worthing','Allerdale','Amber Valley','Anglesey','Angus','Antrim and Newtownabbey','Ards and North Down','Argyll','Armagh Banbridge Craigavon','Arun','Ashfield','Ashford','Babergh Mid Suffolk','Barking and Dagenham','Barnet','Barnsley','Barrow','Basildon','Basingstoke','Bassetlaw','Bath','BCP','Bedford','Belfast','Bexley','Birmingham','Blackburn','Blackpool','Blaenau Gwent','Blaby','Bolsover','Boston','Bracknell','Bradford','Braintree','Breckland','Brent','Brentwood','Brecon Beacons','Bridgend','Brighton','Bristol','Bromley','Bromsgrove Redditch','Broxtowe','Broxbourne','Buckinghamshire','Burnley','Bury','Caerphilly','Cairngorms','Calderdale','Cambridge','Cambridgeshire','Camden','Cannock Chase','Canterbury','Cardiff','Carlisle','Carmarthenshire','Castle Point','Causeway and Glens','Central Bedfordshire','Ceredigion','Charnwood','Chelmsford','Cheltenham','Cherwell','Cheshire East','Chester','Chesterfield','Chichester','Chorley','City','Clackmannanshire','Colchester','Conwy','Copeland','Cornwall','Cotswold','Coventry','Craven','Crawley','Croydon','Dacorum','Darlington','Dartford','Derby','Derbyshire','Devon','Doncaster','Dorset','Dover','Dudley','Dumfries','Dundee','Durham','Ealing','East Ayrshire','East Devon','East Hampshire','East Hertfordshire','East Lindsey','East Lothian','East Riding','East Staffordshire','East Suffolk','East Sussex','Eastbourne','Eastleigh','Edinburgh','Elmbridge','Enfield','Epping Forest','Epsom and Ewell','Erewash','Essex','Exeter','Falkirk','Fareham','Fenland','Fife','Flintshire','Forest of Dean','Fylde','Gateshead','Gedling','Glasgow','Gloucester','Gloucestershire','Gosport','Gravesham','Great Yarmouth','Greenwich','Guildford','Gwynedd','Hackney','Halton','Hambleton','Hammersmith and Fulham','Hampshire','Harborough','Haringey','Harlow','Harrogate','Harrow','Hart','Hartlepool','Hastings','Havant','Havering','Herefordshire','Hertfordshire','Hertsmere','High Peak','Highland','Hillingdon','Hinckley and Bosworth','Horsham','Hounslow','Hull','Huntingdonshire','Hyndburn','Inverclyde','Ipswich','Isle of Wight','Islington','Kensington','Kent','Kings Lynn','Kingston','Kirklees','Knowsley','Lake District','Lambeth','Lancaster','Leeds','Leicester','Leicestershire','Lewes','Lewisham','Lichfield','Lincoln','Lincolnshire','Liverpool','Luton','Maldon','Malvern Hills','Manchester','Mansfield','Medway','Melton','Mendip','Merton','Middlesbrough','Mid Devon','Mid Sussex','Midlothian','Milton Keynes','Mole Valley','Monmouthshire','Moray','Neath','New Forest (District)','Newark and Sherwood','Newcastle under Lyme','Newcastle upon Tyne','Newham','Newport','Norfolk','North Ayrshire','North Devon','North East Derbyshire','North East Lincs','North Hertfordshire','North Kesteven','North Lanarkshire','North Lincs','North Norfolk','North Somerset','North Tyneside','North Warwickshire','North West Leicestershire','North Yorkshire','Northumberland (County)','Norwich','Nottingham','Nottinghamshire','Nuneaton','Oadby and Wigston','Oldham','Orkney','Oxford','Oxfordshire','Peak District','Pembrokeshire','Pendle','Perth','Peterborough','Plymouth','Powys','Preston','Reading','Redbridge','Redcar and Cleveland','Reigate','Renfrewshire','Rhondda','Ribble Valley','Richmond','Richmondshire','Rochdale','Rochford','Rossendale','Rotherham','Rother','Rugby','Runnymede','Rushcliffe','Rushmoor','Rutland','Ryedale','Salford','Sandwell','Scarborough','Scottish Borders','Sedgemoor','Sefton','Selby','Sevenoaks','Sheffield','Shropshire','Slough','Solihull','Somerset','South Ayrshire','South Cambridgeshire','South Derbyshire','South Downs','South Gloucestershire','South Holland','South Kesteven','South Lanarkshire','South Norfolk Broadland','South Oxfordshire','South Ribble','South Somerset','South Staffordshire','South Tyneside','Southend','Southampton','Southwark','Spelthorne','St Albans','St Helens','Stafford','Staffordshire','Staffordshire Moorlands','Stevenage','Stirling','Stockport','Stockton-on-Tees','Stoke on Trent','Stratford on Avon','Stroud','Suffolk','Sunderland','Surrey','Surrey Heath','Sutton','Swansea','Swindon','Tameside','Tamworth','Tandridge','Telford','Tendring','Test Valley','Tewkesbury','Thanet','Three Rivers','Thurrock','Tonbridge','Torbay','Torridge','Tower Hamlets','Trafford','Tunbridge Wells','Uttlesford','Vale of White Horse','Wakefield','Walsall','Waltham Forest','Wandsworth','Warrington','Warwick','Warwickshire','Watford','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Dunbartonshire','West Lancashire','West Lindsey','West Lothian','West Northamptonshire','West Oxfordshire','West Suffolk','West Sussex','Westminster','Westmorland and Furness','Wigan','Wiltshire','Winchester','Windsor','Wirral','Woking','Wokingham','Wolverhampton','Worcester','Worcestershire','Wrexham','Wychavon','Wyre','Wyre Forest','York','Yorkshire Dales'];
 
@@ -426,30 +456,83 @@
     let dActiveTrades   = new Set();
     let dActiveCouncils = new Set();
     let dActiveRegion   = null;
+    let dActiveSectors  = {}; // { tradeId: Set<sectorName> }
 
     function initScanSettings() {
       try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
       if (dActiveTrades.size === 0) D_TRADES.forEach(t => dActiveTrades.add(t.id));
       try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
+      try {
+        const saved = JSON.parse(localStorage.getItem('ppm_active_sectors') || '{}');
+        D_TRADES.forEach(t => {
+          dActiveSectors[t.id] = new Set(saved[t.id] || []);
+        });
+      } catch(e) { D_TRADES.forEach(t => { dActiveSectors[t.id] = new Set(); }); }
 
       const grid = document.getElementById('dTradeGrid');
       grid.innerHTML = D_TRADES.map(t => {
         const active = dActiveTrades.has(t.id);
-        const tagHtml = t.tags.map(tag =>
-          `<span class="d-trade-tag">${tag}</span>`
-        ).join('');
-        return `<div class="d-trade-row ${active ? 'active' : ''}" id="dtchip-${t.id}" onclick="dToggleTrade('${t.id}')">
-          <div class="d-trade-row-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
-          <div class="flex-1 min-w-0">
-            <div class="d-trade-row-name">${t.name}</div>
-            <div class="flex flex-wrap gap-1 mt-1">${tagHtml}</div>
+        return `<div class="d-trade-wrap" id="dtwrap-${t.id}">
+          <div class="d-trade-row ${active ? 'active' : ''}" id="dtchip-${t.id}" onclick="dToggleTrade('${t.id}')">
+            <div class="d-trade-row-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
+            <span class="d-trade-row-name flex-1">${t.name}</span>
+            <button class="d-sectors-btn" id="dsbtn-${t.id}" onclick="event.stopPropagation();toggleDSectors('${t.id}')">
+              <span id="dslabel-${t.id}">${sectorLabel(t.id)}</span>
+              <iconify-icon icon="solar:alt-arrow-down-linear" class="d-sectors-chevron"></iconify-icon>
+            </button>
+            <div class="d-trade-pill"></div>
           </div>
-          <div class="d-trade-pill"></div>
+          <div class="d-sectors-panel" id="dspanel-${t.id}">
+            ${t.sectors.map(s => `<button class="d-sector-chip ${dActiveSectors[t.id].has(s) ? 'active' : ''}"
+              onclick="dToggleSector('${t.id}','${s.replace(/'/g,"\\'")}')">${s}</button>`).join('')}
+          </div>
         </div>`;
       }).join('');
       updateDTradeCount();
       filterDCouncils();
       renderDSelectedPills();
+    }
+
+    function sectorLabel(tradeId) {
+      const active = dActiveSectors[tradeId];
+      if (!active || active.size === 0) return 'Sectors ▾';
+      return active.size === 1 ? [...active][0] : `${active.size} sectors`;
+    }
+
+    function toggleDSectors(tradeId) {
+      const panel = document.getElementById('dspanel-' + tradeId);
+      const btn   = document.getElementById('dsbtn-'   + tradeId);
+      const wrap  = document.getElementById('dtwrap-'  + tradeId);
+      const isOpen = panel.classList.contains('open');
+      // close all others first
+      document.querySelectorAll('.d-sectors-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.d-sectors-btn.open').forEach(b => b.classList.remove('open'));
+      if (!isOpen) {
+        panel.classList.add('open');
+        btn.classList.add('open');
+        // square off the trade row's bottom corners when panel is open
+        document.getElementById('dtchip-' + tradeId).style.borderRadius = '12px 12px 0 0';
+      } else {
+        document.getElementById('dtchip-' + tradeId).style.borderRadius = '';
+      }
+    }
+
+    function dToggleSector(tradeId, sector) {
+      const set = dActiveSectors[tradeId];
+      if (set.has(sector)) set.delete(sector);
+      else set.add(sector);
+      // update chip visual
+      document.querySelectorAll(`#dspanel-${tradeId} .d-sector-chip`).forEach(el => {
+        el.classList.toggle('active', set.has(el.textContent));
+      });
+      // update button label + filtered state
+      const btn = document.getElementById('dsbtn-' + tradeId);
+      document.getElementById('dslabel-' + tradeId).textContent = sectorLabel(tradeId);
+      btn.classList.toggle('filtered', set.size > 0);
+      // persist
+      const toSave = {};
+      D_TRADES.forEach(t => { toSave[t.id] = [...dActiveSectors[t.id]]; });
+      localStorage.setItem('ppm_active_sectors', JSON.stringify(toSave));
     }
 
     const D_COUNCIL_PAGE = 50;
