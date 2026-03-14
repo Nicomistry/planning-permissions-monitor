@@ -3,37 +3,6 @@ import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { processCouncilTask, type MergedLead } from "./process-council";
 
-// ─── Councils ─────────────────────────────────────────────────────────────────
-
-// Default councils (admin / no-selection fallback)
-const DEFAULT_COUNCILS = [
-  { name: "Windsor & Maidenhead", auth: "Windsor" },
-  { name: "Hillingdon",           auth: "Hillingdon" },
-  { name: "Dacorum",              auth: "Dacorum" },
-  { name: "Wokingham",            auth: "Wokingham" },
-  { name: "Surrey Heath",         auth: "SurreyHeath" },
-  { name: "Runnymede",            auth: "Runnymede" },
-];
-
-// Known name → PlanIT auth exceptions (where auth differs from the name)
-const AUTH_EXCEPTIONS: Record<string, string> = {
-  "Windsor & Maidenhead": "Windsor",
-  "Surrey Heath":         "SurreyHeath",
-  "Babergh Mid Suffolk":  "BaberghMidSuffolk",
-  "Bromsgrove Redditch":  "BromsgrovRedditch",
-  "South Norfolk Broadland": "SouthNorfolkBroadland",
-};
-
-function councilToAuth(name: string): string {
-  if (AUTH_EXCEPTIONS[name]) return AUTH_EXCEPTIONS[name];
-  // Default: remove spaces and special characters
-  return name.replace(/\s+/g, "").replace(/[^a-zA-Z0-9]/g, "");
-}
-
-function buildCouncilList(names: string[]): { name: string; auth: string }[] {
-  return names.map((name) => ({ name, auth: councilToAuth(name) }));
-}
-
 // ─── Email builder ────────────────────────────────────────────────────────────
 
 function priorityBadge(priority: string): string {
@@ -47,7 +16,6 @@ function priorityBadge(priority: string): string {
 }
 
 function scoreBar(score: number): string {
-  const filled = Math.round((score / 10) * 10);
   const colour = score >= 8 ? "#16a34a" : score >= 5 ? "#d97706" : "#6b7280";
   return `<span style="font-size:16px;font-weight:700;color:${colour}">${score}</span><span style="color:#9ca3af;font-size:11px">/10</span>`;
 }
@@ -88,7 +56,6 @@ function leadRow(lead: MergedLead): string {
 }
 
 function buildEmailHtml(allLeads: MergedLead[], runDate: string): string {
-  // Group by council, sort each group by score desc
   const byCouncil = new Map<string, MergedLead[]>();
   for (const lead of allLeads) {
     if (!byCouncil.has(lead.council)) byCouncil.set(lead.council, []);
@@ -98,8 +65,8 @@ function buildEmailHtml(allLeads: MergedLead[], runDate: string): string {
     leads.sort((a, b) => b.opportunity_score - a.opportunity_score);
   }
 
-  const highCount  = allLeads.filter((l) => l.priority === "HIGH").length;
-  const medCount   = allLeads.filter((l) => l.priority === "MEDIUM").length;
+  const highCount = allLeads.filter((l) => l.priority === "HIGH").length;
+  const medCount  = allLeads.filter((l) => l.priority === "MEDIUM").length;
 
   const councilSections = Array.from(byCouncil.entries())
     .map(([council, leads]) => `
@@ -128,16 +95,10 @@ function buildEmailHtml(allLeads: MergedLead[], runDate: string): string {
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Arial,sans-serif;">
   <div style="max-width:800px;margin:0 auto;padding:32px 16px;">
-
-    <!-- Header -->
     <div style="border-bottom:2px solid #00d084;padding-bottom:20px;margin-bottom:24px;">
-      <div style="font-size:22px;font-weight:700;color:#f9fafb;letter-spacing:-0.5px;">
-        🏗️ Planning Leads Digest
-      </div>
+      <div style="font-size:22px;font-weight:700;color:#f9fafb;letter-spacing:-0.5px;">🏗️ Planning Leads Digest</div>
       <div style="color:#9ca3af;font-size:13px;margin-top:4px;">${runDate}</div>
     </div>
-
-    <!-- Stats bar -->
     <div style="display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap;">
       <div style="background:#111827;border:1px solid #1f2937;border-radius:8px;padding:14px 20px;flex:1;min-width:100px;">
         <div style="font-size:28px;font-weight:700;color:#f9fafb;">${allLeads.length}</div>
@@ -156,17 +117,51 @@ function buildEmailHtml(allLeads: MergedLead[], runDate: string): string {
         <div style="color:#6b7280;font-size:12px;margin-top:2px;">Councils</div>
       </div>
     </div>
-
-    <!-- Leads by council -->
     ${councilSections}
-
-    <!-- Footer -->
     <div style="margin-top:40px;padding-top:20px;border-top:1px solid #1f2937;color:#4b5563;font-size:11px;text-align:center;">
       Planning Leads System — Automated Run via Trigger.dev
     </div>
   </div>
 </body>
 </html>`;
+}
+
+// ─── Dynamic council auth lookup ──────────────────────────────────────────────
+// Queries council_portal_configs for planit_auth values.
+// Returns only councils with a non-null planit_auth. Warns and skips the rest.
+async function lookupCouncilAuths(
+  names: string[],
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ name: string; auth: string }[]> {
+  const { data, error } = await supabase
+    .from("council_portal_configs")
+    .select("council_name, planit_auth")
+    .in("council_name", names)
+    .not("planit_auth", "is", null);
+
+  if (error) {
+    logger.error("Failed to look up council planit_auth values", { error: error.message });
+    return [];
+  }
+
+  const authMap = new Map<string, string>(
+    (data ?? []).map((row: { council_name: string; planit_auth: string }) => [
+      row.council_name,
+      row.planit_auth,
+    ]),
+  );
+
+  const result: { name: string; auth: string }[] = [];
+  for (const name of names) {
+    const auth = authMap.get(name);
+    if (auth) {
+      result.push({ name, auth });
+    } else {
+      logger.warn(`No planit_auth found for council: ${name} — skipping`);
+    }
+  }
+
+  return result;
 }
 
 // ─── Orchestrator task ────────────────────────────────────────────────────────
@@ -178,7 +173,7 @@ export const scrapePlanningLeadsTask = task({
   run: async (payload: {
     userId?: string;
     councils?: string[] | null;
-    fanOut?: boolean;  // triggers all-user scan: scrape once, deliver to every user
+    fanOut?: boolean;
   } = {}) => {
     const { userId, councils, fanOut } = payload;
     const runDate = new Date().toLocaleDateString("en-GB", {
@@ -188,19 +183,19 @@ export const scrapePlanningLeadsTask = task({
       day: "numeric",
     });
 
+    // Supabase client shared by both fan-out and single-user paths
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
     // ── Fan-out mode ───────────────────────────────────────────────────────────
-    // Triggered by admin (no userId). Queries all users' council preferences,
-    // scrapes each unique council once, then delivers leads to every user who
-    // wants that council.
+    // Triggered by admin. Reads all users' council preferences, scrapes each
+    // unique council once, delivers leads to every user who selected it.
     if (fanOut) {
       logger.info("Fan-out mode: querying all users' council preferences");
 
-      const supabase = createClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      );
-
-      // 1. Fetch all profiles with non-empty scan_settings
+      // 1. Fetch all profiles with scan_settings
       const { data: profiles, error: profilesErr } = await supabase
         .from("profiles")
         .select("user_id, scan_settings")
@@ -230,10 +225,17 @@ export const scrapePlanningLeadsTask = task({
         `Fan-out: ${councilMap.size} unique council(s) across ${profiles?.length ?? 0} user(s)`,
       );
 
-      // 3. Translate council names → PlanIT auth codes (reuses existing helper)
-      const fanOutCouncilList = buildCouncilList([...councilMap.keys()]);
+      // 3. Look up planit_auth from council_portal_configs
+      const fanOutCouncilList = await lookupCouncilAuths([...councilMap.keys()], supabase);
 
-      // 4. Scrape each council once, pass fanOutUserIds so process-council fans out
+      if (fanOutCouncilList.length === 0) {
+        logger.error(
+          "Fan-out: no valid councils found — scan aborted. Check council_portal_configs.planit_auth is populated.",
+        );
+        return { leads_found: 0, email_sent: false };
+      }
+
+      // 4. Scrape each council once, fan out leads to all users who want it
       const allLeads: MergedLead[] = [];
       for (const council of fanOutCouncilList) {
         const fanOutUserIds = councilMap.get(council.name) ?? [];
@@ -261,7 +263,7 @@ export const scrapePlanningLeadsTask = task({
         return { leads_found: 0, email_sent: false };
       }
 
-      // 5. Send digest email (same as single-user path below)
+      // 5. Send digest email
       const resend = new Resend(process.env.RESEND_API_KEY);
       const html = buildEmailHtml(allLeads, runDate);
       const subject = `🏗️ Planning Leads — ${runDate} (${allLeads.length} leads, ${allLeads.filter((l) => l.priority === "HIGH").length} HIGH)`;
@@ -287,13 +289,26 @@ export const scrapePlanningLeadsTask = task({
     }
     // ── End fan-out mode ───────────────────────────────────────────────────────
 
-    // Use user's selected councils if provided, otherwise fall back to defaults
-    const councilList =
-      councils && councils.length > 0
-        ? buildCouncilList(councils)
-        : DEFAULT_COUNCILS;
-
+    // ── Single-user mode ───────────────────────────────────────────────────────
     logger.info(`Planning scraper started — ${runDate}`);
+
+    const councilNames = councils && councils.length > 0 ? councils : [];
+
+    if (councilNames.length === 0) {
+      logger.error("No councils provided — scan aborted.");
+      return { leads_found: 0, email_sent: false };
+    }
+
+    // Look up planit_auth from council_portal_configs
+    const councilList = await lookupCouncilAuths(councilNames, supabase);
+
+    if (councilList.length === 0) {
+      logger.error(
+        "No valid councils found — scan aborted. Check council_portal_configs.planit_auth is populated.",
+      );
+      return { leads_found: 0, email_sent: false };
+    }
+
     logger.info(`Councils to process: ${councilList.map((c) => c.name).join(", ")}`);
 
     const allLeads: MergedLead[] = [];
@@ -330,7 +345,6 @@ export const scrapePlanningLeadsTask = task({
     const subject = `🏗️ Planning Leads — ${runDate} (${allLeads.length} leads, ${allLeads.filter((l) => l.priority === "HIGH").length} HIGH)`;
 
     const emailResult = await resend.emails.send({
-      // NOTE: replace with your verified Resend domain, or use onboarding@resend.dev for testing
       from: "Planning Leads <onboarding@resend.dev>",
       to: process.env.DIGEST_EMAIL ?? "nicomistry@gmail.com",
       subject,
