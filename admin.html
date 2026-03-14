@@ -1939,12 +1939,20 @@
 
       const { data, error } = await sb
         .from('control_panel_requests')
-        .select('*, profiles(cp_runs_remaining)')
+        .select('*')
         .order('requested_at', { ascending: false });
 
       document.getElementById('cpReqLoading').classList.add('hidden');
 
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.error('CP requests error:', error);
+        document.getElementById('cpReqEmpty').classList.remove('hidden');
+        document.getElementById('cpReqEmpty').classList.add('flex');
+        updateCPBadge(0);
+        return;
+      }
+
+      if (!data || data.length === 0) {
         document.getElementById('cpReqEmpty').classList.remove('hidden');
         document.getElementById('cpReqEmpty').classList.add('flex');
         updateCPBadge(0);
@@ -2023,7 +2031,7 @@
       btn.textContent = '…';
 
       // Get the request to find the user_id
-      const { data: req } = await sb.from('control_panel_requests').select('user_id, user_id').eq('id', id).single();
+      const { data: req } = await sb.from('control_panel_requests').select('user_id').eq('id', id).single();
 
       // Update request status
       await sb.from('control_panel_requests').update({
