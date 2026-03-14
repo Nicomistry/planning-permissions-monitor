@@ -334,7 +334,7 @@
         </div>
       </div>
 
-      <!-- Inline scan button (shown when CP run is available) -->
+      <!-- Inline scan bar (shown when CP run is available) -->
       <div id="inlineScanBar" class="hidden mb-4">
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-xl border border-purple-500/30 bg-purple-500/8">
           <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -346,11 +346,18 @@
               <div id="inlineScanMeta" class="text-[11px] text-zinc-500 mt-0.5 truncate">Select councils above then run your scan</div>
             </div>
           </div>
-          <button id="inlineScanBtn" onclick="runCPScan(this)"
-            class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-sm font-semibold transition-all shrink-0">
-            <iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon>
-            Run Scan
-          </button>
+          <div class="flex gap-2">
+            <button onclick="saveScanSettings()"
+              class="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 active:scale-95 text-white text-sm font-medium transition-all shrink-0">
+              <iconify-icon icon="solar:diskette-bold" style="font-size:13px;"></iconify-icon>
+              Save
+            </button>
+            <button id="inlineScanBtn" onclick="runCPScan(this)"
+              class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-sm font-semibold transition-all shrink-0">
+              <iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon>
+              Run Scan
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1273,8 +1280,7 @@
       // Build councils list from user settings (fallback: all defaults)
       const selectedCouncils = dActiveCouncils.size > 0 ? [...dActiveCouncils] : null;
 
-      // Trigger first — only deduct run if it succeeds
-      let triggerOk = false;
+      // Trigger + deduct — server handles both atomically
       try {
         const resp = await fetch('/api/trigger-scan', {
           method: 'POST',
@@ -1282,25 +1288,31 @@
           body: JSON.stringify({ userId: currentUser.id, councils: selectedCouncils }),
         });
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-        triggerOk = true;
+
+        if (!resp.ok) {
+          // NO_RUNS means the scan was already used — update UI to reflect reality
+          if (data.code === 'NO_RUNS') {
+            updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
+            status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
+            status.textContent = 'Your scan run has already been used. Request another from admin to run again.';
+          } else {
+            status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
+            status.textContent = 'Scan failed: ' + (data.error || `HTTP ${resp.status}`) + ' — your run has not been used.';
+          }
+          if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
+          return;
+        }
+
+        // Success — server already deducted the run
         status.textContent = 'Scan triggered — results will appear below shortly.';
       } catch (err) {
         status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
-        status.textContent = 'Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again or contact admin.';
+        status.textContent = 'Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again.';
         if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
         return;
       }
 
-      // Only deduct run after confirmed trigger
-      if (triggerOk) {
-        await sb.from('profiles').update({
-          cp_runs_remaining: 0,
-          cp_last_run_at: new Date().toISOString(),
-        }).eq('user_id', currentUser.id);
-      }
-
-      // Update nav + hide scan bar
+      // Update nav + hide scan bar (server already wrote to Supabase)
       updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
     }
 
