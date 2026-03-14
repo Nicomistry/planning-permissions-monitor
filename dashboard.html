@@ -66,6 +66,15 @@
     .d-council-chip:hover { border-color: rgba(0,208,132,0.4); background: rgba(0,208,132,0.06); color: #a1a1aa; box-shadow: 0 0 8px rgba(0,208,132,0.08); }
     .d-council-chip.active { border-color: rgba(0,208,132,0.55); background: rgba(0,208,132,0.1); color: #00d084; box-shadow: 0 0 10px rgba(0,208,132,0.1); font-weight: 500; }
 
+    /* region tabs */
+    .d-region-tab {
+      font-size: 11px; font-weight: 500; padding: 5px 12px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+      color: #52525b; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .d-region-tab:hover { border-color: rgba(0,208,132,0.3); color: #a1a1aa; background: rgba(0,208,132,0.05); }
+    .d-region-tab.active { border-color: rgba(0,208,132,0.55); background: rgba(0,208,132,0.12); color: #00d084; }
+
     /* search bar */
     .ss-search {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
@@ -209,13 +218,26 @@
                 <button onclick="dClearCouncils()" class="text-[11px] text-zinc-500 hover:text-red-400 border border-white/8 hover:border-red-500/30 rounded-lg px-2.5 py-1.5 transition-all">Clear all</button>
               </div>
               <!-- Search -->
-              <div class="relative mb-4">
+              <div class="relative mb-2.5">
                 <iconify-icon icon="solar:magnifer-linear" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;color:#52525b;pointer-events:none;"></iconify-icon>
                 <input id="dCouncilSearch" type="text" placeholder="Search 400+ councils across England, Scotland & Wales…"
                   oninput="filterDCouncils()" class="ss-search placeholder-zinc-600">
               </div>
+              <!-- Region tabs -->
+              <div class="flex flex-wrap gap-1.5 mb-3">
+                <button class="d-region-tab active" onclick="setDRegion(null,this)">ALL</button>
+                <button class="d-region-tab" onclick="setDRegion('London',this)">London</button>
+                <button class="d-region-tab" onclick="setDRegion('South East',this)">South East</button>
+                <button class="d-region-tab" onclick="setDRegion('South West',this)">South West</button>
+                <button class="d-region-tab" onclick="setDRegion('East',this)">East</button>
+                <button class="d-region-tab" onclick="setDRegion('Midlands',this)">Midlands</button>
+                <button class="d-region-tab" onclick="setDRegion('North',this)">North</button>
+                <button class="d-region-tab" onclick="setDRegion('Wales',this)">Wales</button>
+                <button class="d-region-tab" onclick="setDRegion('Scotland',this)">Scotland</button>
+                <button class="d-region-tab" onclick="setDRegion('N. Ireland',this)">N. Ireland</button>
+              </div>
               <!-- Council chips -->
-              <div id="dCouncilGrid" class="flex flex-wrap gap-1.5 overflow-y-auto flex-1" style="max-height:280px;"></div>
+              <div id="dCouncilGrid" class="flex flex-wrap gap-1.5 overflow-y-auto flex-1" style="max-height:220px;"></div>
             </div>
 
           </div>
@@ -361,8 +383,23 @@
     ];
     const D_COUNCILS = ['Aberdeen','Aberdeenshire','Adur and Worthing','Allerdale','Amber Valley','Anglesey','Angus','Antrim and Newtownabbey','Ards and North Down','Argyll','Armagh Banbridge Craigavon','Arun','Ashfield','Ashford','Babergh Mid Suffolk','Barking and Dagenham','Barnet','Barnsley','Barrow','Basildon','Basingstoke','Bassetlaw','Bath','BCP','Bedford','Belfast','Bexley','Birmingham','Blackburn','Blackpool','Blaenau Gwent','Blaby','Bolsover','Boston','Bracknell','Bradford','Braintree','Breckland','Brent','Brentwood','Brecon Beacons','Bridgend','Brighton','Bristol','Bromley','Bromsgrove Redditch','Broxtowe','Broxbourne','Buckinghamshire','Burnley','Bury','Caerphilly','Cairngorms','Calderdale','Cambridge','Cambridgeshire','Camden','Cannock Chase','Canterbury','Cardiff','Carlisle','Carmarthenshire','Castle Point','Causeway and Glens','Central Bedfordshire','Ceredigion','Charnwood','Chelmsford','Cheltenham','Cherwell','Cheshire East','Chester','Chesterfield','Chichester','Chorley','City','Clackmannanshire','Colchester','Conwy','Copeland','Cornwall','Cotswold','Coventry','Craven','Crawley','Croydon','Dacorum','Darlington','Dartford','Derby','Derbyshire','Devon','Doncaster','Dorset','Dover','Dudley','Dumfries','Dundee','Durham','Ealing','East Ayrshire','East Devon','East Hampshire','East Hertfordshire','East Lindsey','East Lothian','East Riding','East Staffordshire','East Suffolk','East Sussex','Eastbourne','Eastleigh','Edinburgh','Elmbridge','Enfield','Epping Forest','Epsom and Ewell','Erewash','Essex','Exeter','Falkirk','Fareham','Fenland','Fife','Flintshire','Forest of Dean','Fylde','Gateshead','Gedling','Glasgow','Gloucester','Gloucestershire','Gosport','Gravesham','Great Yarmouth','Greenwich','Guildford','Gwynedd','Hackney','Halton','Hambleton','Hammersmith and Fulham','Hampshire','Harborough','Haringey','Harlow','Harrogate','Harrow','Hart','Hartlepool','Hastings','Havant','Havering','Herefordshire','Hertfordshire','Hertsmere','High Peak','Highland','Hillingdon','Hinckley and Bosworth','Horsham','Hounslow','Hull','Huntingdonshire','Hyndburn','Inverclyde','Ipswich','Isle of Wight','Islington','Kensington','Kent','Kings Lynn','Kingston','Kirklees','Knowsley','Lake District','Lambeth','Lancaster','Leeds','Leicester','Leicestershire','Lewes','Lewisham','Lichfield','Lincoln','Lincolnshire','Liverpool','Luton','Maldon','Malvern Hills','Manchester','Mansfield','Medway','Melton','Mendip','Merton','Middlesbrough','Mid Devon','Mid Sussex','Midlothian','Milton Keynes','Mole Valley','Monmouthshire','Moray','Neath','New Forest (District)','Newark and Sherwood','Newcastle under Lyme','Newcastle upon Tyne','Newham','Newport','Norfolk','North Ayrshire','North Devon','North East Derbyshire','North East Lincs','North Hertfordshire','North Kesteven','North Lanarkshire','North Lincs','North Norfolk','North Somerset','North Tyneside','North Warwickshire','North West Leicestershire','North Yorkshire','Northumberland (County)','Norwich','Nottingham','Nottinghamshire','Nuneaton','Oadby and Wigston','Oldham','Orkney','Oxford','Oxfordshire','Peak District','Pembrokeshire','Pendle','Perth','Peterborough','Plymouth','Powys','Preston','Reading','Redbridge','Redcar and Cleveland','Reigate','Renfrewshire','Rhondda','Ribble Valley','Richmond','Richmondshire','Rochdale','Rochford','Rossendale','Rotherham','Rother','Rugby','Runnymede','Rushcliffe','Rushmoor','Rutland','Ryedale','Salford','Sandwell','Scarborough','Scottish Borders','Sedgemoor','Sefton','Selby','Sevenoaks','Sheffield','Shropshire','Slough','Solihull','Somerset','South Ayrshire','South Cambridgeshire','South Derbyshire','South Downs','South Gloucestershire','South Holland','South Kesteven','South Lanarkshire','South Norfolk Broadland','South Oxfordshire','South Ribble','South Somerset','South Staffordshire','South Tyneside','Southend','Southampton','Southwark','Spelthorne','St Albans','St Helens','Stafford','Staffordshire','Staffordshire Moorlands','Stevenage','Stirling','Stockport','Stockton-on-Tees','Stoke on Trent','Stratford on Avon','Stroud','Suffolk','Sunderland','Surrey','Surrey Heath','Sutton','Swansea','Swindon','Tameside','Tamworth','Tandridge','Telford','Tendring','Test Valley','Tewkesbury','Thanet','Three Rivers','Thurrock','Tonbridge','Torbay','Torridge','Tower Hamlets','Trafford','Tunbridge Wells','Uttlesford','Vale of White Horse','Wakefield','Walsall','Waltham Forest','Wandsworth','Warrington','Warwick','Warwickshire','Watford','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Dunbartonshire','West Lancashire','West Lindsey','West Lothian','West Northamptonshire','West Oxfordshire','West Suffolk','West Sussex','Westminster','Westmorland and Furness','Wigan','Wiltshire','Winchester','Windsor','Wirral','Woking','Wokingham','Wolverhampton','Worcester','Worcestershire','Wrexham','Wychavon','Wyre','Wyre Forest','York','Yorkshire Dales'];
 
+    const D_COUNCIL_REGION = {};
+    const _dRegionDefs = {
+      'London':     ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington','Kingston','Lambeth','Lewisham','Merton','Newham','Redbridge','Richmond','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster'],
+      'South East': ['Adur and Worthing','Arun','Ashford','Basingstoke','Bracknell','Brighton','Canterbury','Castle Point','Chelmsford','Chichester','Crawley','Dartford','Dover','Eastbourne','Eastleigh','Elmbridge','Epsom and Ewell','Epping Forest','Fareham','Gosport','Gravesham','Guildford','Hampshire','Hart','Hastings','Havant','Hertfordshire','Hertsmere','Horsham','Isle of Wight','Kent','Lewes','Medway','Mid Sussex','Mole Valley','New Forest (District)','Oxford','Oxfordshire','Reading','Reigate','Rother','Rushmoor','Sevenoaks','Slough','South Downs','South Oxfordshire','Spelthorne','St Albans','Surrey','Surrey Heath','Tandridge','Test Valley','Thanet','Three Rivers','Tonbridge','Tunbridge Wells','Vale of White Horse','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Oxfordshire','Windsor','Woking','Wokingham'],
+      'South West': ['Bath','BCP','Bristol','Cheltenham','Cornwall','Cotswold','Devon','Dorset','East Devon','Gloucester','Gloucestershire','Mid Devon','North Devon','North Somerset','Plymouth','Sedgemoor','Somerset','South Gloucestershire','South Somerset','Stroud','Swindon','Tewkesbury','Torbay','Torridge','Wiltshire'],
+      'East':       ['Bedford','Braintree','Breckland','Cambridge','Cambridgeshire','Central Bedfordshire','Colchester','East Cambridgeshire','East Suffolk','Essex','Fenland','Great Yarmouth','Huntingdonshire','Ipswich','Kings Lynn','Luton','Maldon','Norfolk','North Hertfordshire','Norwich','Peterborough','South Cambridgeshire','South Norfolk Broadland','Suffolk','Tendring','Thurrock','Uttlesford','Watford','West Suffolk'],
+      'Midlands':   ['Amber Valley','Birmingham','Bolsover','Bromsgrove Redditch','Cannock Chase','Charnwood','Chesterfield','Coventry','Derby','Derbyshire','Dudley','East Staffordshire','Erewash','Gedling','Herefordshire','High Peak','Hinckley and Bosworth','Leicester','Leicestershire','Lichfield','Lincoln','Lincolnshire','Malvern Hills','Mansfield','Melton','Newark and Sherwood','Newcastle under Lyme','North East Derbyshire','North Kesteven','North Warwickshire','North West Leicestershire','Nottingham','Nottinghamshire','Oadby and Wigston','Peak District','Rushcliffe','Rutland','Sandwell','Shropshire','Solihull','South Derbyshire','South Holland','South Kesteven','South Staffordshire','Stafford','Staffordshire','Staffordshire Moorlands','Stoke on Trent','Stratford on Avon','Tamworth','Telford','Walsall','Warwick','Warwickshire','Wolverhampton','Worcester','Worcestershire','Wychavon','Wyre Forest'],
+      'North':      ['Barnsley','Blackburn','Blackpool','Bradford','Burnley','Bury','Calderdale','Carlisle','Chester','Cheshire East','Chorley','Craven','Darlington','Doncaster','Durham','East Riding','Fylde','Gateshead','Hambleton','Harrogate','Hartlepool','Hull','Hyndburn','Kirklees','Lancaster','Leeds','Liverpool','Manchester','Middlesbrough','Newcastle upon Tyne','North Tyneside','North Yorkshire','Northumberland (County)','Oldham','Pendle','Preston','Redcar and Cleveland','Ribble Valley','Richmondshire','Rochdale','Rotherham','Ryedale','Salford','Sandwell','Scarborough','Sefton','Selby','Sheffield','South Ribble','South Tyneside','St Helens','Stockport','Stockton-on-Tees','Sunderland','Tameside','Trafford','Wakefield','Warrington','West Lancashire','Wigan','Wirral','Wyre','York','Yorkshire Dales'],
+      'Wales':      ['Blaenau Gwent','Bridgend','Brecon Beacons','Caerphilly','Cardiff','Carmarthenshire','Ceredigion','Conwy','Denbighshire','Flintshire','Gwynedd','Monmouthshire','Neath','Newport','Pembrokeshire','Powys','Rhondda','Swansea','Torfaen','Wrexham'],
+      'Scotland':   ['Aberdeen','Aberdeenshire','Angus','Argyll','Cairngorms','Clackmannanshire','Dumfries','Dundee','East Ayrshire','East Dunbartonshire','East Lothian','East Renfrewshire','Edinburgh','Falkirk','Fife','Glasgow','Highland','Inverclyde','Loch Lomond','Midlothian','Moray','North Ayrshire','North Lanarkshire','Orkney','Perth','Renfrewshire','Scottish Borders','Shetlands','South Ayrshire','South Lanarkshire','Stirling','West Dunbartonshire','West Lothian','Western Isles'],
+      'N. Ireland': ['Antrim and Newtownabbey','Ards and North Down','Armagh Banbridge Craigavon','Belfast','Causeway and Glens','Derry and Strabane','Fermanagh and Omagh','Lisburn and Castlereagh','Mid East Antrim','Mid Ulster','Newry Mourne Down'],
+    };
+    Object.entries(_dRegionDefs).forEach(([r, list]) => list.forEach(c => D_COUNCIL_REGION[c] = r));
+
     let dActiveTrades   = new Set();
     let dActiveCouncils = new Set();
+    let dActiveRegion   = null;
 
     function initScanSettings() {
       try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
@@ -426,7 +463,17 @@
 
     function filterDCouncils() {
       const q = document.getElementById('dCouncilSearch').value.toLowerCase();
-      renderDCouncils(q ? D_COUNCILS.filter(c => c.toLowerCase().includes(q)) : D_COUNCILS);
+      let list = dActiveRegion ? D_COUNCILS.filter(c => D_COUNCIL_REGION[c] === dActiveRegion) : D_COUNCILS;
+      if (q) list = list.filter(c => c.toLowerCase().includes(q));
+      renderDCouncils(list);
+    }
+
+    function setDRegion(region, btn) {
+      dActiveRegion = region;
+      document.querySelectorAll('.d-region-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('dCouncilSearch').value = '';
+      filterDCouncils();
     }
 
     function updateDTradeCount() {
