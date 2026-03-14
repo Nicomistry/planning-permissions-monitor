@@ -24,8 +24,8 @@ tailwind.config = {
         'fade-in-up':  'fadeInUp 0.8s ease-out forwards',
         'pulse-slow':  'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'matrix-fall': 'matrixFall 18s linear infinite',
-        'marquee':     'marquee 180s linear infinite',
-        'marquee2':    'marquee 180s linear infinite',
+        'marquee':     'marquee 300s linear infinite',
+        'marquee2':    'marquee 300s linear infinite',
         'ping-slow':   'ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite',
         'scroll-reveal':'scrollReveal 0.6s ease-out forwards',
       },
@@ -113,8 +113,6 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 .bg-grid { background-size: 40px 40px; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); mask-image: radial-gradient(circle at center, black, transparent 80%); }
 
 .transition-all-ease { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.matrix-layer { background-image: linear-gradient(to bottom, rgba(0,208,132,0.18), transparent 60%); mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); opacity: 0.4; }
-.matrix-layer-purple { background-image: linear-gradient(to bottom, rgba(168,85,247,0.15), transparent 60%); mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); opacity: 0.3; }
 
 .input-field { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.2s, box-shadow 0.2s; }
 .input-field:focus { outline: none; border-color: #00d084; box-shadow: 0 0 0 3px rgba(0,208,132,0.12); }
@@ -178,14 +176,14 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 </head>
 <body class="overflow-x-hidden selection:bg-brand/20 selection:text-brand-light bg-[#0a0a0a] text-base">
 
-<!-- Animated Background -->
-<div class="fixed inset-0 -z-10 bg-[#0a0a0a] overflow-hidden">
-  <!-- Simplified Mesh Gradient Background -->
-  <div class="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full mix-blend-screen filter blur-[100px] opacity-20 animate-pulse-slow" style="background: radial-gradient(circle, #00d084 0%, transparent 70%);"></div>
-  <div class="absolute top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full mix-blend-screen filter blur-[100px] opacity-15 animate-pulse-slow" style="background: radial-gradient(circle, #a855f7 0%, transparent 70%); animation-delay: 2s;"></div>
-  <div class="absolute -bottom-[20%] left-[20%] w-[80%] h-[80%] rounded-full mix-blend-screen filter blur-[120px] opacity-10" style="background: radial-gradient(circle, #00d084 0%, transparent 60%);"></div>
-  
-  <div class="absolute inset-0 bg-grid opacity-30"></div>
+<!-- Background — subtle grid + border vignette only -->
+<div class="fixed inset-0 -z-10 bg-[#080808]">
+  <!-- Fine code grid -->
+  <div class="absolute inset-0" style="background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px;"></div>
+  <!-- Edge vignette — fades grid towards centre so it feels like a border frame -->
+  <div class="absolute inset-0" style="background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(8,8,8,0.85) 100%);"></div>
+  <!-- Very faint top-centre bloom so the hero text reads cleanly -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[28rem] pointer-events-none" style="background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%);"></div>
 </div>
 
 <!-- Navbar -->
@@ -213,11 +211,6 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
      HERO
 ══════════════════════════════════════════════════════════ -->
 <section class="relative pt-36 pb-0 overflow-hidden" id="top">
-  <!-- Dual glow blobs — green + purple -->
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[42rem] h-[32rem] bg-brand/8 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
-  <div class="absolute top-10 left-1/2 -translate-x-[30%] w-[28rem] h-[24rem] bg-purple/10 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
-  <div class="absolute top-40 left-1/2 -translate-x-1/2 w-[18rem] h-[12rem] bg-brand/8 blur-[5rem] rounded-full z-0 pointer-events-none"></div>
-
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <!-- Pill badge -->
     <div class="flex justify-center mb-8">
@@ -344,7 +337,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 <div class="py-4 overflow-hidden border-b border-white/5 bg-[#080808]">
   <div class="relative w-full" style="mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);">
     <!-- Removed absolute gradient divs as mask-image handles the fade more cleanly -->
-    <div class="marquee-track animate-marquee" style="animation-duration:180s;">
+    <div class="marquee-track animate-marquee" style="animation-duration:300s;">
       <span id="marqueeInner"></span><span id="marqueeInner2"></span>
     </div>
   </div>
