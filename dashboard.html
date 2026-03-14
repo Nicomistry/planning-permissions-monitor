@@ -355,6 +355,17 @@
               </div>
               <div id="dCouncilGrid" class="flex flex-wrap gap-1.5"></div>
               <div id="dCouncilHint" class="mt-3 text-[11px] text-zinc-600"></div>
+
+              <!-- Save button — always visible directly below councils -->
+              <div class="mt-4 pt-4 border-t border-white/5">
+                <button onclick="saveScanSettings()" class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                  style="background:#00d084;color:#000;box-shadow:0 0 16px rgba(0,208,132,0.25);"
+                  onmouseover="this.style.background='#33e39f'"
+                  onmouseout="this.style.background='#00d084'">
+                  <iconify-icon icon="solar:diskette-bold" style="font-size:14px;color:#000;"></iconify-icon>
+                  Save Settings
+                </button>
+              </div>
             </div>
           </div>
 
@@ -375,8 +386,11 @@
             <div id="ss4RunAvailable" class="hidden flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div id="inlineScanMeta" class="text-xs text-zinc-500 flex-1">Save your settings then run your scan.</div>
               <div class="flex gap-2 shrink-0">
-                <button id="ssSaveBtn" onclick="saveScanSettings()" class="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-all">
-                  <iconify-icon icon="solar:diskette-bold" style="font-size:13px;"></iconify-icon>
+                <button id="ssSaveBtn" onclick="saveScanSettings()" class="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                  style="background:#00d084;color:#000;"
+                  onmouseover="this.style.background='#33e39f'"
+                  onmouseout="this.style.background='#00d084'">
+                  <iconify-icon icon="solar:diskette-bold" style="font-size:13px;color:#000;"></iconify-icon>
                   Save
                 </button>
                 <button id="inlineScanBtn" onclick="runCPScan(this)"
@@ -390,8 +404,11 @@
             <!-- No access -->
             <div id="ss4NoRuns" class="flex flex-col sm:flex-row sm:items-center gap-3">
               <p class="text-xs text-zinc-600 flex-1">You can save your settings at any time. A scan run is needed to fetch results.</p>
-              <button onclick="saveScanSettings()" class="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 text-sm font-medium transition-all">
-                <iconify-icon icon="solar:diskette-bold" style="font-size:13px;"></iconify-icon>
+              <button onclick="saveScanSettings()" class="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                style="background:#00d084;color:#000;"
+                onmouseover="this.style.background='#33e39f'"
+                onmouseout="this.style.background='#00d084'">
+                <iconify-icon icon="solar:diskette-bold" style="font-size:13px;color:#000;"></iconify-icon>
                 Save Settings
               </button>
             </div>
