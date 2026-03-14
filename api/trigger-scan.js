@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
-  const resp = await fetch('https://api.trigger.dev/v3/tasks/planning-scraper/trigger', {
+  const resp = await fetch('https://api.trigger.dev/api/v1/tasks/planning-scraper/trigger', {
     method: 'POST',
     headers: {
       'Content-Type':  'application/json',
