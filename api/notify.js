@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const ADMIN_EMAIL    = process.env.DIGEST_EMAIL || 'nicomistry@gmail.com';
-  const FROM_EMAIL     = process.env.FROM_EMAIL   || 'noreply@ppm.build';
+  const FROM_EMAIL     = process.env.FROM_EMAIL   || 'onboarding@resend.dev';
 
   if (!RESEND_API_KEY) return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
 
