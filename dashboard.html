@@ -624,6 +624,7 @@
 
       const { error } = await sb.from('control_panel_requests').insert({
         user_id: currentUser.id,
+        user_email: currentUser.email,
         message: msg || null,
       });
 
@@ -730,6 +731,7 @@
 
       await sb.from('control_panel_requests').insert({
         user_id: currentUser.id,
+        user_email: currentUser.email,
         help_message: msg,
       });
 
