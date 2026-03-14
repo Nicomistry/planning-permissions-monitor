@@ -1946,8 +1946,10 @@
 
       if (error) {
         console.error('CP requests error:', error);
-        document.getElementById('cpReqEmpty').classList.remove('hidden');
-        document.getElementById('cpReqEmpty').classList.add('flex');
+        const emptyEl = document.getElementById('cpReqEmpty');
+        emptyEl.textContent = `Error: ${error.message}`;
+        emptyEl.classList.remove('hidden');
+        emptyEl.classList.add('flex');
         updateCPBadge(0);
         return;
       }
