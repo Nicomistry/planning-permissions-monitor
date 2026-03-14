@@ -2118,29 +2118,26 @@
       btn.disabled = true;
       btn.textContent = '…';
 
-      // Get the request to find the user_id
-      const { data: req } = await sb.from('control_panel_requests').select('user_id').eq('id', id).single();
+      // Get user_id for the request
+      const { data: req } = await sb.from('control_panel_requests').select('user_id, user_email').eq('id', id).single();
+      if (!req?.user_id) { btn.disabled = false; btn.textContent = decision === 'granted' ? 'Grant' : 'Deny'; return; }
 
-      // Update request status
-      await sb.from('control_panel_requests').update({
-        status: decision,
-        reviewed_at: new Date().toISOString(),
-      }).eq('id', id);
-
-      // If granted, set cp_runs_remaining = 1
-      if (decision === 'granted' && req?.user_id) {
-        const { error: profErr } = await sb.from('profiles')
-          .update({ cp_runs_remaining: 1 })
-          .eq('user_id', req.user_id);
-        if (profErr) { alert('Grant saved but failed to set runs: ' + profErr.message); }
-      }
+      // Use server-side endpoint (service role) to update request + profile atomically
+      const { data: { session } } = await sb.auth.getSession();
+      const resp = await fetch('/api/grant-cp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ requestId: id, userId: req.user_id, decision }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) { alert('Error: ' + result.error); btn.disabled = false; btn.textContent = decision === 'granted' ? 'Grant' : 'Deny'; return; }
 
       // Send email notification
       try {
         await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: decision, userEmail: req?.user_id, userName: '' }),
+          body: JSON.stringify({ type: decision, userEmail: req.user_email || req.user_id, userName: '' }),
         });
       } catch (_) {}
 

@@ -530,6 +530,23 @@
       cpCooldownTimer = setInterval(tick, 1000);
     }
 
+    // ── Check if access has been granted (called from pending modal) ─────────
+    async function checkCPStatus() {
+      const { data: profile } = await sb.from('profiles')
+        .select('cp_runs_remaining')
+        .eq('user_id', currentUser.id)
+        .single();
+      if (profile?.cp_runs_remaining > 0) {
+        closeCPModal();
+        openCPRunModal();
+      } else {
+        // Still pending — briefly flash the message
+        const body = document.getElementById('cpModalBody');
+        const p = body.querySelector('p');
+        if (p) { p.textContent = 'Not yet approved — try again shortly.'; }
+      }
+    }
+
     // ── Open CP request / run modal ───────────────────────────────────────────
     async function openCPRequest() {
       const { data: profile } = await sb.from('profiles')
@@ -591,7 +608,10 @@
           <iconify-icon icon="solar:clock-circle-linear" class="w-8 h-8 text-yellow-400 mb-3" style="font-size:32px;"></iconify-icon>
           <h3 class="text-white font-semibold mb-1">Request Pending</h3>
           <p class="text-xs text-zinc-500 mb-4">Your request is waiting for admin review. You'll receive an email once it's decided.</p>
-          <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Close</button>`;
+          <div class="flex gap-2 justify-center">
+            <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Close</button>
+            <button onclick="checkCPStatus()" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Check status</button>
+          </div>`;
       } else if (mode === 'cooldown') {
         const remaining = Math.max(0, cooldownMs - (Date.now() - lastRun.getTime()));
         const mins = Math.floor(remaining / 60000);
