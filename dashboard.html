@@ -47,7 +47,13 @@
       color: #52525b; font-size: 16px; transition: all 0.18s;
     }
     .d-trade-row.active .d-trade-row-icon { background: rgba(147,51,234,0.18); border-color: rgba(147,51,234,0.4); color: #c084fc; }
-    .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; flex: 1; }
+    .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; }
+    .d-trade-tag {
+      font-size: 10px; padding: 1px 7px; border-radius: 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      color: #3f3f46; transition: all 0.18s; white-space: nowrap;
+    }
+    .d-trade-row.active .d-trade-tag { background: rgba(147,51,234,0.1); border-color: rgba(147,51,234,0.25); color: #a855f7; }
     .d-trade-row.active .d-trade-row-name { color: #f3e8ff; }
     .d-trade-pill {
       width: 32px; height: 18px; border-radius: 99px; flex-shrink: 0;
@@ -390,16 +396,16 @@
 
     // ── Scan Settings ─────────────────────────────────────────────────────────
     const D_TRADES = [
-      { id: 'builder',     name: 'Builder',        icon: 'solar:sledgehammer-bold'  },
-      { id: 'plumber',     name: 'Plumber',         icon: 'solar:waterdrops-bold'    },
-      { id: 'electrician', name: 'Electrician',     icon: 'solar:bolt-circle-bold'   },
-      { id: 'roofer',      name: 'Roofer',          icon: 'solar:home-angle-bold'    },
-      { id: 'landscaper',  name: 'Landscaper',      icon: 'solar:leaf-bold'          },
-      { id: 'kitchen',     name: 'Kitchen Fitter',  icon: 'solar:cup-hot-bold'       },
-      { id: 'loft',        name: 'Loft Specialist', icon: 'solar:arrow-up-bold'      },
-      { id: 'extension',   name: 'Extensions',      icon: 'solar:buildings-3-bold'   },
-      { id: 'decorator',   name: 'Decorator',       icon: 'solar:paint-roller-bold'  },
-      { id: 'windows',     name: 'Windows & Doors', icon: 'solar:window-frame-bold'  },
+      { id: 'builder',     name: 'Builder',        icon: 'solar:sledgehammer-bold',  tags: ['New Builds','Conversions','Structural Work'] },
+      { id: 'plumber',     name: 'Plumber',         icon: 'solar:waterdrops-bold',    tags: ['Bathrooms','Drainage','Heating Systems'] },
+      { id: 'electrician', name: 'Electrician',     icon: 'solar:bolt-circle-bold',   tags: ['Rewiring','EV Charging','Solar Installs'] },
+      { id: 'roofer',      name: 'Roofer',          icon: 'solar:home-angle-bold',    tags: ['Flat Roofs','Repairs','Guttering'] },
+      { id: 'landscaper',  name: 'Landscaper',      icon: 'solar:leaf-bold',          tags: ['Gardens','Driveways','Patios'] },
+      { id: 'kitchen',     name: 'Kitchen Fitter',  icon: 'solar:cup-hot-bold',       tags: ['Renovations','Worktops','Appliances'] },
+      { id: 'loft',        name: 'Loft Specialist', icon: 'solar:arrow-up-bold',      tags: ['Conversions','Dormers','Insulation'] },
+      { id: 'extension',   name: 'Extensions',      icon: 'solar:buildings-3-bold',   tags: ['Rear Extension','Side Return','Two-Storey'] },
+      { id: 'decorator',   name: 'Decorator',       icon: 'solar:paint-roller-bold',  tags: ['Interior','Exterior','Plastering'] },
+      { id: 'windows',     name: 'Windows & Doors', icon: 'solar:window-frame-bold',  tags: ['uPVC','Bi-fold','Double Glazing'] },
     ];
     const D_COUNCILS = ['Aberdeen','Aberdeenshire','Adur and Worthing','Allerdale','Amber Valley','Anglesey','Angus','Antrim and Newtownabbey','Ards and North Down','Argyll','Armagh Banbridge Craigavon','Arun','Ashfield','Ashford','Babergh Mid Suffolk','Barking and Dagenham','Barnet','Barnsley','Barrow','Basildon','Basingstoke','Bassetlaw','Bath','BCP','Bedford','Belfast','Bexley','Birmingham','Blackburn','Blackpool','Blaenau Gwent','Blaby','Bolsover','Boston','Bracknell','Bradford','Braintree','Breckland','Brent','Brentwood','Brecon Beacons','Bridgend','Brighton','Bristol','Bromley','Bromsgrove Redditch','Broxtowe','Broxbourne','Buckinghamshire','Burnley','Bury','Caerphilly','Cairngorms','Calderdale','Cambridge','Cambridgeshire','Camden','Cannock Chase','Canterbury','Cardiff','Carlisle','Carmarthenshire','Castle Point','Causeway and Glens','Central Bedfordshire','Ceredigion','Charnwood','Chelmsford','Cheltenham','Cherwell','Cheshire East','Chester','Chesterfield','Chichester','Chorley','City','Clackmannanshire','Colchester','Conwy','Copeland','Cornwall','Cotswold','Coventry','Craven','Crawley','Croydon','Dacorum','Darlington','Dartford','Derby','Derbyshire','Devon','Doncaster','Dorset','Dover','Dudley','Dumfries','Dundee','Durham','Ealing','East Ayrshire','East Devon','East Hampshire','East Hertfordshire','East Lindsey','East Lothian','East Riding','East Staffordshire','East Suffolk','East Sussex','Eastbourne','Eastleigh','Edinburgh','Elmbridge','Enfield','Epping Forest','Epsom and Ewell','Erewash','Essex','Exeter','Falkirk','Fareham','Fenland','Fife','Flintshire','Forest of Dean','Fylde','Gateshead','Gedling','Glasgow','Gloucester','Gloucestershire','Gosport','Gravesham','Great Yarmouth','Greenwich','Guildford','Gwynedd','Hackney','Halton','Hambleton','Hammersmith and Fulham','Hampshire','Harborough','Haringey','Harlow','Harrogate','Harrow','Hart','Hartlepool','Hastings','Havant','Havering','Herefordshire','Hertfordshire','Hertsmere','High Peak','Highland','Hillingdon','Hinckley and Bosworth','Horsham','Hounslow','Hull','Huntingdonshire','Hyndburn','Inverclyde','Ipswich','Isle of Wight','Islington','Kensington','Kent','Kings Lynn','Kingston','Kirklees','Knowsley','Lake District','Lambeth','Lancaster','Leeds','Leicester','Leicestershire','Lewes','Lewisham','Lichfield','Lincoln','Lincolnshire','Liverpool','Luton','Maldon','Malvern Hills','Manchester','Mansfield','Medway','Melton','Mendip','Merton','Middlesbrough','Mid Devon','Mid Sussex','Midlothian','Milton Keynes','Mole Valley','Monmouthshire','Moray','Neath','New Forest (District)','Newark and Sherwood','Newcastle under Lyme','Newcastle upon Tyne','Newham','Newport','Norfolk','North Ayrshire','North Devon','North East Derbyshire','North East Lincs','North Hertfordshire','North Kesteven','North Lanarkshire','North Lincs','North Norfolk','North Somerset','North Tyneside','North Warwickshire','North West Leicestershire','North Yorkshire','Northumberland (County)','Norwich','Nottingham','Nottinghamshire','Nuneaton','Oadby and Wigston','Oldham','Orkney','Oxford','Oxfordshire','Peak District','Pembrokeshire','Pendle','Perth','Peterborough','Plymouth','Powys','Preston','Reading','Redbridge','Redcar and Cleveland','Reigate','Renfrewshire','Rhondda','Ribble Valley','Richmond','Richmondshire','Rochdale','Rochford','Rossendale','Rotherham','Rother','Rugby','Runnymede','Rushcliffe','Rushmoor','Rutland','Ryedale','Salford','Sandwell','Scarborough','Scottish Borders','Sedgemoor','Sefton','Selby','Sevenoaks','Sheffield','Shropshire','Slough','Solihull','Somerset','South Ayrshire','South Cambridgeshire','South Derbyshire','South Downs','South Gloucestershire','South Holland','South Kesteven','South Lanarkshire','South Norfolk Broadland','South Oxfordshire','South Ribble','South Somerset','South Staffordshire','South Tyneside','Southend','Southampton','Southwark','Spelthorne','St Albans','St Helens','Stafford','Staffordshire','Staffordshire Moorlands','Stevenage','Stirling','Stockport','Stockton-on-Tees','Stoke on Trent','Stratford on Avon','Stroud','Suffolk','Sunderland','Surrey','Surrey Heath','Sutton','Swansea','Swindon','Tameside','Tamworth','Tandridge','Telford','Tendring','Test Valley','Tewkesbury','Thanet','Three Rivers','Thurrock','Tonbridge','Torbay','Torridge','Tower Hamlets','Trafford','Tunbridge Wells','Uttlesford','Vale of White Horse','Wakefield','Walsall','Waltham Forest','Wandsworth','Warrington','Warwick','Warwickshire','Watford','Waverley','Wealden','Welwyn Hatfield','West Berkshire','West Dunbartonshire','West Lancashire','West Lindsey','West Lothian','West Northamptonshire','West Oxfordshire','West Suffolk','West Sussex','Westminster','Westmorland and Furness','Wigan','Wiltshire','Winchester','Windsor','Wirral','Woking','Wokingham','Wolverhampton','Worcester','Worcestershire','Wrexham','Wychavon','Wyre','Wyre Forest','York','Yorkshire Dales'];
 
@@ -429,9 +435,15 @@
       const grid = document.getElementById('dTradeGrid');
       grid.innerHTML = D_TRADES.map(t => {
         const active = dActiveTrades.has(t.id);
+        const tagHtml = t.tags.map(tag =>
+          `<span class="d-trade-tag">${tag}</span>`
+        ).join('');
         return `<div class="d-trade-row ${active ? 'active' : ''}" id="dtchip-${t.id}" onclick="dToggleTrade('${t.id}')">
           <div class="d-trade-row-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
-          <span class="d-trade-row-name">${t.name}</span>
+          <div class="flex-1 min-w-0">
+            <div class="d-trade-row-name">${t.name}</div>
+            <div class="flex flex-wrap gap-1 mt-1">${tagHtml}</div>
+          </div>
           <div class="d-trade-pill"></div>
         </div>`;
       }).join('');
