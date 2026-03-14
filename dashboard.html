@@ -404,16 +404,27 @@
             <!-- No access -->
             <div id="ss4NoRuns" class="flex flex-col sm:flex-row sm:items-center gap-3">
               <p class="text-xs text-zinc-600 flex-1">You can save your settings at any time. A scan run is needed to fetch results.</p>
-              <button onclick="saveScanSettings()" class="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
-                style="background:#00d084;color:#000;"
-                onmouseover="this.style.background='#33e39f'"
-                onmouseout="this.style.background='#00d084'">
-                <iconify-icon icon="solar:diskette-bold" style="font-size:13px;color:#000;"></iconify-icon>
-                Save Settings
-              </button>
             </div>
           </div>
 
+        </div>
+      </div>
+
+      <!-- Scan Results banner -->
+      <div id="scanResultsBanner" class="hidden mb-4 glass-panel rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 border border-white/5">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);">
+            <iconify-icon icon="solar:chart-square-bold" style="color:#00d084;font-size:16px;"></iconify-icon>
+          </div>
+          <div>
+            <div class="text-white text-sm font-semibold">Scan Results</div>
+            <div class="text-zinc-500 text-[11px]"><span id="bannerLeadCount">—</span> leads found · <span id="bannerCouncilCount">—</span> council(s) scanned</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="bannerHigh"   class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.2);">— HIGH</span>
+          <span id="bannerMedium" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.2);">— MEDIUM</span>
+          <span id="bannerLow"    class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:rgba(156,163,175,0.12);color:#9ca3af;border:1px solid rgba(156,163,175,0.2);">— LOW</span>
         </div>
       </div>
 
@@ -517,7 +528,7 @@
           <div id="dcEmpty" class="hidden flex-col items-center justify-center py-16 text-center px-6">
             <iconify-icon icon="solar:users-group-rounded-linear" class="w-10 h-10 text-zinc-600 mb-3" style="stroke-width:1;"></iconify-icon>
             <div class="text-white font-medium mb-1">No contacts yet</div>
-            <div class="text-sm text-zinc-500">Your account manager will add relevant contacts here.</div>
+            <div class="text-sm text-zinc-500">Hit <span class="text-brand">+ Contact</span> on any lead to save it here.</div>
           </div>
           <div id="dcWrap" class="hidden overflow-x-auto">
             <table class="w-full text-sm">
@@ -530,6 +541,7 @@
                   <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
                   <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
                   <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
+                  <th class="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody id="dcBody"></tbody>
@@ -1044,6 +1056,7 @@
       }
       updateCPNavState(profile);
       loadLeads();
+      ppmIntActivateBubble();
     }
 
     initAuth();
@@ -1054,7 +1067,8 @@
       const { data, error } = await sb
         .from('leads')
         .select('*')
-        .order('opportunity_score', { ascending: false });
+        .order('opportunity_score', { ascending: false })
+        .limit(2000);
 
       document.getElementById('tableLoading').classList.add('hidden');
 
@@ -1073,15 +1087,61 @@
 
     // ── Stats ─────────────────────────────────────────────────────────────────
     function updateStats(leads) {
-      const high   = leads.filter(l => l.priority === 'HIGH').length;
-      const medium = leads.filter(l => l.priority === 'MEDIUM').length;
-      const avg    = leads.length
+      const high    = leads.filter(l => l.priority === 'HIGH').length;
+      const medium  = leads.filter(l => l.priority === 'MEDIUM').length;
+      const low     = leads.filter(l => l.priority === 'LOW').length;
+      const avg     = leads.length
         ? (leads.reduce((s, l) => s + (l.opportunity_score || 0), 0) / leads.length).toFixed(1)
         : '—';
-      document.getElementById('statTotal').textContent   = leads.length;
-      document.getElementById('statHigh').textContent    = high;
-      document.getElementById('statMedium').textContent  = medium;
+      const councils = new Set(leads.map(l => l.council).filter(Boolean));
+
+      document.getElementById('statTotal').textContent    = leads.length;
+      document.getElementById('statHigh').textContent     = high;
+      document.getElementById('statMedium').textContent   = medium;
       document.getElementById('statAvgScore').textContent = avg;
+
+      const banner = document.getElementById('scanResultsBanner');
+      if (leads.length > 0) {
+        document.getElementById('bannerLeadCount').textContent    = leads.length;
+        document.getElementById('bannerCouncilCount').textContent = councils.size;
+        document.getElementById('bannerHigh').textContent         = high + ' HIGH';
+        document.getElementById('bannerMedium').textContent       = medium + ' MEDIUM';
+        document.getElementById('bannerLow').textContent          = low + ' LOW';
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // ── Estimated contract value ───────────────────────────────────────────────
+    function estimateValue(lead) {
+      const desc  = (lead.description || '').toLowerCase();
+      const type  = (lead.dwelling_type || '').toLowerCase();
+      const scale = (lead.development_scale || '').toLowerCase();
+      const units = lead.unit_count || 0;
+      const score = lead.opportunity_score || 0;
+
+      if (units >= 100) return '£500k–£2m+';
+      if (units >= 20)  return '£200k–£800k';
+      if (units >= 5)   return '£80k–£250k';
+      if (units >= 2)   return '£40k–£100k';
+
+      if (scale === 'large' || desc.includes('residential development') || desc.includes('dwellings'))
+        return '£100k–£400k';
+
+      if (type.includes('basement') || desc.includes('basement'))    return '£40k–£120k';
+      if (type.includes('new build') || desc.includes('new dwelling') || desc.includes('new home'))
+        return '£60k–£150k';
+      if (type.includes('loft') || desc.includes('loft conversion'))  return '£30k–£65k';
+      if (type.includes('extension') || desc.includes('extension'))   return '£20k–£70k';
+      if (type.includes('conversion') || desc.includes('conversion')) return '£25k–£80k';
+      if (type.includes('garage') || desc.includes('garage'))         return '£15k–£40k';
+      if (desc.includes('commercial') || desc.includes('office'))     return '£50k–£200k';
+      if (desc.includes('demolish') || desc.includes('rebuild'))      return '£80k–£300k';
+
+      if (score >= 8) return '£40k–£150k';
+      if (score >= 5) return '£15k–£60k';
+      return '£8k–£30k';
     }
 
     // ── Render table ──────────────────────────────────────────────────────────
@@ -1130,14 +1190,23 @@
           ? lead.description.slice(0, 90) + '…'
           : (lead.description || '—');
         const badge = badgeClass[lead.priority] || 'badge-low';
-        const link  = lead.planit_url
-          ? `<a href="${lead.planit_url}" target="_blank" class="text-brand hover:underline text-xs">View →</a>`
+        const planningLink = lead.planit_url
+          ? `<a href="${lead.planit_url}" target="_blank" class="inline-flex items-center gap-1 text-brand hover:underline text-[10px] mt-1 leading-none"><iconify-icon icon="solar:link-linear" style="font-size:10px;"></iconify-icon>Planning Commission →</a>`
           : '';
+        const viewBtn = lead.planit_url
+          ? `<a href="${lead.planit_url}" target="_blank" class="flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap">View →</a>`
+          : '';
+        const alreadySaved = savedLeadIds.has(lead.id);
+        const contactBtn = `<button id="ctbtn-${lead.id}" onclick="addToContacts('${lead.id}')"
+          class="flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors whitespace-nowrap border"
+          style="${alreadySaved ? 'color:#4ade80;border-color:rgba(74,222,128,0.3);cursor:default;' : 'color:#00d084;border-color:rgba(0,208,132,0.3);'}"
+          ${alreadySaved ? 'disabled' : ''}>${alreadySaved ? '✓ Saved' : '+ Contact'}</button>`;
         return `
           <tr class="table-row border-b border-white/5 transition-colors">
             <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">
-              <div class="text-white text-xs font-medium">${lead.address || '—'}</div>
+              <div class="text-white text-xs font-medium leading-snug">${lead.address || '—'}</div>
               <div class="text-zinc-500 text-[11px]">${lead.postcode || ''}</div>
+              ${planningLink}
               <div class="sm:hidden text-zinc-500 text-[11px] mt-0.5">${lead.council || ''}</div>
             </td>
             <td class="hidden sm:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top max-w-xs">
@@ -1146,17 +1215,57 @@
             <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
               <span style="color:${scoreColor(lead.opportunity_score || 0)}" class="text-sm sm:text-base font-semibold">${lead.opportunity_score ?? '—'}</span>
               <span class="text-zinc-600 text-[10px]">/10</span>
+              <div class="text-[10px] mt-1 font-medium" style="color:#a855f7;">${estimateValue(lead)}</div>
             </td>
             <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
               <span class="text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${badge}">${lead.priority || '—'}</span>
             </td>
             <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-400 text-xs">${lead.council || '—'}</td>
             <td class="hidden lg:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-500 text-xs whitespace-nowrap">${lead.scraped_date || ''}</td>
-            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">${link}</td>
+            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">
+              <div class="flex flex-col gap-1 items-stretch">
+                ${contactBtn}
+                ${viewBtn}
+              </div>
+            </td>
           </tr>`;
       }).join('');
 
       document.getElementById('tableBody').innerHTML = rows;
+    }
+
+    // ── Add lead to contacts ───────────────────────────────────────────────────
+    const savedLeadIds = new Set();
+
+    async function addToContacts(leadId) {
+      const lead = allLeads.find(l => String(l.id) === String(leadId));
+      if (!lead) return;
+      const btn = document.getElementById('ctbtn-' + leadId);
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+      const { error } = await sb.from('contacts').insert({
+        user_id:  currentUser.id,
+        address:  lead.address + (lead.postcode ? ', ' + lead.postcode : ''),
+        name:     lead.applicant_name || null,
+        priority: lead.priority || null,
+        score:    lead.opportunity_score ?? null,
+        status:   'new',
+      });
+
+      if (error) {
+        console.error('addToContacts error:', error);
+        if (btn) { btn.disabled = false; btn.textContent = '+ Contact'; }
+        return;
+      }
+
+      savedLeadIds.add(String(leadId));
+      if (btn) {
+        btn.textContent = '✓ Saved';
+        btn.style.color = '#4ade80';
+        btn.style.borderColor = 'rgba(74,222,128,0.3)';
+      }
+      // Refresh contacts badge
+      loadDContacts();
     }
 
     // ── Run scraper ───────────────────────────────────────────────────────────
@@ -1266,7 +1375,7 @@
       };
 
       document.getElementById('dcBody').innerHTML = rows.map(r => `
-        <tr class="table-row border-b border-white/5 transition-colors">
+        <tr class="table-row border-b border-white/5 transition-colors" id="contact-row-${r.id}">
           <td class="px-4 py-3 text-white text-xs font-medium whitespace-nowrap">${r.name || '—'}</td>
           <td class="px-4 py-3 text-xs whitespace-nowrap">
             ${r.phone ? `<a href="tel:${r.phone}" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${r.phone}</a>` : '<span class="text-zinc-600">—</span>'}
@@ -1278,9 +1387,69 @@
           <td class="px-4 py-3 text-xs font-semibold" style="color:${priColor[r.priority]||'#9ca3af'}">${r.priority || '—'}</td>
           <td class="px-4 py-3 text-brand text-xs font-mono font-semibold">${r.score ?? '—'}</td>
           <td class="px-4 py-3">
-            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full" style="${statusBadge[r.status]||statusBadge.new}">${r.status}</span>
+            <select onchange="updateContactStatus('${r.id}', this)"
+              class="text-[11px] font-medium px-2 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none"
+              style="${statusBadge[r.status]||statusBadge.new}">
+              <option value="new"       ${r.status==='new'?'selected':''} style="background:#111;color:#93c5fd;">new</option>
+              <option value="contacted" ${r.status==='contacted'?'selected':''} style="background:#111;color:#fcd34d;">contacted</option>
+              <option value="converted" ${r.status==='converted'?'selected':''} style="background:#111;color:#4ade80;">converted</option>
+              <option value="closed"    ${r.status==='closed'?'selected':''} style="background:#111;color:#9ca3af;">closed</option>
+            </select>
+          </td>
+          <td class="px-4 py-3">
+            <button onclick="removeContact('${r.id}')" title="Remove contact"
+              class="text-zinc-600 hover:text-red-400 transition-colors text-[11px] px-1.5 py-1 rounded hover:bg-red-400/10">
+              <iconify-icon icon="solar:trash-bin-minimalistic-linear" style="font-size:13px;"></iconify-icon>
+            </button>
           </td>
         </tr>`).join('');
+    }
+
+    const statusBadgeStyles = {
+      new:       'background:rgba(59,130,246,0.15);color:#93c5fd;',
+      contacted: 'background:rgba(234,179,8,0.15);color:#fcd34d;',
+      converted: 'background:rgba(22,163,74,0.15);color:#4ade80;',
+      closed:    'background:rgba(107,114,128,0.15);color:#9ca3af;',
+    };
+
+    async function updateContactStatus(contactId, selectEl) {
+      const newStatus = selectEl.value;
+      selectEl.style.cssText = statusBadgeStyles[newStatus] || statusBadgeStyles.new;
+
+      const { error } = await sb
+        .from('contacts')
+        .update({ status: newStatus })
+        .eq('id', contactId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('updateContactStatus error:', error);
+      } else {
+        const c = allDContacts.find(c => String(c.id) === String(contactId));
+        if (c) c.status = newStatus;
+      }
+    }
+
+    async function removeContact(contactId) {
+      const row = document.getElementById('contact-row-' + contactId);
+      if (row) row.style.opacity = '0.4';
+
+      const { error } = await sb
+        .from('contacts')
+        .delete()
+        .eq('id', contactId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('removeContact error:', error);
+        if (row) row.style.opacity = '';
+        return;
+      }
+
+      allDContacts = allDContacts.filter(c => String(c.id) !== String(contactId));
+      const badge = document.getElementById('dContactsBadge');
+      if (badge) badge.textContent = allDContacts.length;
+      renderDContacts();
     }
 
     async function handleLogout() {
@@ -1667,6 +1836,590 @@
 
     lucide.createIcons();
   </script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PPM Intelligence Drawer
+═══════════════════════════════════════════════════════════ -->
+<style>
+@keyframes ppmIntPulse  { 0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,0.4)} 50%{box-shadow:0 0 0 8px rgba(168,85,247,0)} }
+@keyframes ppmIntFadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+/* Bubble */
+#ppm-int-bubble {
+  position:fixed; bottom:28px; left:28px; z-index:9990;
+  display:none; align-items:center; gap:10px;
+  background:#0a0d14; border:1px solid rgba(168,85,247,0.35); border-radius:14px;
+  padding:10px 16px 10px 12px; cursor:pointer;
+  animation:ppmIntPulse 3s ease-in-out infinite;
+  transition:border-color 0.2s,background 0.2s;
+  box-shadow:0 4px 24px rgba(168,85,247,0.18);
+}
+#ppm-int-bubble:hover { border-color:rgba(168,85,247,0.65); background:rgba(168,85,247,0.08); }
+#ppm-int-bubble.ppm-int-visible { display:flex; }
+.ppm-int-bubble-icon {
+  width:28px; height:28px; border-radius:8px;
+  background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.25);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+
+/* Overlay — z-index 9989, behind drawer at 9990 */
+#ppm-int-overlay {
+  position:fixed; inset:0; z-index:9989;
+  background:rgba(0,0,0,0.55); backdrop-filter:blur(2px);
+  display:none;
+}
+#ppm-int-overlay.ppm-int-open { display:block; }
+
+/* Drawer */
+#ppm-int-drawer {
+  position:fixed; top:0; right:0; bottom:0; width:480px; z-index:9990;
+  background:#0a0d14; border-left:1px solid rgba(168,85,247,0.18);
+  display:flex; flex-direction:column;
+  transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:-8px 0 48px rgba(0,0,0,0.5);
+}
+#ppm-int-drawer.ppm-int-open { transform:translateX(0); }
+
+/* Header */
+.ppm-int-header {
+  padding:18px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+  background:rgba(168,85,247,0.04);
+}
+.ppm-int-header-icon {
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background:rgba(168,85,247,0.14); border:1px solid rgba(168,85,247,0.25);
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Mode 1 */
+#ppm-int-mode1 { flex:1; overflow-y:auto; padding:32px 24px; display:none; flex-direction:column; align-items:center; }
+.ppm-int-trade-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; width:100%; margin-top:10px; }
+.ppm-int-trade-chip {
+  padding:10px 14px; border-radius:10px; cursor:pointer;
+  border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);
+  color:#a1a1aa; font-size:13px; font-weight:500; transition:all 0.15s;
+  text-align:center; user-select:none; font-family:inherit;
+}
+.ppm-int-trade-chip:hover { border-color:rgba(168,85,247,0.4); color:#e4e4e7; background:rgba(168,85,247,0.08); }
+.ppm-int-trade-chip.ppm-selected { border-color:rgba(168,85,247,0.6); color:#c084fc; background:rgba(168,85,247,0.14); }
+
+/* Mode 2 — chat */
+#ppm-int-mode2 { flex:1; display:none; flex-direction:column; overflow:hidden; }
+
+/* Access gate */
+#ppm-int-gate {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:32px 24px; text-align:center;
+}
+
+/* Chat messages */
+#ppm-int-chat { flex:1; overflow-y:auto; padding:16px 16px 8px; scroll-behavior:smooth; display:flex; flex-direction:column; gap:10px; }
+#ppm-int-chat::-webkit-scrollbar { width:4px; }
+#ppm-int-chat::-webkit-scrollbar-track { background:transparent; }
+#ppm-int-chat::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.07); border-radius:2px; }
+
+/* Message bubbles */
+.ppm-msg-agent { align-self:flex-start; max-width:88%; }
+.ppm-msg-user  { align-self:flex-end;   max-width:88%; }
+.ppm-msg-agent .ppm-msg-bubble {
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+  color:#d4d4d8; border-radius:4px 14px 14px 14px;
+}
+.ppm-msg-user .ppm-msg-bubble {
+  background:rgba(0,208,132,0.12); border:1px solid rgba(0,208,132,0.2);
+  color:#e4e4e7; border-radius:14px 14px 4px 14px;
+}
+.ppm-msg-bubble { padding:10px 13px; font-size:13px; line-height:1.5; animation:ppmIntFadeIn 0.2s ease-out; }
+
+/* Typing indicator */
+.ppm-typing-bubble {
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+  border-radius:4px 14px 14px 14px; padding:12px 16px; display:inline-flex; gap:4px; align-items:center;
+}
+.ppm-typing-dot {
+  width:6px; height:6px; border-radius:50%; background:#52525b;
+  animation:ppmTyping 1.2s ease-in-out infinite;
+}
+.ppm-typing-dot:nth-child(2) { animation-delay:0.2s; }
+.ppm-typing-dot:nth-child(3) { animation-delay:0.4s; }
+@keyframes ppmTyping { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+/* Lead card in chat */
+.ppm-chat-card {
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  border-radius:12px; padding:14px; margin-top:6px;
+  transition:border-color 0.15s; animation:ppmIntFadeIn 0.2s ease-out;
+}
+.ppm-chat-card:hover { border-color:rgba(168,85,247,0.2); }
+.ppm-score-bar-bg { height:3px; border-radius:99px; background:rgba(255,255,255,0.08); flex:1; overflow:hidden; }
+.ppm-score-bar-fill { height:100%; border-radius:99px; }
+
+/* Input bar */
+#ppm-int-inputbar {
+  padding:12px 14px; border-top:1px solid rgba(255,255,255,0.06);
+  display:flex; gap:8px; align-items:center; flex-shrink:0;
+  background:rgba(0,0,0,0.2);
+}
+#ppm-int-inputbar input {
+  flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; padding:9px 13px; font-size:13px; color:#e4e4e7;
+  outline:none; transition:border-color 0.2s; font-family:inherit;
+}
+#ppm-int-inputbar input:focus { border-color:rgba(168,85,247,0.45); }
+#ppm-int-inputbar input:disabled { opacity:0.4; cursor:not-allowed; }
+#ppm-int-send-btn {
+  width:36px; height:36px; border-radius:10px; border:none; cursor:pointer;
+  background:#00d084; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:background 0.15s;
+}
+#ppm-int-send-btn:hover:not(:disabled) { background:#33e39f; }
+#ppm-int-send-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+/* Footer */
+.ppm-int-footer {
+  padding:8px 20px; border-top:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; background:rgba(0,0,0,0.2);
+}
+
+@media (max-width:639px) {
+  #ppm-int-drawer { width:100vw; }
+  #ppm-int-bubble { left:16px; bottom:16px; }
+}
+</style>
+
+<!-- Floating bubble -->
+<div id="ppm-int-bubble" onclick="ppmIntToggle()">
+  <div class="ppm-int-bubble-icon">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L13.09 8.26L19 6L15.45 11.27L21 14L14.91 14.61L15 21L11.09 16.11L6 19L8.18 13.27L3 11L8.73 9.27L8 3L11.36 7.36L12 2Z" fill="#c084fc"/>
+    </svg>
+  </div>
+  <span style="font-size:13px;font-weight:600;color:#e4e4e7;letter-spacing:-0.01em;white-space:nowrap;">PPM Intelligence</span>
+</div>
+
+<!-- Overlay (z-index 9989) -->
+<div id="ppm-int-overlay" onclick="ppmIntClose()"></div>
+
+<!-- Drawer (z-index 9990) -->
+<div id="ppm-int-drawer">
+
+  <!-- Header -->
+  <div class="ppm-int-header">
+    <div class="ppm-int-header-icon">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L13.09 8.26L19 6L15.45 11.27L21 14L14.91 14.61L15 21L11.09 16.11L6 19L8.18 13.27L3 11L8.73 9.27L8 3L11.36 7.36L12 2Z" fill="#c084fc"/>
+      </svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:14px;font-weight:700;color:#f4f4f5;letter-spacing:-0.02em;">PPM Assistant</div>
+      <div style="font-size:11px;color:#71717a;margin-top:1px;">Your planning intelligence</div>
+    </div>
+    <button onclick="ppmIntClose()" aria-label="Close"
+      style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#71717a;transition:background 0.15s;flex-shrink:0;"
+      onmouseover="this.style.background='rgba(255,255,255,0.09)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+      <iconify-icon icon="solar:close-linear" style="font-size:15px;"></iconify-icon>
+    </button>
+  </div>
+
+  <!-- Mode 1: Onboarding -->
+  <div id="ppm-int-mode1">
+    <div style="text-align:center;margin-bottom:28px;width:100%;">
+      <div style="width:56px;height:56px;border-radius:16px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;">✦</div>
+      <div style="font-size:20px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:6px;">Let's personalise your leads</div>
+      <div style="font-size:13px;color:#71717a;line-height:1.55;">Two quick questions so I can filter what matters to you.</div>
+    </div>
+
+    <div style="width:100%;">
+      <div style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;">What's your trade?</div>
+      <div class="ppm-int-trade-grid" id="ppmIntTradeGrid"></div>
+    </div>
+
+    <div style="width:100%;margin-top:24px;">
+      <div style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;">What area do you cover?</div>
+      <input id="ppmIntAreaInput" type="text" placeholder="e.g. Kent, SW1A 1AA, Manchester…"
+        oninput="ppmIntValidateSave()"
+        style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 13px;font-size:13px;color:#fff;outline:none;transition:border-color 0.2s;font-family:inherit;box-sizing:border-box;"
+        onfocus="this.style.borderColor='rgba(168,85,247,0.5)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+    </div>
+
+    <button id="ppmIntSaveBtn" onclick="ppmIntSavePreferences()" disabled
+      style="width:100%;margin-top:28px;padding:12px;border-radius:12px;font-size:14px;font-weight:600;cursor:not-allowed;transition:all 0.2s;border:none;background:#00d084;color:#000;opacity:0.4;font-family:inherit;"
+      onmouseover="if(!this.disabled)this.style.background='#33e39f'"
+      onmouseout="if(!this.disabled)this.style.background='#00d084'">
+      Save &amp; Find My Leads
+    </button>
+  </div>
+
+  <!-- Mode 2: Chat -->
+  <div id="ppm-int-mode2">
+
+    <!-- Access gate — shown when assistant_enabled = false -->
+    <div id="ppm-int-gate" style="display:none;">
+      <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:26px;">🔒</div>
+      <div style="font-size:16px;font-weight:700;color:#f4f4f5;margin-bottom:8px;letter-spacing:-0.02em;">PPM Assistant Access Required</div>
+      <div style="font-size:13px;color:#71717a;line-height:1.6;margin-bottom:28px;">Request access to unlock your AI planning assistant. You'll be notified as soon as it's activated.</div>
+      <button id="ppmRequestAccessBtn" onclick="ppmRequestAccess()"
+        style="padding:11px 24px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#a855f7;color:#fff;font-family:inherit;transition:background 0.15s;"
+        onmouseover="this.style.background='#9333ea'"
+        onmouseout="this.style.background='#a855f7'">
+        Request Access
+      </button>
+      <div id="ppmRequestSent" style="display:none;margin-top:16px;font-size:12px;color:#4ade80;">✓ Request sent — you'll be notified when access is granted.</div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="ppm-int-chat"></div>
+
+    <!-- Input bar -->
+    <div id="ppm-int-inputbar">
+      <input id="ppm-int-input" type="text" placeholder="Ask about your leads…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ppmAssistantSend();}"
+        disabled>
+      <button id="ppm-int-send-btn" onclick="ppmAssistantSend()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="ppm-int-footer">
+      <span style="font-size:11px;color:#3f3f46;">Powered by PPM Assistant</span>
+      <button onclick="ppmIntResetPreferences()"
+        style="font-size:11px;color:#71717a;background:none;border:none;cursor:pointer;padding:0;transition:color 0.15s;font-family:inherit;"
+        onmouseover="this.style.color='#c084fc'"
+        onmouseout="this.style.color='#71717a'">Update preferences</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── PPM Assistant ─────────────────────────────────────────────────────────────
+let ppmIntPrefs          = null;
+let ppmIntSelectedTrade  = null;
+let ppmAssistantHistory  = [];   // in-memory conversation history
+let ppmAssistantEnabled  = false;
+let ppmAssistantBusy     = false;
+
+function ppmIntActivateBubble() {
+  document.getElementById('ppm-int-bubble').classList.add('ppm-int-visible');
+}
+
+function ppmIntToggle() {
+  document.getElementById('ppm-int-drawer').classList.contains('ppm-int-open')
+    ? ppmIntClose()
+    : ppmIntOpen();
+}
+
+async function ppmIntOpen() {
+  document.getElementById('ppm-int-overlay').classList.add('ppm-int-open');
+  document.getElementById('ppm-int-drawer').classList.add('ppm-int-open');
+  document.body.style.overflow = 'hidden';
+
+  // Check assistant_enabled + preferences in parallel
+  const [prefRes, profRes] = await Promise.all([
+    sb.from('user_preferences').select('trade, area').eq('user_id', currentUser.id).maybeSingle(),
+    sb.from('profiles').select('assistant_enabled').eq('user_id', currentUser.id).maybeSingle(),
+  ]);
+
+  ppmIntPrefs         = prefRes.data || null;
+  ppmAssistantEnabled = profRes.data?.assistant_enabled === true;
+  ppmIntPrefs ? ppmIntShowMode2() : ppmIntShowMode1();
+}
+
+function ppmIntClose() {
+  document.getElementById('ppm-int-overlay').classList.remove('ppm-int-open');
+  document.getElementById('ppm-int-drawer').classList.remove('ppm-int-open');
+  document.body.style.overflow = '';
+}
+
+// ── Mode 1 ────────────────────────────────────────────────────────────────────
+function ppmIntShowMode1() {
+  document.getElementById('ppm-int-mode1').style.display = 'flex';
+  document.getElementById('ppm-int-mode2').style.display = 'none';
+  ppmIntSelectedTrade = null;
+
+  const grid = document.getElementById('ppmIntTradeGrid');
+  grid.innerHTML = D_TRADES.map(t => `
+    <div class="ppm-int-trade-chip" onclick="ppmIntSelectTrade(this,'${t.name}')">${t.name}</div>
+  `).join('');
+
+  document.getElementById('ppmIntAreaInput').value = '';
+  ppmIntValidateSave();
+}
+
+function ppmIntSelectTrade(el, name) {
+  document.querySelectorAll('.ppm-int-trade-chip').forEach(c => c.classList.remove('ppm-selected'));
+  el.classList.add('ppm-selected');
+  ppmIntSelectedTrade = name;
+  ppmIntValidateSave();
+}
+
+function ppmIntValidateSave() {
+  const area  = document.getElementById('ppmIntAreaInput').value.trim();
+  const btn   = document.getElementById('ppmIntSaveBtn');
+  const valid = ppmIntSelectedTrade && area.length >= 2;
+  btn.disabled     = !valid;
+  btn.style.opacity = valid ? '1' : '0.4';
+  btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
+}
+
+async function ppmIntSavePreferences() {
+  const area = document.getElementById('ppmIntAreaInput').value.trim();
+  if (!ppmIntSelectedTrade || !area) return;
+  const btn = document.getElementById('ppmIntSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const { error } = await sb.from('user_preferences').upsert(
+    { user_id: currentUser.id, trade: ppmIntSelectedTrade, area },
+    { onConflict: 'user_id' }
+  );
+
+  if (error) {
+    console.error('ppmInt save error:', error);
+    btn.disabled = false;
+    btn.innerHTML = 'Save &amp; Find My Leads';
+    return;
+  }
+
+  ppmIntPrefs = { trade: ppmIntSelectedTrade, area };
+  ppmIntShowMode2();
+}
+
+// ── Mode 2: Chat ──────────────────────────────────────────────────────────────
+async function ppmIntShowMode2() {
+  document.getElementById('ppm-int-mode1').style.display = 'none';
+  document.getElementById('ppm-int-mode2').style.display = 'flex';
+
+  const gate    = document.getElementById('ppm-int-gate');
+  const chat    = document.getElementById('ppm-int-chat');
+  const input   = document.getElementById('ppm-int-input');
+  const sendBtn = document.getElementById('ppm-int-send-btn');
+
+  if (!ppmAssistantEnabled) {
+    // Show access gate
+    gate.style.display    = 'flex';
+    chat.style.display    = 'none';
+    document.getElementById('ppm-int-inputbar').style.display = 'none';
+    return;
+  }
+
+  gate.style.display    = 'none';
+  chat.style.display    = 'flex';
+  document.getElementById('ppm-int-inputbar').style.display = 'flex';
+  input.disabled   = false;
+  sendBtn.disabled = false;
+  chat.scrollTop   = 0;
+
+  // Load last 10 messages from client_conversations if history empty
+  if (ppmAssistantHistory.length === 0) {
+    const { data } = await sb
+      .from('client_conversations')
+      .select('messages')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.messages?.length) {
+      ppmAssistantHistory = data.messages.slice(-10);
+      ppmAssistantHistory.forEach(m => ppmAssistantRenderMessage(m.role, m.content, false));
+    }
+  }
+
+  // Greet on first open
+  if (ppmAssistantHistory.length === 0) {
+    const raw       = (currentUser?.email || '').split('@')[0].split('.')[0];
+    const firstName = raw.charAt(0).toUpperCase() + raw.slice(1);
+    const trade     = ppmIntPrefs?.trade || 'your trade';
+    const greeting  = `Hi ${firstName}! I can see you're set up as a ${trade}. Ask me about your leads, request a summary, or say "draft outreach" for any address.`;
+    ppmAssistantRenderMessage('agent', greeting, true);
+  }
+
+  chat.scrollTop = chat.scrollHeight;
+  input.focus();
+}
+
+// Render a message bubble (optionally skip adding to history)
+function ppmAssistantRenderMessage(role, content, addToHistory = true) {
+  const chat = document.getElementById('ppm-int-chat');
+  if (!chat) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = role === 'user' ? 'ppm-msg-user' : 'ppm-msg-agent';
+  const bubble = document.createElement('div');
+  bubble.className   = 'ppm-msg-bubble';
+  bubble.textContent = content;
+  wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+
+  if (addToHistory) {
+    ppmAssistantHistory.push({ role: role === 'agent' ? 'assistant' : 'user', content });
+  }
+}
+
+// Render lead cards as a block inside the chat
+function ppmAssistantRenderLeadCards(leads) {
+  const chat = document.getElementById('ppm-int-chat');
+  if (!chat || !leads?.length) return;
+
+  const scoreColor    = s => s >= 8 ? '#4ade80' : s >= 5 ? '#fbbf24' : '#9ca3af';
+  const scoreBarColor = s => s >= 8 ? '#4ade80' : s >= 5 ? '#fbbf24' : '#6b7280';
+  const priBadge = p => ({
+    HIGH:   'background:rgba(74,222,128,0.12);color:#4ade80;border-color:rgba(74,222,128,0.25);',
+    MEDIUM: 'background:rgba(251,191,36,0.12);color:#fbbf24;border-color:rgba(251,191,36,0.25);',
+    LOW:    'background:rgba(156,163,175,0.1);color:#9ca3af;border-color:rgba(156,163,175,0.2);',
+  }[p] || 'background:rgba(156,163,175,0.1);color:#9ca3af;border-color:rgba(156,163,175,0.2);');
+
+  function estimateValue(l) {
+    const t = ((l.dwelling_type || '') + ' ' + (l.app_type || '')).toLowerCase();
+    if (l.unit_count >= 6)                                    return '£500k–£2m+';
+    if (l.unit_count >= 2)                                    return '£160k–£750k';
+    if (t.includes('garage'))                                 return '£10k–£25k';
+    if (t.includes('loft'))                                   return '£30k–£60k';
+    if (t.includes('single') || t.includes('storey ext'))    return '£20k–£45k';
+    if (t.includes('double'))                                 return '£40k–£80k';
+    if (t.includes('basement'))                               return '£50k–£150k';
+    if (t.includes('flat') || t.includes('apartment'))       return '£80k–£150k per unit';
+    if (t.includes('detach') || t.includes('new build'))     return '£120k–£350k';
+    return '£20k–£150k';
+  }
+
+  const container = document.createElement('div');
+  container.className = 'ppm-msg-agent';
+  container.style.cssText = 'max-width:100%;width:100%;';
+
+  container.innerHTML = leads.map(l => {
+    const score   = l.opportunity_score ?? 0;
+    const summary = (l.score_reasoning || '').length > 100
+      ? l.score_reasoning.slice(0, 100) + '…'
+      : (l.score_reasoning || '');
+    const viewLink = l.planit_url
+      ? `<a href="${l.planit_url}" target="_blank" style="font-size:11px;color:#00d084;text-decoration:none;font-weight:500;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">View Application →</a>`
+      : '';
+    return `<div class="ppm-chat-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;color:#f4f4f5;line-height:1.35;flex:1;">${l.address || '—'}</div>
+        <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid;white-space:nowrap;flex-shrink:0;${priBadge(l.priority)}">${l.priority || '—'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:500;padding:2px 7px;border-radius:6px;background:rgba(0,208,132,0.1);color:#00d084;border:1px solid rgba(0,208,132,0.2);">${l.council || ''}</span>
+        ${l.app_type      ? `<span style="font-size:10px;color:#71717a;">${l.app_type}</span>` : ''}
+        ${l.dwelling_type ? `<span style="font-size:10px;color:#52525b;">· ${l.dwelling_type}</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:700;color:${scoreColor(score)};white-space:nowrap;">${score}<span style="font-size:10px;color:#52525b;font-weight:400;">/10</span></span>
+        <div class="ppm-score-bar-bg"><div class="ppm-score-bar-fill" style="width:${(score/10)*100}%;background:${scoreBarColor(score)};"></div></div>
+      </div>
+      <div style="font-size:11px;color:#a855f7;font-style:italic;margin-bottom:6px;">Est. contract value: ${estimateValue(l)}</div>
+      ${summary ? `<div style="font-size:11px;color:#a1a1aa;line-height:1.5;margin-bottom:8px;">${summary}</div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${l.target_decision_date ? `<span style="font-size:10px;color:#52525b;">Decision: ${l.target_decision_date}</span>` : ''}
+          ${viewLink}
+        </div>
+        <button onclick="ppmDraftOutreach('${(l.address||'').replace(/'/g,'&#39;')}')"
+          style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid rgba(168,85,247,0.3);background:rgba(168,85,247,0.08);color:#c084fc;cursor:pointer;font-family:inherit;transition:background 0.15s;"
+          onmouseover="this.style.background='rgba(168,85,247,0.15)'"
+          onmouseout="this.style.background='rgba(168,85,247,0.08)'">Draft Outreach</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  chat.appendChild(container);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function ppmAssistantShowTyping() {
+  const chat = document.getElementById('ppm-int-chat');
+  const el   = document.createElement('div');
+  el.className = 'ppm-msg-agent';
+  el.id        = 'ppm-typing';
+  el.innerHTML = `<div class="ppm-typing-bubble"><div class="ppm-typing-dot"></div><div class="ppm-typing-dot"></div><div class="ppm-typing-dot"></div></div>`;
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function ppmAssistantHideTyping() {
+  document.getElementById('ppm-typing')?.remove();
+}
+
+async function ppmAssistantSend() {
+  const input = document.getElementById('ppm-int-input');
+  const text  = input.value.trim();
+  if (!text || ppmAssistantBusy) return;
+
+  input.value      = '';
+  ppmAssistantBusy = true;
+  document.getElementById('ppm-int-send-btn').disabled = true;
+
+  ppmAssistantRenderMessage('user', text);
+  ppmAssistantShowTyping();
+
+  try {
+    const res = await fetch('/api/ppm-assistant', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caller_type: 'client',
+        messages:    ppmAssistantHistory.slice(-20),
+        user_id:     currentUser.id,
+      }),
+    });
+    const data = await res.json();
+    ppmAssistantHideTyping();
+
+    if (data.reply) ppmAssistantRenderMessage('agent', data.reply);
+    if (data.lead_cards?.length) ppmAssistantRenderLeadCards(data.lead_cards);
+
+  } catch (err) {
+    ppmAssistantHideTyping();
+    ppmAssistantRenderMessage('agent', 'Sorry, I had a connection issue — please try again.');
+  }
+
+  ppmAssistantBusy = false;
+  document.getElementById('ppm-int-send-btn').disabled = false;
+  input.focus();
+}
+
+function ppmDraftOutreach(address) {
+  const input = document.getElementById('ppm-int-input');
+  input.value = `Draft an outreach message for: ${address}`;
+  input.focus();
+  ppmAssistantSend();
+}
+
+async function ppmRequestAccess() {
+  const btn = document.getElementById('ppmRequestAccessBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  const { error } = await sb.from('assistant_requests').insert({
+    user_id: currentUser.id,
+    message: 'Requesting PPM Assistant access from dashboard.',
+  });
+
+  if (error && error.code !== '23505') { // ignore duplicate
+    btn.disabled    = false;
+    btn.textContent = 'Request Access';
+    return;
+  }
+
+  btn.style.display = 'none';
+  document.getElementById('ppmRequestSent').style.display = 'block';
+}
+
+function ppmIntResetPreferences() {
+  ppmIntPrefs         = null;
+  ppmAssistantHistory = [];
+  ppmIntShowMode1();
+}
+</script>
 
   <!-- Control Panel modal -->
   <div id="cpModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
