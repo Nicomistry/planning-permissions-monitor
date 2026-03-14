@@ -256,6 +256,7 @@
               </div>
               <!-- Council chips -->
               <div id="dCouncilGrid" class="flex flex-wrap gap-1.5"></div>
+              <div id="dCouncilHint" class="mt-3 text-[11px] text-zinc-600"></div>
             </div>
 
           </div>
@@ -434,18 +435,29 @@
         </div>`;
       }).join('');
       updateDTradeCount();
-      renderDCouncils(D_COUNCILS);
+      filterDCouncils();
       renderDSelectedPills();
     }
 
+    const D_COUNCIL_PAGE = 20;
+
     function renderDCouncils(list) {
       const grid = document.getElementById('dCouncilGrid');
-      grid.innerHTML = list.map(c => {
-        const active = dActiveCouncils.has(c);
+      const hint = document.getElementById('dCouncilHint');
+      const visible = list.slice(0, D_COUNCIL_PAGE);
+      const remaining = list.length - visible.length;
+
+      grid.innerHTML = visible.map(c => {
         const safe = c.replace(/[^a-z0-9]/gi, '-');
         return `<button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}' )" id="dcchip-${safe}"
-          class="d-council-chip ${active ? 'active' : ''}">${c}</button>`;
+          class="d-council-chip ${dActiveCouncils.has(c) ? 'active' : ''}">${c}</button>`;
       }).join('');
+
+      if (hint) {
+        hint.textContent = remaining > 0
+          ? `${remaining} more — type to narrow results`
+          : list.length === 0 ? 'No councils match your search' : '';
+      }
     }
 
     function dToggleTrade(id) {
