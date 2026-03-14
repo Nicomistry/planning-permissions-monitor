@@ -1141,15 +1141,12 @@
       status.textContent = 'Scan triggered — results will appear below shortly.';
       status.classList.remove('hidden');
 
-      // Trigger the scraper via Trigger.dev
+      // Trigger the scraper via secure server-side proxy
       try {
-        const resp = await fetch('https://api.trigger.dev/v3/runs', {
+        const resp = await fetch('/api/trigger-scan', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${window.TRIGGER_PUBLIC_KEY || ''}`,
-          },
-          body: JSON.stringify({ taskId: 'process-council', payload: { userId: currentUser.id } }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id }),
         });
         if (!resp.ok) throw new Error('trigger failed');
       } catch (_) {
