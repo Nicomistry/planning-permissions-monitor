@@ -120,10 +120,13 @@
 
     /* region tabs */
     .d-region-tab {
-      font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-      padding: 4px 11px; border-radius: 99px;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 99px;
       border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.04);
       color: #3f3f46; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    @media (min-width: 640px) {
+      .d-region-tab { font-size: 10px; letter-spacing: 0.04em; padding: 4px 11px; }
     }
     .d-region-tab:hover { border-color: rgba(0,208,132,0.35); color: #71717a; background: rgba(0,208,132,0.06); }
     .d-region-tab.active { border-color: rgba(0,208,132,0.6); background: rgba(0,208,132,0.14); color: #00d084; box-shadow: 0 0 10px rgba(0,208,132,0.1); }
@@ -131,8 +134,11 @@
     /* search bar */
     .ss-search {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; color: #fff; font-size: 13px; width: 100%;
-      padding: 10px 14px 10px 38px; outline: none; transition: all 0.2s;
+      border-radius: 12px; color: #fff; font-size: 12px; width: 100%;
+      padding: 8px 12px 8px 34px; outline: none; transition: all 0.2s;
+    }
+    @media (min-width: 640px) {
+      .ss-search { font-size: 13px; padding: 10px 14px 10px 38px; }
     }
     .ss-search:focus { border-color: #00d084; box-shadow: 0 0 0 3px rgba(0,208,132,0.1); }
     /* left/right section tints */
@@ -192,42 +198,42 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
       <!-- Hero header -->
-      <div class="relative rounded-2xl overflow-hidden mb-8 px-8 py-10" style="background:linear-gradient(135deg,rgba(0,208,132,0.08) 0%,rgba(147,51,234,0.08) 50%,rgba(0,0,0,0) 100%);border:1px solid rgba(255,255,255,0.06);">
+      <div class="relative rounded-2xl overflow-hidden mb-6 sm:mb-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10" style="background:linear-gradient(135deg,rgba(0,208,132,0.08) 0%,rgba(147,51,234,0.08) 50%,rgba(0,0,0,0) 100%);border:1px solid rgba(255,255,255,0.06);">
         <!-- subtle grid overlay -->
         <div class="absolute inset-0 opacity-[0.03]" style="background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:40px 40px;"></div>
         <!-- glow blobs -->
-        <div class="absolute top-0 left-0 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#00d084,transparent 70%);"></div>
-        <div class="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#9333ea,transparent 70%);"></div>
+        <div class="absolute top-0 left-0 w-48 sm:w-64 h-48 sm:h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#00d084,transparent 70%);"></div>
+        <div class="absolute bottom-0 right-0 w-48 sm:w-64 h-48 sm:h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#9333ea,transparent 70%);"></div>
 
-        <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-          <div>
+        <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+          <div class="min-w-0">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full border" style="color:#00d084;border-color:rgba(0,208,132,0.3);background:rgba(0,208,132,0.08);">Live Intelligence</span>
+              <span class="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border" style="color:#00d084;border-color:rgba(0,208,132,0.3);background:rgba(0,208,132,0.08);">Live Intelligence</span>
             </div>
-            <h1 class="text-3xl font-semibold text-white tracking-tight leading-tight">Planning Permission <span style="color:#00d084;">Monitor</span></h1>
-            <p class="text-sm text-zinc-400 mt-2 max-w-lg">Real-time planning applications across England, Scotland & Wales — scored, prioritised and delivered straight to you.</p>
-            <p class="text-xs text-zinc-600 mt-3 flex items-center gap-1.5">
+            <h1 class="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight leading-tight">Planning Permission <span style="color:#00d084;">Monitor</span></h1>
+            <p class="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2 max-w-lg">Real-time planning applications across England, Scotland & Wales — scored, prioritised and delivered straight to you.</p>
+            <p class="text-[11px] text-zinc-600 mt-2 sm:mt-3 flex items-center gap-1.5">
               <iconify-icon icon="solar:map-point-wave-bold" style="color:#52525b;font-size:13px;"></iconify-icon>
               <span id="leadCount">Loading…</span>
             </p>
           </div>
-          <!-- stat pills -->
-          <div class="flex flex-wrap gap-3 flex-shrink-0">
-            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
-              <div class="text-2xl font-semibold text-white" id="statTotal">—</div>
-              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Leads</div>
+          <!-- stat pills — 2×2 on mobile, row on sm+ -->
+          <div class="grid grid-cols-4 sm:flex sm:flex-wrap gap-2 sm:gap-3 flex-shrink-0">
+            <div class="glass-panel rounded-xl px-3 sm:px-4 lg:px-5 py-2 sm:py-3 text-center">
+              <div class="text-lg sm:text-xl lg:text-2xl font-semibold text-white" id="statTotal">—</div>
+              <div class="text-[9px] sm:text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Leads</div>
             </div>
-            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
-              <div class="text-2xl font-semibold text-green-400" id="statHigh">—</div>
-              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">High</div>
+            <div class="glass-panel rounded-xl px-3 sm:px-4 lg:px-5 py-2 sm:py-3 text-center">
+              <div class="text-lg sm:text-xl lg:text-2xl font-semibold text-green-400" id="statHigh">—</div>
+              <div class="text-[9px] sm:text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">High</div>
             </div>
-            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
-              <div class="text-2xl font-semibold text-yellow-400" id="statMedium">—</div>
-              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Medium</div>
+            <div class="glass-panel rounded-xl px-3 sm:px-4 lg:px-5 py-2 sm:py-3 text-center">
+              <div class="text-lg sm:text-xl lg:text-2xl font-semibold text-yellow-400" id="statMedium">—</div>
+              <div class="text-[9px] sm:text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Medium</div>
             </div>
-            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
-              <div class="text-2xl font-semibold text-zinc-300" id="statAvgScore">—</div>
-              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Avg score</div>
+            <div class="glass-panel rounded-xl px-3 sm:px-4 lg:px-5 py-2 sm:py-3 text-center">
+              <div class="text-lg sm:text-xl lg:text-2xl font-semibold text-zinc-300" id="statAvgScore">—</div>
+              <div class="text-[9px] sm:text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Avg</div>
             </div>
           </div>
         </div>
@@ -237,7 +243,7 @@
       <!-- Scan Settings panel -->
       <div class="ss-panel mb-6">
         <!-- Header -->
-        <div class="ss-header flex items-center justify-between px-6 py-5" onclick="toggleScanSettings()">
+        <div class="ss-header flex items-center justify-between px-3 py-3 sm:px-5 sm:py-4 lg:px-6 lg:py-5" onclick="toggleScanSettings()">
           <div class="flex items-center gap-4">
             <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,rgba(0,208,132,0.15),rgba(0,208,132,0.05));border:1px solid rgba(0,208,132,0.25);">
               <iconify-icon icon="solar:radar-2-bold" style="color:#00d084;font-size:20px;"></iconify-icon>
@@ -269,7 +275,7 @@
           <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/5">
 
             <!-- LEFT: Trades -->
-            <div class="ss-left lg:w-96 xl:w-96 flex-shrink-0 p-5 self-stretch">
+            <div class="ss-left lg:w-96 xl:w-96 flex-shrink-0 p-3 sm:p-4 lg:p-5 self-stretch">
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <div class="text-sm font-semibold text-white flex items-center gap-2">
@@ -284,7 +290,7 @@
             </div>
 
             <!-- RIGHT: Councils -->
-            <div class="ss-right flex-1 p-5">
+            <div class="ss-right flex-1 p-3 sm:p-4 lg:p-5">
               <!-- Councils header -->
               <div class="flex items-center justify-between mb-3">
                 <div class="text-sm font-semibold text-white flex items-center gap-2">
@@ -338,7 +344,7 @@
           <option value="LOW">LOW</option>
         </select>
         <input id="filterSearch" type="text" placeholder="Search address or description…" oninput="renderTable()"
-          class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+          class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-full sm:w-64 placeholder-zinc-600">
       </div>
 
       <!-- Run status -->
@@ -380,13 +386,13 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-white/5 text-left">
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Description</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Score</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Priority</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
-                <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide"></th>
+                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
+                <th class="hidden sm:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Description</th>
+                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Score</th>
+                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Priority</th>
+                <th class="hidden md:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
+                <th class="hidden lg:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
+                <th class="px-3 sm:px-4 py-2.5 sm:py-3"></th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -408,7 +414,7 @@
             <option value="closed">Closed</option>
           </select>
           <input id="dcFilterSearch" type="text" placeholder="Search name, address…" oninput="renderDContacts()"
-            class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-64 placeholder-zinc-600">
+            class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand w-full sm:w-64 placeholder-zinc-600">
         </div>
         <div class="glass-panel rounded-2xl overflow-hidden">
           <div id="dcLoading" class="flex items-center justify-center py-16 gap-3 text-zinc-500">
@@ -811,23 +817,24 @@
           : '';
         return `
           <tr class="table-row border-b border-white/5 transition-colors">
-            <td class="px-4 py-3 align-top">
+            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">
               <div class="text-white text-xs font-medium">${lead.address || '—'}</div>
               <div class="text-zinc-500 text-[11px]">${lead.postcode || ''}</div>
+              <div class="sm:hidden text-zinc-500 text-[11px] mt-0.5">${lead.council || ''}</div>
             </td>
-            <td class="px-4 py-3 align-top max-w-xs">
+            <td class="hidden sm:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top max-w-xs">
               <div class="text-zinc-300 text-xs leading-relaxed">${desc}</div>
             </td>
-            <td class="px-4 py-3 align-top text-center">
-              <span style="color:${scoreColor(lead.opportunity_score || 0)}" class="text-base font-semibold">${lead.opportunity_score ?? '—'}</span>
+            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
+              <span style="color:${scoreColor(lead.opportunity_score || 0)}" class="text-sm sm:text-base font-semibold">${lead.opportunity_score ?? '—'}</span>
               <span class="text-zinc-600 text-[10px]">/10</span>
             </td>
-            <td class="px-4 py-3 align-top text-center">
-              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full ${badge}">${lead.priority || '—'}</span>
+            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
+              <span class="text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${badge}">${lead.priority || '—'}</span>
             </td>
-            <td class="px-4 py-3 align-top text-zinc-400 text-xs">${lead.council || '—'}</td>
-            <td class="px-4 py-3 align-top text-zinc-500 text-xs whitespace-nowrap">${lead.scraped_date || ''}</td>
-            <td class="px-4 py-3 align-top">${link}</td>
+            <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-400 text-xs">${lead.council || '—'}</td>
+            <td class="hidden lg:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-500 text-xs whitespace-nowrap">${lead.scraped_date || ''}</td>
+            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">${link}</td>
           </tr>`;
       }).join('');
 
