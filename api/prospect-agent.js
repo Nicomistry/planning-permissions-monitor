@@ -108,14 +108,72 @@ Rules:
     }
   } catch (_) {}
 
+  // ── 5. Log conversation to Supabase (every turn) ────────────────────────────
+  const updatedMessages = [
+    ...messages,
+    { role: 'assistant', content: readyPayload ? '[report triggered]' : replyText },
+  ];
+
+  if (SUPABASE_URL && SUPABASE_KEY && prospectEmail) {
+    try {
+      const findRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/prospect_conversations?prospect_email=eq.${encodeURIComponent(prospectEmail)}&select=id&order=created_at.desc&limit=1`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const existing = await findRes.json();
+
+      if (existing?.[0]?.id) {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/prospect_conversations?id=eq.${existing[0].id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+              messages: updatedMessages,
+              ...(readyPayload?.area ? { area: readyPayload.area } : {}),
+              ...(readyPayload ? { report_sent: true } : {}),
+            }),
+          }
+        );
+      } else {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/prospect_conversations`,
+          {
+            method: 'POST',
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({
+              prospect_email: prospectEmail,
+              prospect_name:  prospectName || null,
+              trade,
+              area:           readyPayload?.area || null,
+              messages:       updatedMessages,
+              report_sent:    !!readyPayload,
+            }),
+          }
+        );
+      }
+    } catch (e) {
+      console.warn('Conversation logging failed:', e.message);
+    }
+  }
+
   if (readyPayload) {
-    // Step 2B placeholder — report generation added next
     return res.status(200).json({
       reply: `Perfect — I'm generating your leads report now. I'll send it straight to ${prospectEmail || 'your inbox'}. Just a moment…`,
       reportSent: false,
     });
   }
 
-  // ── 5. Plain conversational reply ──────────────────────────────────────────
+  // ── 6. Plain conversational reply ──────────────────────────────────────────
   return res.status(200).json({ reply: replyText, reportSent: false });
 }
