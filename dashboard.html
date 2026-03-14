@@ -191,33 +191,48 @@
   <main class="pt-14 min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
-      <!-- Page header -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 class="text-2xl font-medium text-white tracking-tight">Planning Leads</h1>
-          <p class="text-sm text-zinc-500 mt-0.5" id="leadCount">Loading…</p>
+      <!-- Hero header -->
+      <div class="relative rounded-2xl overflow-hidden mb-8 px-8 py-10" style="background:linear-gradient(135deg,rgba(0,208,132,0.08) 0%,rgba(147,51,234,0.08) 50%,rgba(0,0,0,0) 100%);border:1px solid rgba(255,255,255,0.06);">
+        <!-- subtle grid overlay -->
+        <div class="absolute inset-0 opacity-[0.03]" style="background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:40px 40px;"></div>
+        <!-- glow blobs -->
+        <div class="absolute top-0 left-0 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#00d084,transparent 70%);"></div>
+        <div class="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none" style="background:radial-gradient(circle,#9333ea,transparent 70%);"></div>
+
+        <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full border" style="color:#00d084;border-color:rgba(0,208,132,0.3);background:rgba(0,208,132,0.08);">Live Intelligence</span>
+            </div>
+            <h1 class="text-3xl font-semibold text-white tracking-tight leading-tight">Planning Permission <span style="color:#00d084;">Monitor</span></h1>
+            <p class="text-sm text-zinc-400 mt-2 max-w-lg">Real-time planning applications across England, Scotland & Wales — scored, prioritised and delivered straight to you.</p>
+            <p class="text-xs text-zinc-600 mt-3 flex items-center gap-1.5">
+              <iconify-icon icon="solar:map-point-wave-bold" style="color:#52525b;font-size:13px;"></iconify-icon>
+              <span id="leadCount">Loading…</span>
+            </p>
+          </div>
+          <!-- stat pills -->
+          <div class="flex flex-wrap gap-3 flex-shrink-0">
+            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
+              <div class="text-2xl font-semibold text-white" id="statTotal">—</div>
+              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Leads</div>
+            </div>
+            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
+              <div class="text-2xl font-semibold text-green-400" id="statHigh">—</div>
+              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">High</div>
+            </div>
+            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
+              <div class="text-2xl font-semibold text-yellow-400" id="statMedium">—</div>
+              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Medium</div>
+            </div>
+            <div class="glass-panel rounded-xl px-5 py-3 text-center min-w-[72px]">
+              <div class="text-2xl font-semibold text-zinc-300" id="statAvgScore">—</div>
+              <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Avg score</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Stats row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div class="glass-panel rounded-xl p-4">
-          <div class="text-2xl font-semibold text-white" id="statTotal">—</div>
-          <div class="text-xs text-zinc-500 mt-1">Total leads</div>
-        </div>
-        <div class="glass-panel rounded-xl p-4">
-          <div class="text-2xl font-semibold text-green-400" id="statHigh">—</div>
-          <div class="text-xs text-zinc-500 mt-1">HIGH priority</div>
-        </div>
-        <div class="glass-panel rounded-xl p-4">
-          <div class="text-2xl font-semibold text-yellow-400" id="statMedium">—</div>
-          <div class="text-xs text-zinc-500 mt-1">MEDIUM priority</div>
-        </div>
-        <div class="glass-panel rounded-xl p-4">
-          <div class="text-2xl font-semibold text-zinc-300" id="statAvgScore">—</div>
-          <div class="text-xs text-zinc-500 mt-1">Avg score</div>
-        </div>
-      </div>
 
       <!-- Scan Settings panel -->
       <div class="ss-panel mb-6">
