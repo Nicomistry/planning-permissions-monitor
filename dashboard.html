@@ -47,13 +47,13 @@
       color: #52525b; font-size: 16px; transition: all 0.18s;
     }
     .d-trade-row.active .d-trade-row-icon { background: rgba(147,51,234,0.18); border-color: rgba(147,51,234,0.4); color: #c084fc; }
-    .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; }
+    .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; white-space: nowrap; }
     .d-trade-row.active .d-trade-row-name { color: #f3e8ff; }
 
     /* sector dropdown button */
     .d-sectors-btn {
-      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-      font-size: 10px; padding: 3px 8px 3px 9px; border-radius: 7px;
+      display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+      font-size: 10px; padding: 2px 6px 2px 7px; border-radius: 6px;
       border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
       color: #52525b; cursor: pointer; transition: all 0.15s; white-space: nowrap;
     }
@@ -495,7 +495,7 @@
 
     function sectorLabel(tradeId) {
       const active = dActiveSectors[tradeId];
-      if (!active || active.size === 0) return 'Sectors ▾';
+      if (!active || active.size === 0) return 'Sectors';
       return active.size === 1 ? [...active][0] : `${active.size} sectors`;
     }
 
