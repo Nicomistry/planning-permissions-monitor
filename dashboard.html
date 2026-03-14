@@ -334,6 +334,26 @@
         </div>
       </div>
 
+      <!-- Inline scan button (shown when CP run is available) -->
+      <div id="inlineScanBar" class="hidden mb-4">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-xl border border-purple-500/30 bg-purple-500/8">
+          <div class="flex items-center gap-3 flex-1 min-w-0">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center shrink-0">
+              <iconify-icon icon="solar:cpu-bolt-linear" style="color:#c084fc;font-size:16px;"></iconify-icon>
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm font-semibold text-white">1 scan available</div>
+              <div id="inlineScanMeta" class="text-[11px] text-zinc-500 mt-0.5 truncate">Select councils above then run your scan</div>
+            </div>
+          </div>
+          <button id="inlineScanBtn" onclick="runCPScan(this)"
+            class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-sm font-semibold transition-all shrink-0">
+            <iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon>
+            Run Scan
+          </button>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-3 mb-4">
         <select id="filterPriority" onchange="renderTable()"
@@ -455,8 +475,9 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    let currentUser = null;
-    let allLeads    = [];
+    let currentUser      = null;
+    let allLeads         = [];
+    let cpRunsRemaining  = 0;
 
     // ── Scan Settings ─────────────────────────────────────────────────────────
     const D_TRADES = [
@@ -534,15 +555,34 @@
     }
 
     function saveScanSettings() {
-      localStorage.setItem('ppm_active_trades', JSON.stringify([...dActiveTrades]));
-      localStorage.setItem('ppm_d_councils',    JSON.stringify([...dActiveCouncils]));
       const sectors = {};
       D_TRADES.forEach(t => { sectors[t.id] = [...dActiveSectors[t.id]]; });
+      const payload = {
+        trades:   [...dActiveTrades],
+        councils: [...dActiveCouncils],
+        sectors,
+      };
+
+      // Save to localStorage (instant)
+      localStorage.setItem('ppm_active_trades',  JSON.stringify(payload.trades));
+      localStorage.setItem('ppm_d_councils',     JSON.stringify(payload.councils));
       localStorage.setItem('ppm_active_sectors', JSON.stringify(sectors));
+
+      // Save to Supabase (cross-device persistence)
+      if (currentUser) {
+        sb.from('profiles')
+          .update({ scan_settings: payload })
+          .eq('user_id', currentUser.id)
+          .then(({ error }) => { if (error) console.warn('scan_settings save failed', error); });
+      }
+
       document.getElementById('ssUnsavedLabel').style.display = 'none';
       document.getElementById('ssSaveBtn').style.display      = 'none';
       document.getElementById('ssSavedLabel').style.display   = 'flex';
       setTimeout(() => { document.getElementById('ssSavedLabel').style.display = 'none'; }, 2500);
+
+      // Update inline scan bar meta
+      updateCPNavState({ cp_runs_remaining: cpRunsRemaining });
     }
 
     function sectorLabel(tradeId) {
@@ -729,12 +769,21 @@
       document.getElementById('userEmail').textContent    = email;
       document.getElementById('userInitials').textContent = email.slice(0, 2).toUpperCase();
       const { data: profile } = await sb.from('profiles')
-        .select('is_admin, cp_runs_remaining, cp_last_run_at')
+        .select('is_admin, cp_runs_remaining, cp_last_run_at, scan_settings')
         .eq('user_id', currentUser.id)
         .single();
       if (profile?.is_admin) {
         window.location.href = '/admin.html';
         return;
+      }
+      // Merge Supabase scan_settings on top of localStorage (Supabase wins)
+      if (profile?.scan_settings) {
+        const ss = profile.scan_settings;
+        if (Array.isArray(ss.trades))   { dActiveTrades.clear();   ss.trades.forEach(id => dActiveTrades.add(id)); }
+        if (Array.isArray(ss.councils)) { dActiveCouncils.clear(); ss.councils.forEach(c => dActiveCouncils.add(c)); }
+        if (ss.sectors) D_TRADES.forEach(t => { dActiveSectors[t.id] = new Set(ss.sectors[t.id] || []); });
+        // Re-render scan settings with synced data
+        initScanSettings();
       }
       updateCPNavState(profile);
       loadLeads();
@@ -784,6 +833,18 @@
       const search   = document.getElementById('filterSearch').value.toLowerCase();
 
       let filtered = allLeads;
+
+      // Apply user's council preferences as a filter (if any councils are selected)
+      if (dActiveCouncils.size > 0) {
+        filtered = filtered.filter(l => {
+          const lc = (l.council || '').toLowerCase();
+          return [...dActiveCouncils].some(c => {
+            const cl = c.toLowerCase();
+            return lc === cl || lc.startsWith(cl) || cl.startsWith(lc);
+          });
+        });
+      }
+
       if (priority) filtered = filtered.filter(l => l.priority === priority);
       if (search)   filtered = filtered.filter(l =>
         (l.address || '').toLowerCase().includes(search) ||
@@ -980,13 +1041,30 @@
       if (!btn) return;
 
       const runsLeft = profile?.cp_runs_remaining || 0;
+      cpRunsRemaining = runsLeft;
       const lastRun  = profile?.cp_last_run_at ? new Date(profile.cp_last_run_at) : null;
       const cooldownMs = 45 * 60 * 1000;
       const now = Date.now();
       const inCooldown = lastRun && (now - lastRun.getTime()) < cooldownMs;
 
+      // Inline scan bar
+      const scanBar  = document.getElementById('inlineScanBar');
+      const scanMeta = document.getElementById('inlineScanMeta');
+      if (scanBar) {
+        if (runsLeft > 0) {
+          scanBar.classList.remove('hidden');
+          if (scanMeta) {
+            const count = dActiveCouncils.size;
+            scanMeta.textContent = count > 0
+              ? `Will scan ${count} selected council${count !== 1 ? 's' : ''}`
+              : 'Select councils above then run your scan';
+          }
+        } else {
+          scanBar.classList.add('hidden');
+        }
+      }
+
       if (runsLeft > 0) {
-        // Granted — show activated state
         btn.className = btn.className
           .replace(/border-white\/10|bg-white\/5|text-zinc-500|hover:text-zinc-300|hover:border-white\/20/g, '')
           .trim();
@@ -994,12 +1072,10 @@
         label.textContent = 'Control Panel activated';
         tip.textContent = 'You have 1 scan available. Click to run it.';
       } else if (inCooldown) {
-        // Cooldown active
         label.textContent = 'Control Panel deactivated';
         tip.textContent = '';
         startCooldownTick(lastRun, cooldownMs);
       } else {
-        // Can request
         label.textContent = 'Control Panel deactivated';
         tip.textContent = 'Request access to the Control Panel to run a scan.';
       }
@@ -1176,10 +1252,14 @@
         </div>`;
     }
 
-    async function runCPScan() {
-      const btn = event.target.closest('button');
-      btn.disabled = true;
-      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Running…';
+    async function runCPScan(btnElement) {
+      const btn = btnElement
+        || (typeof event !== 'undefined' && event?.target?.closest('button'))
+        || document.getElementById('inlineScanBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Running…';
+      }
 
       closeCPModal();
       const status = document.getElementById('runStatus');
@@ -1187,13 +1267,19 @@
       status.textContent = 'Triggering scan…';
       status.classList.remove('hidden');
 
+      // Scroll status into view on mobile
+      status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Build councils list from user settings (fallback: all defaults)
+      const selectedCouncils = dActiveCouncils.size > 0 ? [...dActiveCouncils] : null;
+
       // Trigger first — only deduct run if it succeeds
       let triggerOk = false;
       try {
         const resp = await fetch('/api/trigger-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id }),
+          body: JSON.stringify({ userId: currentUser.id, councils: selectedCouncils }),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -1202,6 +1288,7 @@
       } catch (err) {
         status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
         status.textContent = 'Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again or contact admin.';
+        if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
         return;
       }
 
@@ -1213,7 +1300,7 @@
         }).eq('user_id', currentUser.id);
       }
 
-      // Update nav
+      // Update nav + hide scan bar
       updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
     }
 
