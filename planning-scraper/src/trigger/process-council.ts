@@ -73,7 +73,9 @@ export interface MergedLead {
 
 // ─── Keyword filter (mirrors n8n Code Filter Stage) ───────────────────────────
 
-const EXCLUDE_DESC = [
+// Mix of plain strings (phrase match) and RegExp (word-boundary match).
+// RegExp used where plain-string matching causes false negatives on real leads.
+const EXCLUDE_DESC: (string | RegExp)[] = [
   "rear extension", "side extension", "front extension",
   "single storey extension", "two storey extension", "double storey extension",
   "loft conversion", "dormer", "hip to gable",
@@ -84,8 +86,11 @@ const EXCLUDE_DESC = [
   "discharge of condition", "non material amendment",
   "prior approval", "lawful development certificate",
   "listed building consent",
-  "commercial", "industrial", "retail", "office",
-  "telecommunications", "advertisement", "signage",
+  "commercial", "industrial", "retail",
+  /(?<!home )\boffice\b/,          // was "office" — excludes "office" but not "home office"
+  "telecommunications", "advertisement",
+  /\bsign\b/,                      // was "signage" — avoids false match on "design"/"designation"
+  /\bwaste\b(?!water)/,            // new — avoids false match on "wastewater drainage"
   "tree works", "tree preservation", "hedgerow",
   "replacement windows", "replacement doors",
 ];
@@ -111,6 +116,10 @@ const INCLUDE_KEYWORDS = [
   "mixed use",
 ];
 
+function matchesKeyword(text: string, kw: string | RegExp): boolean {
+  return typeof kw === "string" ? text.includes(kw) : kw.test(text);
+}
+
 function keywordFilter(records: PlanItRecord[]): PlanItRecord[] {
   return records.filter((app) => {
     const desc = (app.description || "").toLowerCase();
@@ -119,8 +128,8 @@ function keywordFilter(records: PlanItRecord[]): PlanItRecord[] {
 
     if (appState === "decided" || appState === "withdrawn") return false;
     if (EXCLUDE_APP_TYPES.some((t) => appType.includes(t))) return false;
-    if (EXCLUDE_DESC.some((kw) => desc.includes(kw))) return false;
-    if (!INCLUDE_KEYWORDS.some((kw) => desc.includes(kw))) return false;
+    if (EXCLUDE_DESC.some((kw) => matchesKeyword(desc, kw))) return false;
+    if (!INCLUDE_KEYWORDS.some((kw) => matchesKeyword(desc, kw))) return false;
 
     return true;
   });
@@ -156,6 +165,48 @@ async function callOpenRouter(systemPrompt: string, userContent: string): Promis
   return data.choices[0].message.content;
 }
 
+// ─── Fetch with retry/backoff ─────────────────────────────────────────────────
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 3,
+): Promise<Response> {
+  const BACKOFF_MS = [2000, 4000, 8000];
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    const res = await fetch(url, options);
+    if (res.ok) return res;
+
+    const isRetryable = res.status === 429 || res.status >= 500;
+
+    if (!isRetryable) {
+      throw new Error(`Fetch failed with non-retryable status ${res.status}: ${url}`);
+    }
+
+    if (attempt > maxRetries) {
+      throw new Error(`Fetch failed after ${maxRetries} retries, last status ${res.status}: ${url}`);
+    }
+
+    let waitMs = BACKOFF_MS[attempt - 1];
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After");
+      if (retryAfter) {
+        const seconds = parseInt(retryAfter, 10);
+        if (!isNaN(seconds)) waitMs = seconds * 1000;
+      }
+    }
+
+    logger.info(
+      `Planit fetch attempt ${attempt}/${maxRetries + 1} failed (${res.status}) — retrying in ${waitMs / 1000}s`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+
+  // Unreachable — loop always returns or throws above
+  throw new Error("fetchWithRetry: unexpected exit");
+}
+
 // Parse a JSON array out of an AI response (handles markdown code fences)
 function parseJsonArray<T>(raw: string): T[] {
   const cleaned = raw.replace(/```json|```/g, "").trim();
@@ -188,12 +239,9 @@ export const processCouncilTask = task({
       compress: "on",
     });
 
-    const apiRes = await fetch(
-      `https://www.planit.org.uk/api/applics/json?${params.toString()}`
+    const apiRes = await fetchWithRetry(
+      `https://www.planit.org.uk/api/applics/json?${params.toString()}`,
     );
-    if (!apiRes.ok) {
-      throw new Error(`PlanIt API error ${apiRes.status} for ${council_name}`);
-    }
     const data = (await apiRes.json()) as { records?: PlanItRecord[] };
     const records = data.records ?? [];
     logger.info(`${council_name}: ${records.length} raw records`);
