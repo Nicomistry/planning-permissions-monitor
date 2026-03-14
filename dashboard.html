@@ -58,6 +58,7 @@
     .d-trade-row.active .d-trade-pill::after { background:#c084fc; transform:translateX(14px); box-shadow:0 0 6px rgba(147,51,234,0.7); }
 
     /* council chips — green */
+    #dCouncilGrid { align-content: flex-start; }
     .d-council-chip {
       font-size: 12px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
       border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02);
@@ -536,14 +537,31 @@
       if (el) el.textContent = dActiveCouncils.size;
     }
 
-    function matchCouncilHeight() {
+    function matchCouncilCount() {
       const tradeGrid   = document.getElementById('dTradeGrid');
       const councilGrid = document.getElementById('dCouncilGrid');
       if (!tradeGrid || !councilGrid) return;
-      const tradeBottom   = tradeGrid.getBoundingClientRect().bottom;
-      const councilTop    = councilGrid.getBoundingClientRect().top;
-      const needed        = tradeBottom - councilTop;
-      councilGrid.style.minHeight = needed > 0 ? needed + 'px' : '';
+      const targetHeight = tradeGrid.getBoundingClientRect().bottom - councilGrid.getBoundingClientRect().top;
+      if (targetHeight <= 0) return;
+      const chip = councilGrid.querySelector('.d-council-chip');
+      if (!chip) return;
+      const chipH = chip.getBoundingClientRect().height;
+      const chipW = chip.getBoundingClientRect().width;
+      const gap = 6;
+      const chipsPerRow = Math.max(1, Math.floor((councilGrid.getBoundingClientRect().width + gap) / (chipW + gap)));
+      const rowsNeeded  = Math.ceil(targetHeight / (chipH + gap));
+      const countNeeded = rowsNeeded * chipsPerRow;
+      const list = dActiveRegion ? D_COUNCILS.filter(c => D_COUNCIL_REGION[c] === dActiveRegion) : D_COUNCILS;
+      if (countNeeded <= D_COUNCIL_PAGE) return; // already showing enough
+      const visible = list.slice(0, countNeeded);
+      const remaining = list.length - visible.length;
+      councilGrid.innerHTML = visible.map(c => {
+        const safe = c.replace(/[^a-z0-9]/gi, '-');
+        return `<button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}' )" id="dcchip-${safe}"
+          class="d-council-chip ${dActiveCouncils.has(c) ? 'active' : ''}">${c}</button>`;
+      }).join('');
+      const hint = document.getElementById('dCouncilHint');
+      if (hint) hint.textContent = remaining > 0 ? `${remaining} more — type to narrow results` : '';
     }
 
     function toggleScanSettings() {
@@ -552,7 +570,7 @@
       const open    = body.classList.contains('hidden');
       body.classList.toggle('hidden', !open);
       chevron.style.transform = open ? 'rotate(180deg)' : '';
-      if (open) requestAnimationFrame(matchCouncilHeight);
+      if (open) requestAnimationFrame(matchCouncilCount);
     }
 
     // ── Auth guard ────────────────────────────────────────────────────────────
