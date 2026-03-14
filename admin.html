@@ -291,6 +291,53 @@
       line-height: 1.3;
     }
     .trade-card.active .trade-label { color: #e4e4e7; }
+    .trade-card.focused {
+      border-color: rgba(147,51,234,0.85) !important;
+      box-shadow: 0 0 0 2px rgba(147,51,234,0.25), 0 4px 20px rgba(147,51,234,0.15) !important;
+    }
+
+    /* specialism side panel */
+    .trade-spec-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 99;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .trade-spec-overlay.open { opacity: 1; pointer-events: all; }
+    .trade-spec-panel {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 300px;
+      background: #111;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .trade-spec-panel.open { transform: translateX(0); }
+    .trade-spec-sub-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .trade-spec-sub-row:hover { background: rgba(147,51,234,0.06); border-color: rgba(147,51,234,0.2); }
+    .trade-spec-sub-row.checked { background: rgba(147,51,234,0.1); border-color: rgba(147,51,234,0.35); }
+    .trade-spec-checkbox {
+      width: 18px; height: 18px; border-radius: 5px;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.15s;
+    }
+    .trade-spec-sub-row.checked .trade-spec-checkbox {
+      background: #9333ea; border-color: #9333ea;
+    }
 
     .save-cfg-btn {
       display: flex; align-items: center; gap: 6px;
@@ -878,42 +925,80 @@
         const isActive = selectedTrades.has(t.id);
         const subCount = selectedSubs[t.id] ? selectedSubs[t.id].size : t.subs.length;
         return `
-        <div class="trade-card ${isActive ? 'active' : ''}" id="tchip-${t.id}">
-          <div class="trade-toggle" onclick="toggleTrade('${t.id}')"></div>
-          <div onclick="toggleTrade('${t.id}')" class="trade-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
-          <div onclick="toggleTrade('${t.id}')" class="trade-label">${t.name}</div>
-          <!-- specialism expand bar -->
-          <button onclick="toggleTradeExpand('${t.id}')"
-            class="mt-2 w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] transition-all">
-            <div class="flex items-center gap-1.5">
-              <iconify-icon icon="solar:list-check-minimalistic-linear" style="font-size:11px;color:#52525b;"></iconify-icon>
-              <span class="text-[10px] text-zinc-500 font-medium">Specialisms</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span id="sub-count-${t.id}" class="text-[10px] font-mono text-zinc-600">${subCount}/${t.subs.length}</span>
-              <iconify-icon id="sub-icon-${t.id}" icon="solar:alt-arrow-down-linear" style="font-size:11px;color:#52525b;transition:transform 0.2s;"></iconify-icon>
-            </div>
-          </button>
-          <div id="sub-panel-${t.id}" class="hidden mt-2 space-y-1.5 text-left px-1">
-            ${t.subs.map(s => `
-              <label class="flex items-center gap-2 cursor-pointer group py-0.5" onclick="event.stopPropagation()">
-                <input type="checkbox" ${(selectedSubs[t.id] && selectedSubs[t.id].has(s)) ? 'checked' : ''}
-                  onchange="toggleSub('${t.id}','${s.replace(/'/g,"\\'")}')"
-                  class="w-3.5 h-3.5 accent-[#00d084] cursor-pointer flex-shrink-0">
-                <span class="text-[11px] text-zinc-400 group-hover:text-zinc-200 transition-colors">${s}</span>
-              </label>`).join('')}
+        <div class="trade-card ${isActive ? 'active' : ''}" id="tchip-${t.id}" onclick="openTradePanel('${t.id}')">
+          <div class="trade-toggle" onclick="event.stopPropagation(); toggleTrade('${t.id}')"></div>
+          <div class="trade-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
+          <div class="trade-label">${t.name}</div>
+          <div class="flex items-center gap-1 mt-1">
+            <iconify-icon icon="solar:list-check-minimalistic-linear" style="font-size:10px;color:#52525b;"></iconify-icon>
+            <span id="sub-count-${t.id}" class="text-[10px] font-mono text-zinc-600">${subCount}/${t.subs.length}</span>
           </div>
         </div>`;
       }).join('');
       updateTradeCount();
     }
 
-    function toggleTradeExpand(id) {
-      const panel = document.getElementById('sub-panel-' + id);
-      const icon  = document.getElementById('sub-icon-' + id);
-      const open  = panel.classList.contains('hidden');
-      panel.classList.toggle('hidden', !open);
-      if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    let currentPanelTrade = null;
+
+    function openTradePanel(id) {
+      currentPanelTrade = id;
+      const t = TRADES.find(t => t.id === id);
+      if (!t) return;
+
+      // Highlight focused card
+      document.querySelectorAll('.trade-card').forEach(c => c.classList.remove('focused'));
+      document.getElementById('tchip-' + id)?.classList.add('focused');
+
+      // Header
+      document.getElementById('tradeSpecHeader').innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center" style="font-size:18px;color:#c084fc;">
+          <iconify-icon icon="${t.icon}"></iconify-icon>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-white">${t.name}</div>
+          <div class="text-[10px] text-zinc-500">${t.subs.length} specialisms</div>
+        </div>`;
+
+      renderPanelSubs(t);
+
+      document.getElementById('tradeSpecPanel').classList.add('open');
+      document.getElementById('tradeSpecOverlay').classList.add('open');
+    }
+
+    function renderPanelSubs(t) {
+      const subs = selectedSubs[t.id] || new Set(t.subs);
+      document.getElementById('tradeSpecList').innerHTML = t.subs.map(s => {
+        const checked = subs.has(s);
+        return `
+          <div class="trade-spec-sub-row ${checked ? 'checked' : ''}" onclick="toggleSub('${t.id}','${s.replace(/'/g,"\\'")}')">
+            <span class="text-sm text-zinc-300">${s}</span>
+            <div class="trade-spec-checkbox">
+              ${checked ? '<iconify-icon icon="solar:check-bold" style="font-size:11px;color:#fff;"></iconify-icon>' : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function closeTradePanel() {
+      document.getElementById('tradeSpecPanel').classList.remove('open');
+      document.getElementById('tradeSpecOverlay').classList.remove('open');
+      document.querySelectorAll('.trade-card').forEach(c => c.classList.remove('focused'));
+      currentPanelTrade = null;
+    }
+
+    function toggleAllPanelSubs() {
+      const t = TRADES.find(t => t.id === currentPanelTrade);
+      if (!t) return;
+      const subs = selectedSubs[t.id] || new Set(t.subs);
+      if (subs.size === t.subs.length) {
+        selectedSubs[t.id] = new Set();
+      } else {
+        selectedSubs[t.id] = new Set(t.subs);
+      }
+      const count = selectedSubs[t.id].size;
+      const el = document.getElementById('sub-count-' + t.id);
+      if (el) el.textContent = count + '/' + t.subs.length;
+      renderPanelSubs(t);
     }
 
     function toggleSub(tradeId, sub) {
@@ -923,6 +1008,7 @@
       const t = TRADES.find(t => t.id === tradeId);
       const el = document.getElementById('sub-count-' + tradeId);
       if (el && t) el.textContent = selectedSubs[tradeId].size + '/' + t.subs.length;
+      if (currentPanelTrade === tradeId && t) renderPanelSubs(t);
     }
 
     function toggleTrade(id) {
@@ -2550,6 +2636,26 @@
       window.location.href = '/login.html';
     }
   </script>
+
+  <!-- Trade Specialism Side Panel -->
+  <div id="tradeSpecOverlay" class="trade-spec-overlay" onclick="closeTradePanel()"></div>
+  <div id="tradeSpecPanel" class="trade-spec-panel">
+    <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5">
+      <div id="tradeSpecHeader" class="flex items-center gap-3"></div>
+      <button onclick="closeTradePanel()"
+        class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/8 flex items-center justify-center transition-colors">
+        <iconify-icon icon="solar:close-linear" style="font-size:14px;color:#71717a;"></iconify-icon>
+      </button>
+    </div>
+    <div class="px-5 pt-4 pb-2">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs text-zinc-500">Specialisms</span>
+        <button id="tradeSpecToggleAll" onclick="toggleAllPanelSubs()"
+          class="text-[10px] text-zinc-500 hover:text-purple-400 transition-colors">Toggle all</button>
+      </div>
+      <div id="tradeSpecList" class="space-y-2 overflow-y-auto" style="max-height:calc(100vh - 180px);"></div>
+    </div>
+  </div>
 
 </body>
 </html>
