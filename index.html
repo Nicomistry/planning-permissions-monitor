@@ -15,23 +15,24 @@ tailwind.config = {
     extend: {
       fontFamily: { sans: ['Geist', 'Inter', 'sans-serif'] },
       colors: {
-        brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f', glow: 'rgba(0, 208, 132, 0.5)' },
-        dark: { bg: '#0a0a0a', surface: '#111111', border: '#1f1f1f' }
+        brand:  { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f', glow: 'rgba(0, 208, 132, 0.5)' },
+        purple: { DEFAULT: '#a855f7', dark: '#9333ea', light: '#c084fc', glow: 'rgba(168, 85, 247, 0.5)' },
+        dark:   { bg: '#0a0a0a', surface: '#111111', border: '#1f1f1f' }
       },
       letterSpacing: { tighter: '-0.04em', tight: '-0.02em' },
       animation: {
-        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'fade-in-up':  'fadeInUp 0.8s ease-out forwards',
+        'pulse-slow':  'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'matrix-fall': 'matrixFall 18s linear infinite',
-        'marquee': 'marquee 38s linear infinite',
-        'marquee2': 'marquee 38s linear infinite',
-        'ping-slow': 'ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite',
-        'scroll-reveal': 'scrollReveal 0.6s ease-out forwards',
+        'marquee':     'marquee 38s linear infinite',
+        'marquee2':    'marquee 38s linear infinite',
+        'ping-slow':   'ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'scroll-reveal':'scrollReveal 0.6s ease-out forwards',
       },
       keyframes: {
-        fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-        matrixFall: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } },
-        marquee: { '0%': { transform: 'translateX(0%)' }, '100%': { transform: 'translateX(-50%)' } },
+        fadeInUp:     { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        matrixFall:   { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } },
+        marquee:      { '0%': { transform: 'translateX(0%)' }, '100%': { transform: 'translateX(-50%)' } },
         scrollReveal: { '0%': { opacity: '0', transform: 'translateY(24px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
       }
     }
@@ -44,17 +45,22 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 .bg-grid { background-size: 40px 40px; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); mask-image: radial-gradient(circle at center, black, transparent 80%); }
 .feature-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .feature-card:hover { border-color: rgba(0,208,132,0.3); background: rgba(17,17,17,0.95); transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(0,208,132,0.18); }
+.feature-card-purple:hover { border-color: rgba(168,85,247,0.3) !important; box-shadow: 0 10px 40px -10px rgba(168,85,247,0.18) !important; }
 .transition-all-ease { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .matrix-layer { background-image: linear-gradient(to bottom, rgba(0,208,132,0.18), transparent 60%); mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); opacity: 0.4; }
+.matrix-layer-purple { background-image: linear-gradient(to bottom, rgba(168,85,247,0.15), transparent 60%); mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); opacity: 0.3; }
 .who-card { transition: box-shadow 0.3s ease, border-color 0.3s ease; }
 .who-card:hover { box-shadow: 0 0 20px rgba(0,208,132,0.25); border-color: rgba(0,208,132,0.5); }
+.who-card-purple:hover { box-shadow: 0 0 20px rgba(168,85,247,0.25) !important; border-color: rgba(168,85,247,0.5) !important; }
 .input-field { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.2s, box-shadow 0.2s; }
 .input-field:focus { outline: none; border-color: #00d084; box-shadow: 0 0 0 3px rgba(0,208,132,0.12); }
 .marquee-track { display: flex; width: max-content; }
 .marquee-track:hover { animation-play-state: paused; }
-.glow-green { box-shadow: 0 0 40px rgba(0,208,132,0.25), 0 0 80px rgba(0,208,132,0.1); }
+.glow-green    { box-shadow: 0 0 40px rgba(0,208,132,0.25), 0 0 80px rgba(0,208,132,0.1); }
 .glow-green-sm { box-shadow: 0 0 20px rgba(0,208,132,0.3); }
-.pricing-featured { border-color: rgba(0,208,132,0.45); box-shadow: 0 0 0 1px rgba(0,208,132,0.2), 0 20px 60px -15px rgba(0,208,132,0.3), inset 0 1px 0 rgba(0,208,132,0.15); }
+.glow-purple   { box-shadow: 0 0 40px rgba(168,85,247,0.25), 0 0 80px rgba(168,85,247,0.1); }
+.glow-purple-sm{ box-shadow: 0 0 20px rgba(168,85,247,0.3); }
+.pricing-featured-purple { border-color: rgba(168,85,247,0.45); box-shadow: 0 0 0 1px rgba(168,85,247,0.2), 0 20px 60px -15px rgba(168,85,247,0.3), inset 0 1px 0 rgba(168,85,247,0.15); }
 .stat-bar-item { position: relative; }
 .stat-bar-item:not(:last-child)::after { content:''; position:absolute; right:0; top:50%; transform:translateY(-50%); width:1px; height:36px; background: rgba(255,255,255,0.08); }
 /* scroll reveal */
@@ -73,6 +79,11 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 .step-connector { flex:1; height:1px; background: linear-gradient(to right, rgba(0,208,132,0.4), rgba(0,208,132,0.15)); margin-top:-2px; }
 /* number badge */
 .step-badge { width:32px; height:32px; border-radius:50%; border:1px solid rgba(0,208,132,0.4); background:rgba(0,208,132,0.08); color:#00d084; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.step-badge-purple { border-color:rgba(168,85,247,0.5); background:rgba(168,85,247,0.1); color:#a855f7; }
+/* ai pipeline */
+.pipeline-card { background: rgba(17,17,17,0.85); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 24px; transition: all 0.3s ease; }
+.pipeline-card:hover { transform: translateY(-2px); }
+.pipeline-arrow { color: rgba(255,255,255,0.15); font-size: 20px; align-self: center; flex-shrink: 0; }
 </style>
 </head>
 <body class="overflow-x-hidden selection:bg-brand/20 selection:text-brand-light bg-[#0a0a0a] text-base">
@@ -82,7 +93,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
   <div class="absolute inset-0 bg-grid opacity-50"></div>
   <div class="pointer-events-none absolute inset-0 overflow-hidden">
     <div class="matrix-layer absolute left-1/4 w-px h-full animate-matrix-fall"></div>
-    <div class="matrix-layer absolute left-1/2 w-px h-full animate-matrix-fall" style="animation-delay:-6s;"></div>
+    <div class="matrix-layer-purple absolute left-1/2 w-px h-full animate-matrix-fall" style="animation-delay:-6s;"></div>
     <div class="matrix-layer absolute left-3/4 w-px h-full animate-matrix-fall" style="animation-delay:-12s;"></div>
   </div>
 </div>
@@ -112,28 +123,29 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
      HERO
 ══════════════════════════════════════════════════════════ -->
 <section class="relative pt-36 pb-0 overflow-hidden" id="top">
-  <!-- Glow blob -->
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[42rem] h-[32rem] bg-brand/10 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
-  <div class="absolute top-40 left-1/2 -translate-x-1/2 w-[20rem] h-[14rem] bg-brand/8 blur-[5rem] rounded-full z-0 pointer-events-none"></div>
+  <!-- Dual glow blobs — green + purple -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[42rem] h-[32rem] bg-brand/8 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
+  <div class="absolute top-10 left-1/2 -translate-x-[30%] w-[28rem] h-[24rem] bg-purple/10 blur-[8rem] rounded-full z-0 pointer-events-none"></div>
+  <div class="absolute top-40 left-1/2 -translate-x-1/2 w-[18rem] h-[12rem] bg-brand/8 blur-[5rem] rounded-full z-0 pointer-events-none"></div>
 
   <div class="relative z-10 max-w-7xl mx-auto px-6">
     <!-- Pill badge -->
     <div class="flex justify-center mb-8">
       <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] animate-fade-in-up">
         <span class="live-dot"></span>
-        <span class="text-[11px] font-medium text-zinc-300 tracking-wide uppercase">Live · 417 UK Council Areas Monitored</span>
+        <span class="text-[11px] font-medium text-zinc-300 tracking-wide uppercase">Live · 400+ UK Council Areas Monitored</span>
       </div>
     </div>
 
     <!-- Headline -->
     <div class="text-center max-w-4xl mx-auto">
       <h1 class="text-5xl md:text-7xl font-semibold text-white tracking-tighter leading-[1.05] mb-6 animate-fade-in-up" style="animation-delay:0.1s">
-        Scout new jobs before<br>
-        <span class="text-brand">your competition</span><br>
+        Find new build jobs<br>
+        <span class="text-brand">before anyone else</span><br>
         even knows they exist
       </h1>
       <p class="text-lg md:text-xl text-zinc-400 font-light max-w-2xl mx-auto mb-10 animate-fade-in-up leading-relaxed" style="animation-delay:0.2s">
-        PPM monitors every UK planning application that matches your trade and territory — then sends qualified leads straight to your inbox.
+        PPM scans every UK planning application that matches your trade and territory — AI-scores each lead and delivers them straight to your inbox.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style="animation-delay:0.3s">
         <button onclick="openDemoModal()" class="w-full sm:w-auto px-8 py-3.5 bg-brand hover:bg-brand-light text-black rounded-lg font-semibold text-sm transition-all-ease flex items-center justify-center gap-2 group glow-green-sm">
@@ -144,10 +156,25 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           See how it works
         </a>
       </div>
+      <!-- Trust line -->
+      <div class="flex items-center justify-center gap-6 mt-8 animate-fade-in-up" style="animation-delay:0.4s">
+        <span class="text-[11px] text-zinc-600 flex items-center gap-1.5">
+          <iconify-icon icon="solar:check-circle-linear" style="font-size:12px;color:#00d084;"></iconify-icon>
+          AI-scored leads
+        </span>
+        <span class="text-[11px] text-zinc-600 flex items-center gap-1.5">
+          <iconify-icon icon="solar:check-circle-linear" style="font-size:12px;color:#00d084;"></iconify-icon>
+          Set up in 24h
+        </span>
+        <span class="text-[11px] text-zinc-600 flex items-center gap-1.5">
+          <iconify-icon icon="solar:check-circle-linear" style="font-size:12px;color:#00d084;"></iconify-icon>
+          No ongoing effort
+        </span>
+      </div>
     </div>
 
     <!-- Live dashboard mockup -->
-    <div class="mt-16 max-w-3xl mx-auto animate-fade-in-up" style="animation-delay:0.4s">
+    <div class="mt-16 max-w-3xl mx-auto animate-fade-in-up" style="animation-delay:0.5s">
       <div class="glass-panel rounded-2xl overflow-hidden border border-white/10" style="box-shadow: 0 40px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,208,132,0.08);">
         <!-- Window chrome -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
@@ -158,7 +185,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           </div>
           <div class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-white/[0.04] border border-white/5">
             <iconify-icon icon="solar:radar-2-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
-            <span class="text-[10px] text-zinc-500 font-mono">PPM · Scan Results</span>
+            <span class="text-[10px] text-zinc-500 font-mono">PPM · Live Scan Results</span>
           </div>
           <div class="flex items-center gap-1.5">
             <div class="live-dot" style="width:6px;height:6px;"></div>
@@ -185,7 +212,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           <span id="heroFooterStat" class="text-[10px] text-zinc-600 font-mono">Scanning councils…</span>
           <span class="text-[10px] font-medium text-brand flex items-center gap-1">
             <iconify-icon icon="solar:check-circle-linear" style="font-size:11px;"></iconify-icon>
-            Live data
+            AI-qualified · Live data
           </span>
         </div>
       </div>
@@ -202,16 +229,16 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
   <div class="max-w-5xl mx-auto px-6">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-0">
       <div class="stat-bar-item text-center py-2 px-4">
-        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">417</div>
+        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">400+</div>
         <div class="text-[11px] text-zinc-500 font-medium">UK councils monitored</div>
       </div>
       <div class="stat-bar-item text-center py-2 px-4">
         <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">50k+</div>
-        <div class="text-[11px] text-zinc-500 font-medium">Applications scanned</div>
+        <div class="text-[11px] text-zinc-500 font-medium">Applications scanned monthly</div>
       </div>
       <div class="stat-bar-item text-center py-2 px-4">
-        <div class="text-2xl font-semibold text-white tracking-tighter mb-0.5">10</div>
-        <div class="text-[11px] text-zinc-500 font-medium">Trade categories</div>
+        <div class="text-2xl font-semibold text-purple tracking-tighter mb-0.5">AI</div>
+        <div class="text-[11px] text-zinc-500 font-medium">Scored &amp; enriched leads</div>
       </div>
       <div class="stat-bar-item text-center py-2 px-4">
         <div class="text-2xl font-semibold text-brand tracking-tighter mb-0.5">24–48h</div>
@@ -247,8 +274,8 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
     </div>
 
     <div class="max-w-3xl mb-16 reveal reveal-delay-1">
-      <h2 class="text-4xl md:text-5xl font-semibold text-white mb-5 tracking-tighter leading-[1.1]">Planning Application Intelligence<br><span class="text-zinc-400 font-light">for UK Tradesmen</span></h2>
-      <p class="text-lg font-light text-zinc-400 leading-relaxed">Automated monitoring across every active UK council. Choose your councils, set your project types, get qualified leads delivered before the competition even know they exist.</p>
+      <h2 class="text-4xl md:text-5xl font-semibold text-white mb-5 tracking-tighter leading-[1.1]">Planning Application Intelligence<br><span class="text-zinc-400 font-light">built for the UK's best tradespeople</span></h2>
+      <p class="text-lg font-light text-zinc-400 leading-relaxed">Automated scanning across every active UK council. Pick your territory, set your project types — get AI-qualified leads delivered before your competition picks up the phone.</p>
     </div>
 
     <!-- Asymmetric feature grid -->
@@ -260,7 +287,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           <iconify-icon icon="solar:target-linear" style="font-size:22px; color:#00d084;"></iconify-icon>
         </div>
         <h3 class="text-2xl font-semibold text-white mb-3 tracking-tight">First-Mover Advantage</h3>
-        <p class="text-base text-zinc-400 font-light leading-relaxed mb-6">Contact homeowners within 24–48 hours of planning submission. Be there before competitors even know the project exists. Most enquiries are won on speed — PPM makes you the fastest every time.</p>
+        <p class="text-base text-zinc-400 font-light leading-relaxed mb-6">Contact homeowners and developers within 24–48 hours of planning submission. Be first to every relevant application in your area — before competitors even know it exists. Most jobs are won on speed. PPM makes you the fastest, every time.</p>
         <div class="flex items-center gap-3 pt-5 border-t border-white/5">
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand/8 border border-brand/15">
             <div class="live-dot" style="width:6px;height:6px;"></div>
@@ -268,26 +295,26 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           </div>
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/8">
             <iconify-icon icon="solar:inbox-linear" style="font-size:12px;color:#71717a;"></iconify-icon>
-            <span class="text-[11px] font-medium text-zinc-400">Email digest</span>
+            <span class="text-[11px] font-medium text-zinc-400">Daily digest</span>
           </div>
         </div>
       </div>
 
       <!-- Two stacked smaller cards — spans 2 cols -->
       <div class="md:col-span-2 flex flex-col gap-5">
-        <div class="glass-panel rounded-2xl p-7 feature-card border border-white/8 flex-1 reveal reveal-delay-1">
+        <div class="glass-panel rounded-2xl p-7 feature-card feature-card-purple border border-white/8 flex-1 reveal reveal-delay-1">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);">
+            <iconify-icon icon="solar:cpu-bolt-linear" style="font-size:18px; color:#a855f7;"></iconify-icon>
+          </div>
+          <h3 class="text-lg font-semibold text-white tracking-tight mb-2">AI-Scored Leads</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Every application is classified, enriched, and scored 1–10 by AI — so you only spend time on the opportunities worth chasing.</p>
+        </div>
+        <div class="glass-panel rounded-2xl p-7 feature-card border border-white/8 flex-1 reveal reveal-delay-2">
           <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
             <iconify-icon icon="solar:map-point-linear" style="font-size:18px; color:#00d084;"></iconify-icon>
           </div>
           <h3 class="text-lg font-semibold text-white tracking-tight mb-2">Your Area, Your Rules</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">Select any of 417 UK council areas and choose your ideal job types. Only receive applications that match your territory and trade.</p>
-        </div>
-        <div class="glass-panel rounded-2xl p-7 feature-card border border-white/8 flex-1 reveal reveal-delay-2">
-          <div class="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
-            <iconify-icon icon="solar:bolt-linear" style="font-size:18px; color:#00d084;"></iconify-icon>
-          </div>
-          <h3 class="text-lg font-semibold text-white tracking-tight mb-2">Fully Automated</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">No manual searching, scraping, or spreadsheets. AI filters and scores every application so you only see the jobs worth chasing.</p>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Select any UK council area and your ideal job types. Only receive planning applications that match your territory and trade.</p>
         </div>
       </div>
     </div>
@@ -295,9 +322,70 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 </section>
 
 <!-- ══════════════════════════════════════════════════════════
+     AI INTELLIGENCE PIPELINE
+══════════════════════════════════════════════════════════ -->
+<section class="py-20 border-y border-white/5 bg-gradient-to-b from-[#0c0c0c] to-[#080808]">
+  <div class="max-w-7xl mx-auto px-6">
+
+    <div class="flex items-center gap-3 mb-6 reveal">
+      <span class="text-[10px] font-semibold text-purple uppercase tracking-widest">AI Intelligence</span>
+      <div class="h-px flex-1 max-w-[3rem]" style="background:rgba(168,85,247,0.3);"></div>
+    </div>
+
+    <div class="max-w-2xl mb-14 reveal reveal-delay-1">
+      <h2 class="text-3xl md:text-4xl font-semibold text-white mb-3 tracking-tighter">Not just data — qualified intelligence</h2>
+      <p class="text-lg font-light text-zinc-400">Raw planning applications are noise. PPM puts every one through a three-stage AI pipeline to surface only the leads that match your business.</p>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-4 items-stretch reveal reveal-delay-1">
+
+      <!-- Stage 1 -->
+      <div class="pipeline-card flex-1">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);color:#00d084;">1</div>
+          <span class="text-[10px] font-semibold text-brand uppercase tracking-widest">Classify</span>
+        </div>
+        <h4 class="text-base font-semibold text-white mb-2">Keyword + AI Filter</h4>
+        <p class="text-sm text-zinc-500 font-light leading-relaxed">50,000+ monthly applications stripped to only genuine new-build residential opportunities. Extensions, loft conversions, and commercial work are automatically excluded.</p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-zinc-600 font-mono">~2,000 → ~80 per council</div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="hidden md:flex items-center justify-center text-white/10 text-2xl px-1">›</div>
+
+      <!-- Stage 2 -->
+      <div class="pipeline-card flex-1" style="border-color:rgba(168,85,247,0.12);">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);color:#a855f7;">2</div>
+          <span class="text-[10px] font-semibold text-purple uppercase tracking-widest">Enrich</span>
+        </div>
+        <h4 class="text-base font-semibold text-white mb-2">AI Data Extraction</h4>
+        <p class="text-sm text-zinc-500 font-light leading-relaxed">Claude AI extracts unit count, dwelling type (house/flat/mixed), development scale, and applicant type from each application description — structured and ready to act on.</p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-zinc-600 font-mono">unit count · scale · applicant type</div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="hidden md:flex items-center justify-center text-white/10 text-2xl px-1">›</div>
+
+      <!-- Stage 3 -->
+      <div class="pipeline-card flex-1" style="border-color:rgba(168,85,247,0.15);">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style="background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.25);color:#a855f7;">3</div>
+          <span class="text-[10px] font-semibold text-purple uppercase tracking-widest">Score</span>
+        </div>
+        <h4 class="text-base font-semibold text-white mb-2">Opportunity Scoring</h4>
+        <p class="text-sm text-zinc-500 font-light leading-relaxed">Each lead receives a 1–10 score and HIGH / MEDIUM / LOW priority rating based on scheme size, postcode, applicant type, and development potential.</p>
+        <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-zinc-600 font-mono">scored · prioritised · reasoned</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
      HOW IT WORKS
 ══════════════════════════════════════════════════════════ -->
-<section class="py-24 border-y border-white/5 bg-gradient-to-b from-[#0e0e0e] to-[#060606]">
+<section class="py-24 border-b border-white/5 bg-gradient-to-b from-[#0e0e0e] to-[#060606]">
   <div class="max-w-7xl mx-auto px-6">
 
     <div class="flex items-center gap-3 mb-6 reveal">
@@ -307,10 +395,10 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 
     <div class="max-w-xl mb-14 reveal reveal-delay-1">
       <h2 class="text-3xl md:text-4xl font-semibold text-white mb-3 tracking-tighter">How it works</h2>
-      <p class="text-lg font-light text-zinc-400">From zero planning visibility to a predictable stream of high‑quality enquiries — in four simple steps.</p>
+      <p class="text-lg font-light text-zinc-400">From zero planning visibility to a predictable stream of qualified leads — in four steps.</p>
     </div>
 
-    <!-- Steps with connecting lines on desktop -->
+    <!-- Steps -->
     <div class="relative">
       <!-- Desktop connecting line -->
       <div class="hidden md:block absolute top-4 left-[4%] right-[4%] h-px bg-gradient-to-r from-transparent via-brand/20 to-transparent z-0"></div>
@@ -320,25 +408,25 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
         <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal hover:border-brand/25 transition-colors duration-300">
           <div class="step-badge mb-5">1</div>
           <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Book A Demo</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">Jump on a call with our team. We'll show you exactly how PPM works and whether it's right for your trade.</p>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Jump on a call with our team. We'll show you exactly how PPM works and whether it's right for your trade and territory.</p>
         </div>
         <!-- Step 2 -->
         <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal reveal-delay-1 hover:border-brand/25 transition-colors duration-300">
           <div class="step-badge mb-5">2</div>
-          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Customise Your Setup</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">Tell us your sweet spot. We train the system on your ideal job types, project size, and service areas.</p>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Set Your Councils &amp; Trades</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Pick your council areas and ideal project types directly in your dashboard. The system tailors scanning to your exact brief.</p>
         </div>
         <!-- Step 3 -->
-        <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal reveal-delay-2 hover:border-brand/25 transition-colors duration-300">
-          <div class="step-badge mb-5">3</div>
-          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">In-House Setup</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">We set this up in your office — in person or virtually — so your team can start winning work from day one.</p>
+        <div class="glass-panel rounded-2xl p-6 border border-white/8 reveal reveal-delay-2 hover:border-purple/25 transition-colors duration-300">
+          <div class="step-badge step-badge-purple mb-5">3</div>
+          <h3 class="text-base font-semibold text-white mb-2 tracking-tight">We Go Live Together</h3>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">Our team activates your account — in person or virtually. AI scanning starts immediately across every council you've selected.</p>
         </div>
         <!-- Step 4 -->
         <div class="glass-panel rounded-2xl p-6 border border-brand/20 reveal reveal-delay-3 hover:border-brand/40 transition-colors duration-300" style="background: linear-gradient(135deg, rgba(0,208,132,0.05) 0%, rgba(17,17,17,0.9) 100%);">
           <div class="step-badge mb-5" style="border-color:rgba(0,208,132,0.6); background:rgba(0,208,132,0.12);">4</div>
           <h3 class="text-base font-semibold text-white mb-2 tracking-tight">Leads Start Landing</h3>
-          <p class="text-sm text-zinc-400 font-light leading-relaxed">Matched planning applications land in your inbox or CRM — ready for your team to contact and convert.</p>
+          <p class="text-sm text-zinc-400 font-light leading-relaxed">AI-scored planning applications land in your inbox — ready to contact, ready to convert. New leads arrive with every scan.</p>
         </div>
       </div>
     </div>
@@ -359,47 +447,73 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
     <div class="flex flex-col md:flex-row justify-between items-end mb-14 gap-6">
       <div class="max-w-xl reveal reveal-delay-1">
         <h2 class="text-3xl md:text-4xl font-semibold text-white tracking-tighter mb-3 leading-tight">Built for serious UK trades</h2>
-        <p class="text-lg text-zinc-400 font-light">Whether you specialise in high-end extensions or large-scale developments, we surface the planning applications that match your ideal jobs.</p>
+        <p class="text-lg text-zinc-400 font-light">Whether you specialise in new builds, high-end extensions, or large-scale developments — we surface the applications that match your ideal jobs.</p>
       </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
+
+      <!-- New Home Builders — featured / purple -->
+      <div class="glass-panel p-5 rounded-2xl who-card who-card-purple border border-white/8 reveal" style="background:linear-gradient(135deg,rgba(168,85,247,0.05) 0%,rgba(17,17,17,0.9) 100%);">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);">
+            <iconify-icon icon="solar:city-linear" style="font-size:17px;color:#a855f7;"></iconify-icon>
+          </div>
+          <h3 class="text-sm font-semibold text-white tracking-tight">New Home Builders</h3>
+        </div>
+        <p class="text-xs text-zinc-500 leading-relaxed">The only way to find new residential development plots before they hit the open market. Every qualifying application, AI-scored and delivered.</p>
+      </div>
+
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
         <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:buildings-2-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Builders &amp; Contractors</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">General builders looking for a steady stream of local projects.</p>
+        <p class="text-xs text-zinc-500 leading-relaxed">General builders looking for a steady stream of qualified local projects before they go to tender.</p>
       </div>
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
+
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
         <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:buildings-3-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Loft Conversion Specialists</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Target homeowners adding bedrooms, dormers, and attic conversions.</p>
+        <p class="text-xs text-zinc-500 leading-relaxed">Target homeowners adding bedrooms, dormers, and attic conversions — before they've even started getting quotes.</p>
       </div>
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
-        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:home-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Renovation Contractors</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Whole-house refurbishments and structural reconfigurations.</p>
+
+      <div class="glass-panel p-5 rounded-2xl who-card who-card-purple border border-white/8 reveal">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.15);">
+            <iconify-icon icon="solar:home-linear" style="font-size:17px;color:#a855f7;"></iconify-icon>
+          </div>
+          <h3 class="text-sm font-semibold text-white tracking-tight">Renovation Contractors</h3>
+        </div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Whole-house refurbishments, barn conversions, and structural reconfigurations — all surfaced automatically.</p>
       </div>
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
+
+      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
         <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:window-frame-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Window &amp; Door Installers</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Bi-folds, glazing upgrades, and replacement windows.</p>
+        <p class="text-xs text-zinc-500 leading-relaxed">Bi-folds, glazing upgrades, and replacement windows on new residential schemes.</p>
       </div>
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
-        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:leaf-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Landscaping</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Patios, driveways, garden walls, and outdoor features.</p>
-      </div>
+
       <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
-        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:home-angle-bold" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Roofing Specialists</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Roof replacements, dormers, and structural roof work.</p>
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:leaf-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Landscaping</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Patios, driveways, garden walls, and outdoor features on new-build and extension projects.</p>
       </div>
-      <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal">
-        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:plug-circle-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Electricians (major projects)</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Large rewires, new builds, and major renovation work.</p>
+
+      <div class="glass-panel p-5 rounded-2xl who-card who-card-purple border border-white/8 reveal">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.15);">
+            <iconify-icon icon="solar:home-angle-bold" style="font-size:17px;color:#a855f7;"></iconify-icon>
+          </div>
+          <h3 class="text-sm font-semibold text-white tracking-tight">Roofing Specialists</h3>
+        </div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Roof replacements, dormers, and structural roof work on newly approved residential schemes.</p>
       </div>
+
       <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-1">
-        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:palette-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Interior Designers</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Residential refurbishments, space planning, and design-build projects.</p>
+        <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:plug-circle-linear" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Electricians (major projects)</h3></div>
+        <p class="text-xs text-zinc-500 leading-relaxed">Large rewires, new builds, and major residential renovation work needing full electrical fit-out.</p>
       </div>
+
       <div class="glass-panel p-5 rounded-2xl who-card border border-white/8 reveal reveal-delay-2">
         <div class="flex items-center gap-3 mb-3"><div class="w-9 h-9 rounded-xl bg-brand/8 border border-brand/15 flex items-center justify-center"><iconify-icon icon="solar:chef-hat-minimalistic-outline" style="font-size:17px;color:#00d084;"></iconify-icon></div><h3 class="text-sm font-semibold text-white tracking-tight">Kitchen &amp; Bathroom</h3></div>
-        <p class="text-xs text-zinc-500 leading-relaxed">Showrooms targeting homeowners planning extensions and renovations.</p>
+        <p class="text-xs text-zinc-500 leading-relaxed">Showrooms targeting homeowners and developers planning extensions and new residential builds.</p>
       </div>
+
     </div>
   </div>
 </section>
@@ -418,7 +532,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 
     <div class="max-w-2xl mb-16 text-center mx-auto reveal reveal-delay-1">
       <h2 class="text-3xl md:text-4xl font-semibold text-white mb-3 tracking-tighter">Pricing that scales with your territory</h2>
-      <p class="text-lg text-zinc-400 font-light">Start small in one council, or roll out across regions and teams. Upgrade or change coverage at any time.</p>
+      <p class="text-lg text-zinc-400 font-light">Start in one council, scale across regions. All plans include lifetime software access and AI-powered lead scoring.</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
@@ -427,7 +541,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
       <div class="glass-panel rounded-2xl p-7 flex flex-col border border-white/8 reveal hover:border-white/15 transition-colors duration-300">
         <div class="mb-6">
           <h3 class="text-base font-semibold text-white tracking-tight mb-1">Starter</h3>
-          <p class="text-xs text-zinc-500">Lifetime licence for lean teams</p>
+          <p class="text-xs text-zinc-500">For lean teams targeting one area</p>
         </div>
         <div class="mb-7">
           <div class="flex items-baseline gap-1.5">
@@ -436,24 +550,25 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           </div>
         </div>
         <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 designated area</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 council area</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 trade type configured</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> AI-scored email digest</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime software access</li>
         </ul>
         <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl border border-white/12 text-white hover:bg-white/5 hover:border-white/20 transition-all-ease">Get started</button>
       </div>
 
-      <!-- Professional — featured -->
-      <div class="rounded-2xl p-7 flex flex-col pricing-featured relative overflow-hidden reveal reveal-delay-1" style="background: linear-gradient(160deg, rgba(0,208,132,0.06) 0%, rgba(17,17,17,0.95) 50%);">
-        <!-- Glow orb behind -->
-        <div class="absolute -top-10 -right-10 w-40 h-40 bg-brand/15 blur-3xl rounded-full pointer-events-none"></div>
+      <!-- Professional — featured (purple) -->
+      <div class="rounded-2xl p-7 flex flex-col pricing-featured-purple relative overflow-hidden reveal reveal-delay-1" style="background: linear-gradient(160deg, rgba(168,85,247,0.07) 0%, rgba(17,17,17,0.95) 50%);">
+        <!-- Purple glow orb -->
+        <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none" style="background:rgba(168,85,247,0.15);filter:blur(40px);"></div>
         <div class="relative z-10">
           <div class="flex items-start justify-between mb-6">
             <div>
               <h3 class="text-base font-semibold text-white tracking-tight mb-1">Professional</h3>
-              <p class="text-xs text-zinc-500">Lifetime licence for growing teams</p>
+              <p class="text-xs text-zinc-500">For growing teams and wider coverage</p>
             </div>
-            <span class="text-[9px] uppercase tracking-widest font-semibold bg-brand text-black px-3 py-1.5 rounded-full whitespace-nowrap">Most popular</span>
+            <span class="text-[9px] uppercase tracking-widest font-semibold text-white px-3 py-1.5 rounded-full whitespace-nowrap" style="background:#a855f7;">Most popular</span>
           </div>
           <div class="mb-7">
             <div class="flex items-baseline gap-1.5">
@@ -462,11 +577,13 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
             </div>
           </div>
           <ul class="space-y-3 text-xs text-zinc-300 mb-8">
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> 1 designated area</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Up to 5 council areas</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> All trade types configured</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> AI scoring + enrichment + dashboard</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Daily digest + priority support</li>
+            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Lifetime software access</li>
           </ul>
-          <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl bg-brand text-black hover:bg-brand-light transition-all-ease">Get started</button>
+          <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl text-white hover:opacity-90 transition-all-ease" style="background:#a855f7;">Get started</button>
         </div>
       </div>
 
@@ -474,7 +591,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
       <div class="glass-panel rounded-2xl p-7 flex flex-col border border-white/8 reveal reveal-delay-2 hover:border-white/15 transition-colors duration-300">
         <div class="mb-6">
           <h3 class="text-base font-semibold text-white tracking-tight mb-1">Enterprise</h3>
-          <p class="text-xs text-zinc-500">For multi-team and national coverage</p>
+          <p class="text-xs text-zinc-500">Multi-team and national coverage</p>
         </div>
         <div class="mb-7">
           <div class="flex items-baseline gap-1.5">
@@ -483,9 +600,11 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
           </div>
         </div>
         <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Custom number of areas</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Trained on your project type</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime access to our software</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Unlimited councils</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Multi-user access</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> CRM / API integration</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Dedicated onboarding &amp; SLA</li>
+          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Lifetime software access</li>
         </ul>
         <button onclick="openDemoModal()" class="w-full text-xs font-semibold px-4 py-3 rounded-xl border border-white/12 text-white hover:bg-white/5 hover:border-white/20 transition-all-ease">Talk to sales</button>
       </div>
@@ -498,7 +617,9 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
 ══════════════════════════════════════════════════════════ -->
 <section class="py-24 px-6 relative overflow-hidden">
   <div class="absolute inset-0 bg-gradient-to-b from-[#0e0e0e] to-[#050505]"></div>
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[32rem] h-[20rem] bg-brand/8 blur-[7rem] rounded-full pointer-events-none"></div>
+  <!-- Dual glow -->
+  <div class="absolute top-0 left-1/2 -translate-x-[60%] w-[28rem] h-[20rem] blur-[7rem] rounded-full pointer-events-none" style="background:rgba(0,208,132,0.08);"></div>
+  <div class="absolute top-0 left-1/2 -translate-x-[30%] w-[24rem] h-[18rem] blur-[7rem] rounded-full pointer-events-none" style="background:rgba(168,85,247,0.08);"></div>
   <div class="relative z-10 max-w-3xl mx-auto text-center">
     <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand/25 bg-brand/8 mb-8 reveal">
       <iconify-icon icon="solar:flash-linear" style="font-size:12px;color:#00d084;"></iconify-icon>
@@ -528,7 +649,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
         </div>
         <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
       </div>
-      <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">Planning Application Intelligence For UK Tradesmen.</p>
+      <p class="text-xs text-zinc-600 max-w-xs leading-relaxed">AI-powered planning application intelligence for UK tradespeople and home builders.</p>
     </div>
     <div class="flex gap-12 md:gap-16 text-xs">
       <div>
@@ -556,7 +677,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
     </div>
   </div>
   <div class="max-w-7xl mx-auto px-6 mt-10 pt-6 border-t border-white/[0.04] text-center text-[0.68rem] text-zinc-700">
-    &copy; 2025 PPM. All rights reserved.
+    &copy; 2026 PPM. All rights reserved.
   </div>
 </footer>
 
@@ -605,6 +726,7 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
         <label class="block text-xs text-zinc-400 mb-1.5">Your trade</label>
         <select name="trade" required class="input-field w-full rounded-lg px-3 py-2.5 text-sm text-white bg-transparent">
           <option value="" disabled selected class="bg-[#111]">Select your trade…</option>
+          <option value="New Home Builder" class="bg-[#111]">New Home Builder</option>
           <option value="Builder/Contractor" class="bg-[#111]">Builder / Contractor</option>
           <option value="Loft Conversion" class="bg-[#111]">Loft Conversion Specialist</option>
           <option value="Renovation Contractor" class="bg-[#111]">Renovation Contractor</option>
@@ -744,7 +866,6 @@ function buildMarquee() {
       ${c}
     </span>`
   ).join('');
-  // Duplicate for seamless loop
   document.getElementById('marqueeInner').innerHTML  = items;
   document.getElementById('marqueeInner2').innerHTML = items;
 }
@@ -811,7 +932,7 @@ async function loadHeroDashboard() {
       const parts  = (l.address || '').split(',');
       const street = parts[0] || l.address;
       const rest   = parts.slice(1).join(',').trim() || l.council;
-      const scoreColor = l.score >= 8 ? 'text-brand' : 'text-zinc-300';
+      const scoreColor = l.score >= 8 ? 'text-brand' : l.score >= 5 ? 'text-purple-400' : 'text-zinc-300';
       return `<div class="grid grid-cols-12 px-4 py-3 text-[11px] hover:bg-white/[0.02] transition-colors" style="animation: mockRowIn 0.4s ease ${i * 0.12}s both">
         <div class="col-span-4">
           <span class="text-white font-medium leading-snug block truncate">${street}</span>
@@ -828,7 +949,7 @@ async function loadHeroDashboard() {
       heroFooter.textContent = `${leads.length} qualified leads · ${uniqueCouncils} councils · scanned at ${now}`;
     }
   } catch {
-    // Silently fail — hero mockup just stays as skeleton
+    // Silently fail — hero mockup stays as skeleton
   }
 }
 
