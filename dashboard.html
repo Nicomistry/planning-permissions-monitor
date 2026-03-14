@@ -488,7 +488,7 @@
 
       const runsLeft = profile?.cp_runs_remaining || 0;
       const lastRun  = profile?.cp_last_run_at ? new Date(profile.cp_last_run_at) : null;
-      const cooldownMs = 30 * 60 * 1000;
+      const cooldownMs = 45 * 60 * 1000;
       const now = Date.now();
       const inCooldown = lastRun && (now - lastRun.getTime()) < cooldownMs;
 
@@ -539,7 +539,7 @@
 
       const runsLeft   = profile?.cp_runs_remaining || 0;
       const lastRun    = profile?.cp_last_run_at ? new Date(profile.cp_last_run_at) : null;
-      const cooldownMs = 30 * 60 * 1000;
+      const cooldownMs = 45 * 60 * 1000;
       const inCooldown = lastRun && (Date.now() - lastRun.getTime()) < cooldownMs;
 
       if (runsLeft > 0) {

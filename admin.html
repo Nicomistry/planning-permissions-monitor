@@ -2129,7 +2129,10 @@
 
       // If granted, set cp_runs_remaining = 1
       if (decision === 'granted' && req?.user_id) {
-        await sb.from('profiles').update({ cp_runs_remaining: 1 }).eq('user_id', req.user_id);
+        const { error: profErr } = await sb.from('profiles')
+          .update({ cp_runs_remaining: 1 })
+          .eq('user_id', req.user_id);
+        if (profErr) { alert('Grant saved but failed to set runs: ' + profErr.message); }
       }
 
       // Send email notification
