@@ -233,15 +233,15 @@
             </div>
           </div>
           <div class="flex items-center gap-3" onclick="event.stopPropagation()">
-            <span id="ssSavedLabel" class="hidden sm:flex items-center gap-1.5 text-[11px] text-brand/70 bg-brand/8 border border-brand/15 rounded-lg px-3 py-1.5">
+            <span id="ssSavedLabel" style="display:none" class="items-center gap-1.5 text-[11px] text-brand/70 bg-brand/8 border border-brand/15 rounded-lg px-3 py-1.5">
               <iconify-icon icon="solar:check-circle-bold" style="font-size:13px;color:#00d084;"></iconify-icon>
               Saved
             </span>
-            <span id="ssUnsavedLabel" class="hidden sm:flex items-center gap-1.5 text-[11px] text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-1.5">
+            <span id="ssUnsavedLabel" style="display:none" class="items-center gap-1.5 text-[11px] text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-1.5">
               <iconify-icon icon="solar:danger-circle-linear" style="font-size:13px;color:#fbbf24;"></iconify-icon>
               Unsaved changes
             </span>
-            <button id="ssSaveBtn" onclick="saveScanSettings()" class="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-white bg-brand hover:bg-brand/80 rounded-lg px-3 py-1.5 transition-all">
+            <button id="ssSaveBtn" onclick="saveScanSettings()" style="display:none" class="items-center gap-1.5 text-[11px] font-medium text-white bg-brand hover:bg-brand/80 rounded-lg px-3 py-1.5 transition-all cursor-pointer">
               <iconify-icon icon="solar:floppy-disk-bold" style="font-size:13px;"></iconify-icon>
               Save settings
             </button>
@@ -507,9 +507,9 @@
     }
 
     function markSSDirty() {
-      document.getElementById('ssSavedLabel').classList.add('hidden');
-      document.getElementById('ssUnsavedLabel').classList.remove('hidden');
-      document.getElementById('ssSaveBtn').classList.remove('hidden');
+      document.getElementById('ssSavedLabel').style.display   = 'none';
+      document.getElementById('ssUnsavedLabel').style.display = 'flex';
+      document.getElementById('ssSaveBtn').style.display      = 'flex';
     }
 
     function saveScanSettings() {
@@ -518,10 +518,10 @@
       const sectors = {};
       D_TRADES.forEach(t => { sectors[t.id] = [...dActiveSectors[t.id]]; });
       localStorage.setItem('ppm_active_sectors', JSON.stringify(sectors));
-      document.getElementById('ssUnsavedLabel').classList.add('hidden');
-      document.getElementById('ssSaveBtn').classList.add('hidden');
-      document.getElementById('ssSavedLabel').classList.remove('hidden');
-      setTimeout(() => document.getElementById('ssSavedLabel').classList.add('hidden'), 2500);
+      document.getElementById('ssUnsavedLabel').style.display = 'none';
+      document.getElementById('ssSaveBtn').style.display      = 'none';
+      document.getElementById('ssSavedLabel').style.display   = 'flex';
+      setTimeout(() => { document.getElementById('ssSavedLabel').style.display = 'none'; }, 2500);
     }
 
     function sectorLabel(tradeId) {
