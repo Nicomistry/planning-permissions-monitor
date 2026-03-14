@@ -30,7 +30,7 @@ export default async function handler(req, res) {
           <p style="color:#555;"><strong>${display}</strong> (${userEmail}) has requested access to the Control Panel.</p>
           ${message ? `<p style="color:#555;border-left:3px solid #00d084;padding-left:12px;"><em>"${message}"</em></p>` : ''}
           <p style="margin-top:24px;">
-            <a href="https://ppm.build/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review Request</a>
+            <a href="https://pm-sand.vercel.app/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review Request</a>
           </p>
         </div>`,
     },
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
           <p style="color:#555;">Hi ${display}, your request for Control Panel access has been <strong style="color:#00d084;">granted</strong>.</p>
           <p style="color:#555;">You have <strong>1 scan run</strong> available. Log in to use it.</p>
           <p style="margin-top:24px;">
-            <a href="https://ppm.build/dashboard.html" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
+            <a href="https://pm-sand.vercel.app/dashboard.html" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
           </p>
         </div>`,
     },
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
           <p style="color:#555;"><strong>${display}</strong> (${userEmail}) says their scan had an issue and is requesting an extra run.</p>
           ${message ? `<p style="color:#555;border-left:3px solid #f59e0b;padding-left:12px;"><em>"${message}"</em></p>` : ''}
           <p style="margin-top:24px;">
-            <a href="https://ppm.build/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review in Admin Panel</a>
+            <a href="https://pm-sand.vercel.app/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review in Admin Panel</a>
           </p>
         </div>`,
     },
