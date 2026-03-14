@@ -232,11 +232,19 @@
               <div class="text-xs text-zinc-500 mt-0.5">Select the trades & councils you want monitored — ready for when you activate your scan</div>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <div class="hidden sm:flex items-center gap-1.5 text-[11px] text-brand/70 bg-brand/8 border border-brand/15 rounded-lg px-3 py-1.5">
+          <div class="flex items-center gap-3" onclick="event.stopPropagation()">
+            <span id="ssSavedLabel" class="hidden sm:flex items-center gap-1.5 text-[11px] text-brand/70 bg-brand/8 border border-brand/15 rounded-lg px-3 py-1.5">
               <iconify-icon icon="solar:check-circle-bold" style="font-size:13px;color:#00d084;"></iconify-icon>
-              Saved automatically
-            </div>
+              Saved
+            </span>
+            <span id="ssUnsavedLabel" class="hidden sm:flex items-center gap-1.5 text-[11px] text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-1.5">
+              <iconify-icon icon="solar:danger-circle-linear" style="font-size:13px;color:#fbbf24;"></iconify-icon>
+              Unsaved changes
+            </span>
+            <button id="ssSaveBtn" onclick="saveScanSettings()" class="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-white bg-brand hover:bg-brand/80 rounded-lg px-3 py-1.5 transition-all">
+              <iconify-icon icon="solar:floppy-disk-bold" style="font-size:13px;"></iconify-icon>
+              Save settings
+            </button>
             <iconify-icon id="scanSettingsChevron" icon="solar:alt-arrow-down-linear" style="font-size:16px;color:#52525b;transition:transform 0.3s;"></iconify-icon>
           </div>
         </div>
@@ -498,6 +506,24 @@
       renderDSelectedPills();
     }
 
+    function markSSDirty() {
+      document.getElementById('ssSavedLabel').classList.add('hidden');
+      document.getElementById('ssUnsavedLabel').classList.remove('hidden');
+      document.getElementById('ssSaveBtn').classList.remove('hidden');
+    }
+
+    function saveScanSettings() {
+      localStorage.setItem('ppm_active_trades', JSON.stringify([...dActiveTrades]));
+      localStorage.setItem('ppm_d_councils',    JSON.stringify([...dActiveCouncils]));
+      const sectors = {};
+      D_TRADES.forEach(t => { sectors[t.id] = [...dActiveSectors[t.id]]; });
+      localStorage.setItem('ppm_active_sectors', JSON.stringify(sectors));
+      document.getElementById('ssUnsavedLabel').classList.add('hidden');
+      document.getElementById('ssSaveBtn').classList.add('hidden');
+      document.getElementById('ssSavedLabel').classList.remove('hidden');
+      setTimeout(() => document.getElementById('ssSavedLabel').classList.add('hidden'), 2500);
+    }
+
     function sectorLabel(tradeId) {
       const active = dActiveSectors[tradeId];
       if (!active || active.size === 0) return 'Sectors';
@@ -537,7 +563,7 @@
       // persist
       const toSave = {};
       D_TRADES.forEach(t => { toSave[t.id] = [...dActiveSectors[t.id]]; });
-      localStorage.setItem('ppm_active_sectors', JSON.stringify(toSave));
+      markSSDirty();
     }
 
     const D_COUNCIL_PAGE = 50;
@@ -566,7 +592,7 @@
       else dActiveTrades.add(id);
       document.getElementById('dtchip-' + id)?.classList.toggle('active', dActiveTrades.has(id));
       updateDTradeCount();
-      localStorage.setItem('ppm_active_trades', JSON.stringify([...dActiveTrades]));
+      markSSDirty();
     }
 
     function dToggleAllTrades() {
@@ -574,7 +600,7 @@
       else D_TRADES.forEach(t => dActiveTrades.add(t.id));
       D_TRADES.forEach(t => document.getElementById('dtchip-' + t.id)?.classList.toggle('active', dActiveTrades.has(t.id)));
       updateDTradeCount();
-      localStorage.setItem('ppm_active_trades', JSON.stringify([...dActiveTrades]));
+      markSSDirty();
     }
 
     function dToggleCouncil(c) {
@@ -584,7 +610,7 @@
       document.getElementById('dcchip-' + safe)?.classList.toggle('active', dActiveCouncils.has(c));
       updateDCouncilCount();
       renderDSelectedPills();
-      localStorage.setItem('ppm_d_councils', JSON.stringify([...dActiveCouncils]));
+      markSSDirty();
     }
 
     function dClearCouncils() {
@@ -592,7 +618,7 @@
       document.querySelectorAll('.d-council-chip').forEach(el => el.classList.remove('active'));
       updateDCouncilCount();
       renderDSelectedPills();
-      localStorage.setItem('ppm_d_councils', '[]');
+      markSSDirty();
     }
 
     function renderDSelectedPills() {
@@ -854,6 +880,7 @@
       const { data, error } = await sb
         .from('contacts')
         .select('*')
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
       document.getElementById('dcLoading').classList.add('hidden');

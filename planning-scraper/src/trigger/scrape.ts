@@ -154,7 +154,8 @@ export const scrapePlanningLeadsTask = task({
   id: "planning-scraper",
   maxDuration: 1800, // 30 minutes total
 
-  run: async () => {
+  run: async (payload: { userId?: string } = {}) => {
+    const { userId } = payload;
     const runDate = new Date().toLocaleDateString("en-GB", {
       weekday: "long",
       year: "numeric",
@@ -174,6 +175,7 @@ export const scrapePlanningLeadsTask = task({
       const result = await processCouncilTask.triggerAndWait({
         council_name: council.name,
         council_auth: council.auth,
+        userId,
       });
 
       if (result.ok) {

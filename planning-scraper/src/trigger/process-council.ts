@@ -225,8 +225,8 @@ export const processCouncilTask = task({
   id: "process-council",
   maxDuration: 300, // 5 minutes per council
 
-  run: async (payload: { council_name: string; council_auth: string }) => {
-    const { council_name, council_auth } = payload;
+  run: async (payload: { council_name: string; council_auth: string; userId?: string }) => {
+    const { council_name, council_auth, userId } = payload;
     logger.info(`▶ Processing council: ${council_name}`);
 
     // 1. Fetch from planit.org.uk
@@ -390,10 +390,10 @@ Return ONLY a valid JSON array. No markdown. No explanation.`,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    const userId = process.env.ADMIN_USER_ID;
+    const resolvedUserId = userId ?? process.env.ADMIN_USER_ID;
 
     const rows = leads.map((lead) => ({
-      user_id:              userId,
+      user_id:              resolvedUserId,
       uid:                  lead.uid,
       council:              lead.council,
       address:              lead.address,
