@@ -66,6 +66,21 @@
     .d-council-chip:hover { border-color: rgba(0,208,132,0.4); background: rgba(0,208,132,0.06); color: #a1a1aa; box-shadow: 0 0 8px rgba(0,208,132,0.08); }
     .d-council-chip.active { border-color: rgba(0,208,132,0.55); background: rgba(0,208,132,0.1); color: #00d084; box-shadow: 0 0 10px rgba(0,208,132,0.1); font-weight: 500; }
 
+    /* selected council pills (top of councils panel) */
+    @keyframes chipIn {
+      from { opacity:0; transform:translateY(-6px) scale(0.92); }
+      to   { opacity:1; transform:translateY(0)    scale(1); }
+    }
+    .d-sel-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 500; padding: 4px 8px 4px 10px;
+      border-radius: 8px; border: 1px solid rgba(0,208,132,0.45);
+      background: rgba(0,208,132,0.1); color: #00d084;
+      animation: chipIn 0.18s ease; white-space: nowrap;
+    }
+    .d-sel-pill button { color: rgba(0,208,132,0.5); line-height:1; transition: color 0.15s; font-size:13px; }
+    .d-sel-pill button:hover { color: #00d084; }
+
     /* region tabs */
     .d-region-tab {
       font-size: 11px; font-weight: 500; padding: 5px 12px; border-radius: 8px;
@@ -193,7 +208,7 @@
           <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/5">
 
             <!-- LEFT: Trades -->
-            <div class="ss-left lg:w-72 xl:w-80 flex-shrink-0 p-5">
+            <div class="ss-left lg:w-72 xl:w-80 flex-shrink-0 p-5 self-stretch">
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <div class="text-sm font-semibold text-white flex items-center gap-2">
@@ -217,6 +232,9 @@
                 </div>
                 <button onclick="dClearCouncils()" class="text-[11px] text-zinc-500 hover:text-red-400 border border-white/8 hover:border-red-500/30 rounded-lg px-2.5 py-1.5 transition-all">Clear all</button>
               </div>
+              <!-- Selected pills -->
+              <div id="dSelectedPills" class="hidden flex-wrap gap-1.5 mb-3"></div>
+
               <!-- Search -->
               <div class="relative mb-2.5">
                 <iconify-icon icon="solar:magnifer-linear" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;color:#52525b;pointer-events:none;"></iconify-icon>
@@ -417,6 +435,7 @@
       }).join('');
       updateDTradeCount();
       renderDCouncils(D_COUNCILS);
+      renderDSelectedPills();
     }
 
     function renderDCouncils(list) {
@@ -451,6 +470,7 @@
       const safe = c.replace(/[^a-z0-9]/gi, '-');
       document.getElementById('dcchip-' + safe)?.classList.toggle('active', dActiveCouncils.has(c));
       updateDCouncilCount();
+      renderDSelectedPills();
       localStorage.setItem('ppm_d_councils', JSON.stringify([...dActiveCouncils]));
     }
 
@@ -458,7 +478,25 @@
       dActiveCouncils.clear();
       document.querySelectorAll('.d-council-chip').forEach(el => el.classList.remove('active'));
       updateDCouncilCount();
+      renderDSelectedPills();
       localStorage.setItem('ppm_d_councils', '[]');
+    }
+
+    function renderDSelectedPills() {
+      const wrap = document.getElementById('dSelectedPills');
+      if (dActiveCouncils.size === 0) {
+        wrap.classList.add('hidden');
+        wrap.classList.remove('flex');
+        wrap.innerHTML = '';
+        return;
+      }
+      wrap.classList.remove('hidden');
+      wrap.classList.add('flex');
+      wrap.innerHTML = [...dActiveCouncils].map(c => `
+        <span class="d-sel-pill">
+          ${c}
+          <button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}')">×</button>
+        </span>`).join('');
     }
 
     function filterDCouncils() {
