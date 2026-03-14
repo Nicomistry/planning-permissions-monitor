@@ -375,7 +375,13 @@
       </div>
 
       <!-- Run status -->
-      <div id="runStatus" class="hidden mb-4 text-sm px-4 py-2.5 rounded-lg border"></div>
+      <div id="runStatus" class="hidden mb-4 text-sm px-4 py-2.5 rounded-lg border flex items-center justify-between gap-3 flex-wrap">
+        <span id="runStatusText"></span>
+        <button id="runStatusRefreshBtn" onclick="loadLeads()" class="hidden shrink-0 flex items-center gap-1.5 text-xs font-semibold border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 rounded-lg px-3 py-1.5 transition-all">
+          <iconify-icon icon="solar:refresh-bold" style="font-size:13px;"></iconify-icon>
+          Refresh Results
+        </button>
+      </div>
 
       <!-- Tabs -->
       <div class="flex gap-1 p-1 bg-white/5 rounded-xl w-fit border border-white/[0.08] mb-6">
@@ -404,8 +410,12 @@
         <!-- Empty state -->
         <div id="tableEmpty" class="hidden flex-col items-center justify-center py-20 text-center px-6">
           <iconify-icon icon="solar:file-search-linear" class="w-10 h-10 text-zinc-600 mb-4" style="stroke-width:1;"></iconify-icon>
-          <div class="text-white font-medium mb-1">No leads yet</div>
-          <div class="text-sm text-zinc-500 mb-4">Click "Run Scraper" to pull your first batch of planning leads.</div>
+          <div class="text-white font-medium mb-1" id="emptyStateTitle">No leads yet</div>
+          <div class="text-sm text-zinc-500 mb-4" id="emptyStateMsg">Request a scan from the Control Panel to pull your first batch of planning leads.</div>
+          <button id="emptyRefreshBtn" onclick="loadLeads()" class="hidden items-center gap-2 text-xs font-semibold border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 rounded-lg px-4 py-2 transition-all">
+            <iconify-icon icon="solar:refresh-bold" style="font-size:13px;"></iconify-icon>
+            Refresh Results
+          </button>
         </div>
 
         <!-- Table content -->
@@ -1269,13 +1279,28 @@
       }
 
       closeCPModal();
-      const status = document.getElementById('runStatus');
-      status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-brand/30 bg-brand/10 text-brand';
-      status.textContent = 'Triggering scan…';
-      status.classList.remove('hidden');
 
-      // Scroll status into view on mobile
-      status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Helper to set status message + optional refresh button
+      function setStatus(msg, type = 'success', showRefresh = false) {
+        const status     = document.getElementById('runStatus');
+        const statusText = document.getElementById('runStatusText');
+        const refreshBtn = document.getElementById('runStatusRefreshBtn');
+        const cls = {
+          success: 'flex items-center justify-between gap-3 flex-wrap mb-4 text-sm px-4 py-2.5 rounded-lg border border-brand/30 bg-brand/10 text-brand',
+          warn:    'flex items-center justify-between gap-3 flex-wrap mb-4 text-sm px-4 py-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
+          error:   'flex items-center justify-between gap-3 flex-wrap mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400',
+        };
+        status.className = cls[type] || cls.success;
+        statusText.textContent = msg;
+        if (refreshBtn) {
+          refreshBtn.classList.toggle('hidden', !showRefresh);
+          refreshBtn.classList.toggle('flex', showRefresh);
+        }
+        status.classList.remove('hidden');
+        status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      setStatus('Triggering scan…');
 
       // Build councils list from user settings (fallback: all defaults)
       const selectedCouncils = dActiveCouncils.size > 0 ? [...dActiveCouncils] : null;
@@ -1290,24 +1315,25 @@
         const data = await resp.json();
 
         if (!resp.ok) {
-          // NO_RUNS means the scan was already used — update UI to reflect reality
           if (data.code === 'NO_RUNS') {
             updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
-            status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
-            status.textContent = 'Your scan run has already been used. Request another from admin to run again.';
+            setStatus('Your scan run has already been used. Request another from admin to run again.', 'warn');
           } else {
-            status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
-            status.textContent = 'Scan failed: ' + (data.error || `HTTP ${resp.status}`) + ' — your run has not been used.';
+            setStatus('Scan failed: ' + (data.error || `HTTP ${resp.status}`) + ' — your run has not been used.', 'error');
           }
           if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
           return;
         }
 
-        // Success — server already deducted the run
-        status.textContent = 'Scan triggered — results will appear below shortly.';
+        // Success — show refresh button, update empty state to "in progress"
+        setStatus('Scan running — tap Refresh Results when ready (takes ~5 min).', 'success', true);
+        document.getElementById('emptyStateTitle').textContent = 'Scan in progress…';
+        document.getElementById('emptyStateMsg').textContent   = 'Your councils are being processed. Tap Refresh Results to check for new leads.';
+        const emptyRefresh = document.getElementById('emptyRefreshBtn');
+        if (emptyRefresh) { emptyRefresh.classList.remove('hidden'); emptyRefresh.classList.add('flex'); }
+
       } catch (err) {
-        status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
-        status.textContent = 'Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again.';
+        setStatus('Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again.', 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
         return;
       }
