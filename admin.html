@@ -70,22 +70,24 @@
       transition: all 0.2s;
       user-select: none;
     }
-    .chip::before, .chip::after {
-      content:'';
-      position:absolute;
-      background: rgba(0,208,132,0.35);
-    }
-    /* left pins */
-    .chip::before {
-      left:-6px; top:50%; transform:translateY(-50%);
-      width:6px; height:2px;
-      box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
-    }
-    /* right pins */
-    .chip::after {
-      right:-6px; top:50%; transform:translateY(-50%);
-      width:6px; height:2px;
-      box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
+    @media (min-width: 640px) {
+      .chip::before, .chip::after {
+        content:'';
+        position:absolute;
+        background: rgba(0,208,132,0.35);
+      }
+      /* left pins */
+      .chip::before {
+        left:-6px; top:50%; transform:translateY(-50%);
+        width:6px; height:2px;
+        box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
+      }
+      /* right pins */
+      .chip::after {
+        right:-6px; top:50%; transform:translateY(-50%);
+        width:6px; height:2px;
+        box-shadow: 0 -8px 0 rgba(0,208,132,0.35), 0 8px 0 rgba(0,208,132,0.35);
+      }
     }
     .chip.selected {
       background: #0d2e1c;
@@ -94,9 +96,11 @@
     }
     .chip.selected .chip-led { background: #00d084; box-shadow: 0 0 6px #00d084, 0 0 12px rgba(0,208,132,0.6); }
     .chip.selected .chip-name { color: #00d084; }
-    .chip.selected::before, .chip.selected::after {
-      background: #00d084;
-      box-shadow: 0 -8px 0 #00d084, 0 8px 0 #00d084;
+    @media (min-width: 640px) {
+      .chip.selected::before, .chip.selected::after {
+        background: #00d084;
+        box-shadow: 0 -8px 0 #00d084, 0 8px 0 #00d084;
+      }
     }
     .chip-led {
       width:8px; height:8px; border-radius:50%;
@@ -383,40 +387,71 @@
 <body class="min-h-screen font-sans">
 
   <!-- NAV -->
-  <nav class="fixed top-0 inset-x-0 z-40 h-14 bg-[#050505]/95 border-b border-white/10 backdrop-blur">
-    <div class="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
-      <a href="/index.html" class="flex items-center gap-2">
+  <nav class="fixed top-0 inset-x-0 z-40 bg-[#050505]/95 border-b border-white/10 backdrop-blur">
+    <div class="max-w-7xl mx-auto h-14 flex items-center justify-between px-4 sm:px-6">
+      <!-- Left: logo -->
+      <a href="/index.html" class="flex items-center gap-2 shrink-0">
         <div class="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center">
-          <iconify-icon icon="solar:radar-2-linear" class="w-4 h-4" style="color:#00d084;stroke-width:1.5;"></iconify-icon>
+          <iconify-icon icon="solar:radar-2-linear" style="color:#00d084;font-size:14px;"></iconify-icon>
         </div>
         <span class="text-sm font-semibold text-white tracking-tight">PPM</span>
-        <span class="ml-2 text-[0.65rem] uppercase tracking-widest text-brand border border-brand/30 bg-brand/10 px-2 py-0.5 rounded-full">Admin</span>
+        <span class="text-[0.6rem] uppercase tracking-widest text-brand border border-brand/30 bg-brand/10 px-1.5 py-0.5 rounded-full">Admin</span>
       </a>
-      <div class="flex items-center gap-3">
+
+      <!-- Desktop nav items -->
+      <div class="hidden md:flex items-center gap-3">
         <a href="/dashboard.html" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
-          <iconify-icon icon="solar:chart-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          <iconify-icon icon="solar:chart-2-linear" style="font-size:14px;"></iconify-icon>
           Dashboard
         </a>
         <button onclick="document.getElementById('tab-contacts').click();document.getElementById('tab-contacts').scrollIntoView({behavior:'smooth',block:'start'})" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
-          <iconify-icon icon="solar:users-group-rounded-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          <iconify-icon icon="solar:users-group-rounded-linear" style="font-size:14px;"></iconify-icon>
           Saved
         </button>
         <a href="#scanBtn" onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth'})" class="relative flex items-center gap-1.5 text-xs border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-colors rounded-lg px-3 py-1.5">
-          <iconify-icon icon="solar:cpu-bolt-linear" class="w-3.5 h-3.5"></iconify-icon>
-          Control Panel activated
+          <iconify-icon icon="solar:cpu-bolt-linear" style="font-size:14px;"></iconify-icon>
+          Control Panel
           <span id="cpRequestsBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"></span>
         </a>
         <button onclick="handleLogout()" class="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
-          <iconify-icon icon="solar:logout-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+          <iconify-icon icon="solar:logout-2-linear" style="font-size:14px;"></iconify-icon>
           Log out
         </button>
       </div>
+
+      <!-- Mobile right: control panel badge + hamburger -->
+      <div class="flex md:hidden items-center gap-2">
+        <a href="#scanBtn" onclick="document.getElementById('scanBtn').scrollIntoView({behavior:'smooth'});closeMobileMenu()" class="relative flex items-center gap-1 text-[11px] border border-brand/30 bg-brand/10 text-brand rounded-lg px-2.5 py-1.5">
+          <iconify-icon icon="solar:cpu-bolt-linear" style="font-size:13px;"></iconify-icon>
+          Scanner
+          <span id="cpRequestsBadgeMobile" class="hidden absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"></span>
+        </a>
+        <button onclick="toggleMobileMenu()" class="p-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors" id="mobileMenuBtn">
+          <iconify-icon id="mobileMenuIcon" icon="solar:hamburger-menu-linear" style="font-size:16px;color:#a1a1aa;"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile dropdown menu -->
+    <div id="mobileMenu" class="hidden md:hidden border-t border-white/8 bg-[#060606]/98 px-4 py-3 space-y-1">
+      <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+        <iconify-icon icon="solar:chart-2-linear" style="font-size:16px;"></iconify-icon>
+        Dashboard
+      </a>
+      <button onclick="document.getElementById('tab-contacts').click();document.getElementById('tab-contacts').scrollIntoView({behavior:'smooth',block:'start'});closeMobileMenu()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+        <iconify-icon icon="solar:users-group-rounded-linear" style="font-size:16px;"></iconify-icon>
+        Saved contacts
+      </button>
+      <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors">
+        <iconify-icon icon="solar:logout-2-linear" style="font-size:16px;"></iconify-icon>
+        Log out
+      </button>
     </div>
   </nav>
 
   <!-- MAIN -->
   <main class="pt-14 min-h-screen">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-10">
 
       <!-- Access denied -->
       <div id="accessDenied" class="hidden flex-col items-center justify-center py-32 text-center">
@@ -459,7 +494,7 @@
         <!-- ══════════════════════════════════════════════════
              COUNCIL SCANNER — MOTHERBOARD
         ═══════════════════════════════════════════════════ -->
-        <div class="pcb-board rounded-2xl p-6">
+        <div class="pcb-board rounded-2xl p-4 sm:p-6">
 
           <!-- header -->
           <div class="flex items-center justify-between mb-5 relative z-10">
@@ -1167,6 +1202,18 @@
       else selectedCouncils.add(name);
       document.getElementById('selectedCount').textContent = selectedCouncils.size;
       filterChips();
+    }
+
+    // ── Mobile menu ───────────────────────────────────────────────────────────
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobileMenu');
+      const icon = document.getElementById('mobileMenuIcon');
+      const open = menu.classList.toggle('hidden') === false;
+      icon.setAttribute('icon', open ? 'solar:close-circle-linear' : 'solar:hamburger-menu-linear');
+    }
+    function closeMobileMenu() {
+      document.getElementById('mobileMenu').classList.add('hidden');
+      document.getElementById('mobileMenuIcon').setAttribute('icon', 'solar:hamburger-menu-linear');
     }
 
     function toggleAll() {
@@ -2087,16 +2134,19 @@
     }
 
     function updateCPBadge(count) {
-      // Nav badge
-      const badge = document.getElementById('cpRequestsBadge');
-      if (count > 0) {
-        badge.textContent = count;
-        badge.classList.remove('hidden');
-        badge.classList.add('flex');
-      } else {
-        badge.classList.add('hidden');
-        badge.classList.remove('flex');
-      }
+      // Nav badge (desktop + mobile)
+      ['cpRequestsBadge','cpRequestsBadgeMobile'].forEach(id => {
+        const badge = document.getElementById(id);
+        if (!badge) return;
+        if (count > 0) {
+          badge.textContent = count;
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        } else {
+          badge.classList.add('hidden');
+          badge.classList.remove('flex');
+        }
+      });
       // Inline badge in bar
       const inline = document.getElementById('cpReqBadgeInline');
       const none   = document.getElementById('cpReqNoneBadge');
