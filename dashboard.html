@@ -1090,11 +1090,11 @@
         body.innerHTML = `
           <iconify-icon icon="solar:stopwatch-linear" class="w-8 h-8 text-zinc-400 mb-3" style="font-size:32px;"></iconify-icon>
           <h3 class="text-white font-semibold mb-1">Cooldown Active</h3>
-          <p class="text-xs text-zinc-500 mb-1">You can request access again in <span id="cpCooldownDisplay" class="text-white font-medium">${mins}m ${secs}s</span>.</p>
-          <p class="text-xs text-zinc-600 mb-4">Had a problem with your scan? Use the Help button to contact the admin.</p>
+          <p class="text-xs text-zinc-500 mb-1">Standard cooldown: <span id="cpCooldownDisplay" class="text-white font-medium">${mins}m ${secs}s</span> remaining.</p>
+          <p class="text-xs text-zinc-600 mb-4">If your last scan failed or you need an early re-run, request an exception below.</p>
           <div class="flex gap-2 justify-end">
             <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Close</button>
-            <button onclick="openHelpModal()" class="text-xs px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors font-medium">Help</button>
+            <button onclick="showCPModal('request')" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Request early access</button>
           </div>`;
         // Tick the countdown inside modal
         const ticker = setInterval(() => {
@@ -1159,31 +1159,36 @@
       btn.disabled = true;
       btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Running…';
 
-      // Deduct the run
-      await sb.from('profiles').update({
-        cp_runs_remaining: 0,
-        cp_last_run_at: new Date().toISOString(),
-      }).eq('user_id', currentUser.id);
-
       closeCPModal();
-
-      // Show status
       const status = document.getElementById('runStatus');
       status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-brand/30 bg-brand/10 text-brand';
-      status.textContent = 'Scan triggered — results will appear below shortly.';
+      status.textContent = 'Triggering scan…';
       status.classList.remove('hidden');
 
-      // Trigger the scraper via secure server-side proxy
+      // Trigger first — only deduct run if it succeeds
+      let triggerOk = false;
       try {
         const resp = await fetch('/api/trigger-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUser.id }),
         });
-        if (!resp.ok) throw new Error('trigger failed');
-      } catch (_) {
-        status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-300';
-        status.textContent = 'Scan queued — check back in a few minutes for results.';
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+        triggerOk = true;
+        status.textContent = 'Scan triggered — results will appear below shortly.';
+      } catch (err) {
+        status.className = 'mb-4 text-sm px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400';
+        status.textContent = 'Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again or contact admin.';
+        return;
+      }
+
+      // Only deduct run after confirmed trigger
+      if (triggerOk) {
+        await sb.from('profiles').update({
+          cp_runs_remaining: 0,
+          cp_last_run_at: new Date().toISOString(),
+        }).eq('user_id', currentUser.id);
       }
 
       // Update nav
