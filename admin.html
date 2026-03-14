@@ -1025,6 +1025,58 @@
             </div>
           </div>
 
+          <!-- ── PANEL 2: Client Intelligence ──────────────────────────────── -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                Client Intelligence
+              </h3>
+              <button onclick="loadClientIntelligence()" class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors">
+                <iconify-icon icon="solar:refresh-linear" style="font-size:14px;"></iconify-icon>
+                Refresh
+              </button>
+            </div>
+
+            <!-- Section A: Client Profiles -->
+            <div class="mb-2">
+              <div class="text-xs text-zinc-500 uppercase tracking-wide mb-3 font-medium">Client Profiles</div>
+              <div id="ciProfilesLoading" class="flex items-center gap-3 py-6 text-zinc-500">
+                <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:20px;color:#00d084;"></iconify-icon>
+                <span class="text-sm">Loading…</span>
+              </div>
+              <div id="ciProfilesEmpty" class="hidden py-6 text-sm text-zinc-500">No client preferences saved yet.</div>
+              <div id="ciProfilesList" class="hidden glass-panel rounded-2xl overflow-hidden divide-y divide-white/5"></div>
+            </div>
+
+            <!-- Divider -->
+            <div class="border-t border-white/5 my-6"></div>
+
+            <!-- Section B: All Recent Searches -->
+            <div>
+              <div class="text-xs text-zinc-500 uppercase tracking-wide mb-3 font-medium">All Recent Searches</div>
+              <div id="ciSearchesLoading" class="flex items-center gap-3 py-6 text-zinc-500">
+                <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:20px;color:#00d084;"></iconify-icon>
+                <span class="text-sm">Loading…</span>
+              </div>
+              <div id="ciSearchesEmpty" class="hidden py-6 text-sm text-zinc-500">No searches logged yet.</div>
+              <div class="glass-panel rounded-2xl overflow-hidden">
+                <div id="ciSearchesWrap" class="hidden overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="border-b border-white/5 text-left">
+                        <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
+                        <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Search Term</th>
+                        <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ciSearchesBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /panel-intelligence -->
 
       </div>
@@ -2581,7 +2633,7 @@
       });
       if (tab === 'leads')         loadLeads();
       if (tab === 'contacts')      loadContacts();
-      if (tab === 'intelligence')  loadProspectConversations();
+      if (tab === 'intelligence') { loadProspectConversations(); loadClientIntelligence(); }
     }
 
     // ── Load all leads (admin) ────────────────────────────────────────────────
@@ -2938,6 +2990,103 @@
     async function handleLogout() {
       await sb.auth.signOut();
       window.location.href = '/login.html';
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // INTELLIGENCE TAB — Panel 2: Client Intelligence
+    // ══════════════════════════════════════════════════════════════════════════
+
+    let ciRefreshTimer = null;
+
+    async function loadClientIntelligence() {
+      // Reset UI
+      ['ciProfilesLoading','ciSearchesLoading'].forEach(id =>
+        document.getElementById(id).classList.remove('hidden'));
+      ['ciProfilesList','ciProfilesEmpty','ciSearchesWrap','ciSearchesEmpty'].forEach(id =>
+        document.getElementById(id).classList.add('hidden'));
+
+      // 1. Get JWT for admin-grant-runs call
+      const { data: { session } } = await sb.auth.getSession();
+      const jwt = session?.access_token;
+
+      // 2. Fetch all auth users via list action
+      let userMap = {}; // id → email
+      try {
+        const r = await fetch('/api/admin-grant-runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+          body: JSON.stringify({ action: 'list' }),
+        });
+        const d = await r.json();
+        (d.users || []).forEach(u => { userMap[u.id] = u.email; });
+      } catch (e) { console.error('loadClientIntelligence users:', e); }
+
+      // 3. Fetch user_preferences
+      const { data: prefs } = await sb
+        .from('user_preferences')
+        .select('user_id, trade, area, created_at, updated_at')
+        .order('created_at', { ascending: false });
+
+      // 4. Fetch all intelligence_searches (limit 200)
+      const { data: searches } = await sb
+        .from('intelligence_searches')
+        .select('user_id, search_term, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      // Build searches-per-user map (top 10 per user)
+      const searchesByUser = {};
+      (searches || []).forEach(s => {
+        if (!searchesByUser[s.user_id]) searchesByUser[s.user_id] = [];
+        if (searchesByUser[s.user_id].length < 10) searchesByUser[s.user_id].push(s);
+      });
+
+      // ── Section A: Client Profiles ────────────────────────────────────────
+      document.getElementById('ciProfilesLoading').classList.add('hidden');
+      const prefList = prefs || [];
+
+      if (!prefList.length) {
+        document.getElementById('ciProfilesEmpty').classList.remove('hidden');
+      } else {
+        document.getElementById('ciProfilesList').classList.remove('hidden');
+        document.getElementById('ciProfilesList').innerHTML = prefList.map(p => {
+          const email   = userMap[p.user_id] || p.user_id;
+          const chips   = (searchesByUser[p.user_id] || []);
+          const chipsHtml = chips.length
+            ? chips.map(s => `<span class="inline-block text-[10px] bg-white/5 text-zinc-400 border border-white/10 rounded-full px-2 py-0.5">${s.search_term}</span>`).join('')
+            : '<span class="text-[11px] text-zinc-600 italic">No searches yet</span>';
+          return `
+            <div class="px-4 py-3">
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-1 mb-2">
+                <span class="text-xs text-white font-medium">${email}</span>
+                <span class="text-xs text-zinc-400">${p.trade || '—'}</span>
+                <span class="text-xs text-zinc-400">${p.area || '—'}</span>
+                <span class="text-xs text-zinc-600 ml-auto">saved ${timeAgo(p.created_at)}</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5">${chipsHtml}</div>
+            </div>`;
+        }).join('');
+      }
+
+      // ── Section B: All Recent Searches ────────────────────────────────────
+      document.getElementById('ciSearchesLoading').classList.add('hidden');
+      const searchList = searches || [];
+
+      if (!searchList.length) {
+        document.getElementById('ciSearchesEmpty').classList.remove('hidden');
+      } else {
+        document.getElementById('ciSearchesWrap').classList.remove('hidden');
+        document.getElementById('ciSearchesBody').innerHTML = searchList.map(s => `
+          <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+            <td class="px-4 py-2.5 text-xs text-zinc-300">${userMap[s.user_id] || s.user_id}</td>
+            <td class="px-4 py-2.5 text-xs text-white">${s.search_term}</td>
+            <td class="px-4 py-2.5 text-xs text-zinc-500 whitespace-nowrap">${timeAgo(s.created_at)}</td>
+          </tr>`).join('');
+      }
+
+      // Auto-refresh every 60s
+      clearInterval(ciRefreshTimer);
+      ciRefreshTimer = setInterval(loadClientIntelligence, 60000);
     }
 
     // ══════════════════════════════════════════════════════════════════════════

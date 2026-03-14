@@ -105,5 +105,22 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, userId, cp_runs_remaining: runsToSet });
   }
 
-  return res.status(400).json({ error: 'action must be "search" or "grant"' });
+  // ── List all users (for Intelligence tab) ─────────────────────────────────
+  if (action === 'list') {
+    const usersResp = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?per_page=200`,
+      { headers: { Authorization: `Bearer ${SUPABASE_KEY}`, apikey: SUPABASE_KEY } }
+    );
+    if (!usersResp.ok) return res.status(502).json({ error: 'Failed to list users' });
+    const usersData = await usersResp.json();
+    const users = (usersData.users || []).map(u => ({
+      id:         u.id,
+      email:      u.email,
+      created_at: u.created_at,
+      last_sign_in_at: u.last_sign_in_at,
+    }));
+    return res.status(200).json({ users });
+  }
+
+  return res.status(400).json({ error: 'action must be "search", "grant", or "list"' });
 }
