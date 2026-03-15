@@ -494,23 +494,8 @@
           </button>
         </div>
 
-        <!-- Table content -->
-        <div id="tableWrap" class="hidden overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-white/5 text-left">
-                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
-                <th class="hidden sm:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Description</th>
-                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Score</th>
-                <th class="px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Priority</th>
-                <th class="hidden md:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
-                <th class="hidden lg:table-cell px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
-                <th class="px-3 sm:px-4 py-2.5 sm:py-3"></th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-        </div>
+        <!-- Card list -->
+        <div id="tableWrap" class="hidden divide-y divide-white/5" id="leadsCardList"></div>
       </div>
 
       </div><!-- /dpanel-leads -->
@@ -1159,22 +1144,11 @@
       const search   = document.getElementById('filterSearch').value.toLowerCase();
 
       let filtered = allLeads;
-
-      // Apply user's council preferences as a filter (if any councils are selected)
-      if (dActiveCouncils.size > 0) {
-        filtered = filtered.filter(l => {
-          const lc = (l.council || '').toLowerCase();
-          return [...dActiveCouncils].some(c => {
-            const cl = c.toLowerCase();
-            return lc === cl || lc.startsWith(cl) || cl.startsWith(lc);
-          });
-        });
-      }
-
       if (priority) filtered = filtered.filter(l => l.priority === priority);
       if (search)   filtered = filtered.filter(l =>
         (l.address || '').toLowerCase().includes(search) ||
-        (l.description || '').toLowerCase().includes(search)
+        (l.description || '').toLowerCase().includes(search) ||
+        (l.council || '').toLowerCase().includes(search)
       );
 
       document.getElementById('leadCount').textContent =
@@ -1191,56 +1165,103 @@
       document.getElementById('tableEmpty').classList.remove('flex');
       document.getElementById('tableWrap').classList.remove('hidden');
 
-      const badgeClass = { HIGH: 'badge-high', MEDIUM: 'badge-medium', LOW: 'badge-low' };
       const scoreColor = s => s >= 8 ? '#4ade80' : s >= 5 ? '#fbbf24' : '#9ca3af';
+      const badgeClass = { HIGH: 'badge-high', MEDIUM: 'badge-medium', LOW: 'badge-low' };
 
-      const rows = filtered.map(lead => {
-        const desc = (lead.description || '').length > 90
-          ? lead.description.slice(0, 90) + '…'
-          : (lead.description || '—');
-        const badge = badgeClass[lead.priority] || 'badge-low';
-        const planningLink = lead.planit_url
-          ? `<a href="${lead.planit_url}" target="_blank" class="inline-flex items-center gap-1 text-brand hover:underline text-[10px] mt-1 leading-none"><iconify-icon icon="solar:link-linear" style="font-size:10px;"></iconify-icon>Planning Commission →</a>`
-          : '';
-        const viewBtn = lead.planit_url
-          ? `<a href="${lead.planit_url}" target="_blank" class="flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap">View →</a>`
-          : '';
+      const cards = filtered.map((lead, i) => {
+        const badge      = badgeClass[lead.priority] || 'badge-low';
+        const score      = lead.opportunity_score ?? '—';
+        const value      = estimateValue(lead);
         const alreadySaved = savedLeadIds.has(lead.id);
-        const contactBtn = `<button id="ctbtn-${lead.id}" onclick="addToContacts('${lead.id}')"
-          class="flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors whitespace-nowrap border"
-          style="${alreadySaved ? 'color:#4ade80;border-color:rgba(74,222,128,0.3);cursor:default;' : 'color:#00d084;border-color:rgba(0,208,132,0.3);'}"
-          ${alreadySaved ? 'disabled' : ''}>${alreadySaved ? '✓ Saved' : '+ Contact'}</button>`;
+        const shortDesc  = (lead.description || '').length > 100
+          ? lead.description.slice(0, 100) + '…' : (lead.description || '—');
+        const daysLeft   = lead.target_decision_date
+          ? Math.ceil((new Date(lead.target_decision_date) - new Date()) / 86400000) : null;
+        const urgency    = daysLeft === null ? '' : daysLeft < 0
+          ? `<span style="color:#f87171;font-size:10px;">${Math.abs(daysLeft)}d overdue</span>`
+          : daysLeft <= 14
+          ? `<span style="color:#fbbf24;font-size:10px;">${daysLeft}d left</span>`
+          : `<span style="color:#52525b;font-size:10px;">${daysLeft}d left</span>`;
+
         return `
-          <tr class="table-row border-b border-white/5 transition-colors">
-            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">
-              <div class="text-white text-xs font-medium leading-snug">${lead.address || '—'}</div>
-              <div class="text-zinc-500 text-[11px]">${lead.postcode || ''}</div>
-              ${planningLink}
-              <div class="sm:hidden text-zinc-500 text-[11px] mt-0.5">${lead.council || ''}</div>
-            </td>
-            <td class="hidden sm:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top max-w-xs">
-              <div class="text-zinc-300 text-xs leading-relaxed">${desc}</div>
-            </td>
-            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
-              <span style="color:${scoreColor(lead.opportunity_score || 0)}" class="text-sm sm:text-base font-semibold">${lead.opportunity_score ?? '—'}</span>
-              <span class="text-zinc-600 text-[10px]">/10</span>
-              <div class="text-[10px] mt-1 font-medium" style="color:#a855f7;">${estimateValue(lead)}</div>
-            </td>
-            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top text-center">
-              <span class="text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${badge}">${lead.priority || '—'}</span>
-            </td>
-            <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-400 text-xs">${lead.council || '—'}</td>
-            <td class="hidden lg:table-cell px-3 sm:px-4 py-2.5 sm:py-3 align-top text-zinc-500 text-xs whitespace-nowrap">${lead.scraped_date || ''}</td>
-            <td class="px-3 sm:px-4 py-2.5 sm:py-3 align-top">
-              <div class="flex flex-col gap-1 items-stretch">
-                ${contactBtn}
-                ${viewBtn}
+        <div class="lead-card" id="lcard-${i}" onclick="toggleLeadCard(${i})">
+          <!-- Collapsed row -->
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;">
+            <span class="lc-badge ${badge}">${lead.priority || '—'}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:#f4f4f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lead.address || '—'}</div>
+              <div style="font-size:11px;color:#52525b;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;">
+                <span>${lead.council || ''}</span>
+                ${lead.postcode ? `<span style="color:#3f3f46;">${lead.postcode}</span>` : ''}
+                ${urgency}
               </div>
-            </td>
-          </tr>`;
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:15px;font-weight:700;color:${scoreColor(score)};">${score}<span style="font-size:10px;color:#52525b;font-weight:400;">/10</span></div>
+              <div style="font-size:10px;color:#a855f7;margin-top:1px;">${value}</div>
+            </div>
+            <iconify-icon icon="solar:alt-arrow-down-linear" class="lc-chevron" id="lchev-${i}" style="font-size:14px;color:#52525b;margin-left:4px;"></iconify-icon>
+          </div>
+
+          <!-- Expanded detail -->
+          <div class="lead-card-expand" id="lexpand-${i}" onclick="event.stopPropagation()">
+            <div style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;">
+
+              <!-- Description -->
+              <div>
+                <div style="font-size:10px;font-weight:600;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Description</div>
+                <div style="font-size:12px;color:#a1a1aa;line-height:1.6;">${lead.description || '—'}</div>
+              </div>
+
+              <!-- Meta row -->
+              <div style="display:flex;flex-wrap:wrap;gap:16px;">
+                ${lead.app_type ? `<div><div style="font-size:10px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Type</div><div style="font-size:11px;color:#71717a;">${lead.app_type}</div></div>` : ''}
+                ${lead.start_date ? `<div><div style="font-size:10px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Submitted</div><div style="font-size:11px;color:#71717a;">${lead.start_date}</div></div>` : ''}
+                ${lead.app_state ? `<div><div style="font-size:10px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Status</div><div style="font-size:11px;color:#71717a;">${lead.app_state}</div></div>` : ''}
+                ${lead.dwelling_type ? `<div><div style="font-size:10px;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Property</div><div style="font-size:11px;color:#71717a;">${lead.dwelling_type}</div></div>` : ''}
+              </div>
+
+              <!-- Contact info -->
+              ${(lead.agent_name || lead.applicant_name) ? `
+              <div style="padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);">
+                <div style="font-size:10px;font-weight:600;color:#52525b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Contact</div>
+                <div style="font-size:12px;color:#a1a1aa;">${lead.agent_name || lead.applicant_name}</div>
+                ${lead.agent_phone ? `<a href="tel:${lead.agent_phone}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#00d084;margin-top:4px;text-decoration:none;"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${lead.agent_phone}</a>` : ''}
+                ${lead.agent_email ? `<a href="mailto:${lead.agent_email}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#60a5fa;margin-top:4px;margin-left:12px;text-decoration:none;"><iconify-icon icon="solar:letter-linear" style="font-size:12px;"></iconify-icon>${lead.agent_email}</a>` : ''}
+              </div>` : ''}
+
+              <!-- Actions -->
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${lead.planit_url ? `<a href="${lead.planit_url}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#71717a;border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:6px 12px;text-decoration:none;transition:color 0.15s;" onmouseover="this.style.color='#f4f4f5'" onmouseout="this.style.color='#71717a'"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:11px;"></iconify-icon>View on PlanIt</a>` : ''}
+                <button id="ctbtn-${lead.id}" onclick="event.stopPropagation();addToContacts('${lead.id}')"
+                  style="${alreadySaved ? 'color:#4ade80;border-color:rgba(74,222,128,0.3);cursor:default;' : 'color:#00d084;border-color:rgba(0,208,132,0.3);'}display:inline-flex;align-items:center;gap:5px;font-size:11px;border:1px solid;border-radius:7px;padding:6px 12px;background:transparent;cursor:pointer;font-family:inherit;transition:all 0.15s;"
+                  ${alreadySaved ? 'disabled' : ''}
+                  onmouseover="if(!this.disabled)this.style.background='rgba(0,208,132,0.1)'" onmouseout="this.style.background='transparent'">
+                  <iconify-icon icon="${alreadySaved ? 'solar:check-circle-bold' : 'solar:user-plus-bold'}" style="font-size:11px;"></iconify-icon>
+                  ${alreadySaved ? 'Saved' : 'Add to Contacts'}
+                </button>
+                <button onclick="event.stopPropagation();ppmDraftOutreach('${(lead.address||'').replace(/'/g,"\\'")}');ppmIntOpen();"
+                  style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c084fc;border:1px solid rgba(168,85,247,0.3);border-radius:7px;padding:6px 12px;background:transparent;cursor:pointer;font-family:inherit;transition:all 0.15s;"
+                  onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='transparent'">
+                  <iconify-icon icon="solar:pen-bold" style="font-size:11px;"></iconify-icon>
+                  Draft Outreach
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>`;
       }).join('');
 
-      document.getElementById('tableBody').innerHTML = rows;
+      document.getElementById('tableWrap').innerHTML = cards;
+    }
+
+    function toggleLeadCard(i) {
+      const expand = document.getElementById('lexpand-' + i);
+      const chev   = document.getElementById('lchev-'   + i);
+      const isOpen = expand.classList.contains('open');
+      expand.classList.toggle('open', !isOpen);
+      chev.classList.toggle('open',   !isOpen);
     }
 
     // ── Add lead to contacts ───────────────────────────────────────────────────
@@ -2212,6 +2233,18 @@
   #ppm-int-drawer { width:100vw; }
   #ppm-int-bubble { left:16px; bottom:16px; }
 }
+
+/* Lead cards */
+.lead-card { cursor:pointer; transition:background 0.15s; }
+.lead-card:hover { background:rgba(255,255,255,0.025); }
+.lead-card-expand { display:none; border-top:1px solid rgba(255,255,255,0.05); }
+.lead-card-expand.open { display:block; }
+.lc-chevron { transition:transform 0.2s; flex-shrink:0; }
+.lc-chevron.open { transform:rotate(180deg); }
+.lc-badge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; }
+.badge-high   { background:rgba(74,222,128,0.12);  color:#4ade80; border:1px solid rgba(74,222,128,0.25); }
+.badge-medium { background:rgba(251,191,36,0.12);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25); }
+.badge-low    { background:rgba(156,163,175,0.12); color:#9ca3af; border:1px solid rgba(156,163,175,0.2);  }
 </style>
 
 <!-- Floating bubble -->
