@@ -584,7 +584,6 @@
 
     function initScanSettings() {
       try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
-      if (dActiveTrades.size === 0) D_TRADES.forEach(t => dActiveTrades.add(t.id));
       try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
       try {
         const saved = JSON.parse(localStorage.getItem('ppm_active_sectors') || '{}');
