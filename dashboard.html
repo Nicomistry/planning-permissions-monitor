@@ -2024,12 +2024,33 @@
     </button>
   </div>
 
+  <!-- Mode 0: Access Gate -->
+  <div id="ppm-int-mode0" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;text-align:center;">
+    <div id="ppmGateDefault" style="display:flex;flex-direction:column;align-items:center;">
+      <div style="width:68px;height:68px;border-radius:20px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.22);display:flex;align-items:center;justify-content:center;margin-bottom:24px;font-size:30px;">🔑</div>
+      <div style="font-size:22px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:10px;">PPM Assistant</div>
+      <div style="font-size:13px;color:#71717a;line-height:1.65;margin-bottom:36px;max-width:280px;">AI-powered lead analysis tailored to your trade. Request access and an admin will activate your account.</div>
+      <button onclick="ppmGateStartRequest()"
+        style="padding:13px 32px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#a855f7;color:#fff;font-family:inherit;transition:background 0.15s;display:inline-flex;align-items:center;gap:8px;"
+        onmouseover="this.style.background='#9333ea'"
+        onmouseout="this.style.background='#a855f7'">
+        <iconify-icon icon="solar:key-bold" style="font-size:15px;"></iconify-icon>
+        Request Access
+      </button>
+    </div>
+    <div id="ppmGateSent" style="display:none;flex-direction:column;align-items:center;">
+      <div style="width:68px;height:68px;border-radius:20px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:24px;font-size:30px;">✓</div>
+      <div style="font-size:20px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:10px;">Request Sent</div>
+      <div style="font-size:13px;color:#71717a;line-height:1.65;max-width:280px;">Your request is with the admin. You'll be notified as soon as your access is activated.</div>
+    </div>
+  </div>
+
   <!-- Mode 1: Onboarding -->
   <div id="ppm-int-mode1">
     <div style="text-align:center;margin-bottom:28px;width:100%;">
       <div style="width:56px;height:56px;border-radius:16px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;">✦</div>
       <div style="font-size:20px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:6px;">Let's personalise your leads</div>
-      <div style="font-size:13px;color:#71717a;line-height:1.55;">Two quick questions so I can filter what matters to you.</div>
+      <div id="ppmIntSubtitle" style="font-size:13px;color:#71717a;line-height:1.55;">Two quick questions so I can filter what matters to you.</div>
     </div>
 
     <div style="width:100%;">
@@ -2103,6 +2124,7 @@ let ppmIntSelectedTrade  = null;
 let ppmAssistantHistory  = [];   // in-memory conversation history
 let ppmAssistantEnabled  = false;
 let ppmAssistantBusy     = false;
+let ppmIntFromGate       = false;
 
 function ppmIntActivateBubble() {
   document.getElementById('ppm-int-bubble').classList.add('ppm-int-visible');
@@ -2127,20 +2149,53 @@ async function ppmIntOpen() {
 
   ppmIntPrefs         = prefRes.data || null;
   ppmAssistantEnabled = profRes.data?.assistant_enabled === true;
-  ppmIntPrefs ? ppmIntShowMode2() : ppmIntShowMode1();
+
+  if (!ppmAssistantEnabled) {
+    ppmIntShowMode0();
+  } else if (!ppmIntPrefs) {
+    ppmIntShowMode1(false);
+  } else {
+    ppmIntShowMode2();
+  }
 }
 
 function ppmIntClose() {
   document.getElementById('ppm-int-overlay').classList.remove('ppm-int-open');
   document.getElementById('ppm-int-drawer').classList.remove('ppm-int-open');
+  const ov = document.getElementById('ppm-int-overlay');
+  ov.style.backdropFilter = '';
+  ov.style.background     = '';
   document.body.style.overflow = '';
 }
 
+// ── Mode 0: Access Gate ───────────────────────────────────────────────────────
+function ppmIntShowMode0() {
+  document.getElementById('ppm-int-mode0').style.display = 'flex';
+  document.getElementById('ppm-int-mode1').style.display = 'none';
+  document.getElementById('ppm-int-mode2').style.display = 'none';
+  const ov = document.getElementById('ppm-int-overlay');
+  ov.style.backdropFilter = 'blur(12px)';
+  ov.style.background     = 'rgba(0,0,0,0.7)';
+}
+
+function ppmGateStartRequest() {
+  ppmIntShowMode1(true);
+}
+
 // ── Mode 1 ────────────────────────────────────────────────────────────────────
-function ppmIntShowMode1() {
+function ppmIntShowMode1(fromGate = false) {
+  ppmIntFromGate = fromGate;
+  document.getElementById('ppm-int-mode0').style.display = 'none';
   document.getElementById('ppm-int-mode1').style.display = 'flex';
   document.getElementById('ppm-int-mode2').style.display = 'none';
   ppmIntSelectedTrade = null;
+
+  document.getElementById('ppmIntSubtitle').textContent = fromGate
+    ? 'Tell us your trade and area so we can review your request.'
+    : 'Two quick questions so I can filter what matters to you.';
+  document.getElementById('ppmIntSaveBtn').innerHTML = fromGate
+    ? 'Submit Request'
+    : 'Save &amp; Find My Leads';
 
   const grid = document.getElementById('ppmIntTradeGrid');
   grid.innerHTML = D_TRADES.map(t => `
@@ -2171,8 +2226,8 @@ async function ppmIntSavePreferences() {
   const area = document.getElementById('ppmIntAreaInput').value.trim();
   if (!ppmIntSelectedTrade || !area) return;
   const btn = document.getElementById('ppmIntSaveBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
+  btn.disabled    = true;
+  btn.textContent = ppmIntFromGate ? 'Sending…' : 'Saving…';
 
   const { error } = await sb.from('user_preferences').upsert(
     { user_id: currentUser.id, trade: ppmIntSelectedTrade, area },
@@ -2181,13 +2236,28 @@ async function ppmIntSavePreferences() {
 
   if (error) {
     console.error('ppmInt save error:', error);
-    btn.disabled = false;
-    btn.innerHTML = 'Save &amp; Find My Leads';
+    btn.disabled  = false;
+    btn.innerHTML = ppmIntFromGate ? 'Submit Request' : 'Save &amp; Find My Leads';
     return;
   }
 
   ppmIntPrefs = { trade: ppmIntSelectedTrade, area };
-  ppmIntShowMode2();
+
+  if (ppmIntFromGate) {
+    await sb.from('assistant_requests').insert({
+      user_id: currentUser.id,
+      message: `Trade: ${ppmIntSelectedTrade}, Area: ${area}`,
+    });
+    // Show confirmation in Mode 0
+    ppmIntShowMode0();
+    document.getElementById('ppmGateDefault').style.display = 'none';
+    const sent = document.getElementById('ppmGateSent');
+    sent.style.display        = 'flex';
+    sent.style.flexDirection  = 'column';
+    sent.style.alignItems     = 'center';
+  } else {
+    ppmIntShowMode2();
+  }
 }
 
 // ── Mode 2: Chat ──────────────────────────────────────────────────────────────
@@ -2417,7 +2487,7 @@ async function ppmRequestAccess() {
 function ppmIntResetPreferences() {
   ppmIntPrefs         = null;
   ppmAssistantHistory = [];
-  ppmIntShowMode1();
+  ppmIntShowMode1(false);
 }
 </script>
 
