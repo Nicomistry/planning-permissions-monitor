@@ -133,6 +133,16 @@
 </head>
 <body class="min-h-screen font-sans">
 
+  <!-- Approval banner — shown when cp_runs_remaining flips 0→1 -->
+  <div id="approvalBanner" style="display:none;position:fixed;top:0;inset-x:0;z-index:50;background:#16a34a;padding:12px 20px;" role="alert">
+    <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <iconify-icon icon="solar:check-circle-bold" style="font-size:20px;color:#fff;flex-shrink:0;"></iconify-icon>
+      <span style="color:#fff;font-weight:600;font-size:14px;flex:1;min-width:180px;">Your PPM scan is ready — click Run Scan to get your leads</span>
+      <button onclick="bannerRunScan()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;font-size:13px;font-weight:600;padding:6px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;">Run Scan</button>
+      <button onclick="dismissApprovalBanner()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;" aria-label="Dismiss">×</button>
+    </div>
+  </div>
+
   <!-- NAV -->
   <nav class="fixed top-0 inset-x-0 z-40 h-14 bg-[#050505]/95 border-b border-white/10 backdrop-blur">
     <div class="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
@@ -962,6 +972,69 @@
       updateCPNavState(profile);
       loadLeads();
       ppmIntActivateBubble();
+      // Show banner if already approved and not dismissed; otherwise start polling
+      const runsOnLoad = profile?.cp_runs_remaining || 0;
+      if (runsOnLoad > 0) {
+        showApprovalBanner();
+      } else {
+        startApprovalPolling(runsOnLoad);
+      }
+    }
+
+    // ── Approval banner ────────────────────────────────────────────────────────
+    const BANNER_KEY = 'ppm_banner_dismissed_v1';
+
+    function showApprovalBanner() {
+      if (localStorage.getItem(BANNER_KEY)) return;
+      document.getElementById('approvalBanner').style.display = 'block';
+      // Push nav + content down so banner doesn't overlap
+      document.body.style.paddingTop = (parseInt(document.body.style.paddingTop || '0') + 48) + 'px';
+    }
+
+    function dismissApprovalBanner() {
+      localStorage.setItem(BANNER_KEY, '1');
+      const b = document.getElementById('approvalBanner');
+      b.style.opacity = '0';
+      b.style.transition = 'opacity 0.2s';
+      setTimeout(() => { b.style.display = 'none'; }, 200);
+    }
+
+    function bannerRunScan() {
+      dismissApprovalBanner();
+      const cpSection = document.getElementById('cpNavBtn') || document.getElementById('inlineScanBtn');
+      if (cpSection) {
+        cpSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cpSection.style.transition = 'box-shadow 0.3s';
+        cpSection.style.boxShadow = '0 0 0 3px #00d084, 0 0 20px rgba(0,208,132,0.4)';
+        setTimeout(() => { cpSection.style.boxShadow = ''; }, 2500);
+      }
+    }
+
+    // ── 30-second approval polling ─────────────────────────────────────────────
+    let _approvalPollInterval = null;
+
+    function startApprovalPolling(knownRuns) {
+      // Don't poll if already approved or banner dismissed
+      if (knownRuns > 0 || localStorage.getItem(BANNER_KEY)) return;
+      _approvalPollInterval = setInterval(async () => {
+        if (!currentUser) { stopApprovalPolling(); return; }
+        const { data } = await sb.from('profiles')
+          .select('cp_runs_remaining')
+          .eq('user_id', currentUser.id)
+          .single();
+        const runs = data?.cp_runs_remaining || 0;
+        if (runs > 0) {
+          stopApprovalPolling();
+          cpRunsRemaining = runs;
+          updateCPNavState({ cp_runs_remaining: runs });
+          showApprovalBanner();
+        }
+      }, 30000);
+    }
+
+    function stopApprovalPolling() {
+      clearInterval(_approvalPollInterval);
+      _approvalPollInterval = null;
     }
 
     initAuth();
@@ -1406,6 +1479,7 @@
     }
 
     async function handleLogout() {
+      stopApprovalPolling();
       await sb.auth.signOut();
       window.location.href = '/login.html';
     }
@@ -2193,6 +2267,8 @@
 
 /* Lead cards */
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+#approvalBanner { animation: slideDown 0.35s ease forwards; }
 .lead-card { cursor:pointer; transition:background 0.15s; }
 .lead-card:hover { background:rgba(255,255,255,0.025); }
 .lead-card-expand { display:none; border-top:1px solid rgba(255,255,255,0.05); }
