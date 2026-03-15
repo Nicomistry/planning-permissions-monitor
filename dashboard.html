@@ -838,99 +838,114 @@
     }
 
     async function autoScanLocation(btn) {
+      clearTimeout(btn._resetTimer);
+
       if (!navigator.geolocation) {
-        setAutoScanState(btn, 'error', 'Geolocation not supported');
+        setAutoScanState(btn, 'error', 'Not supported by browser');
+        btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 5000);
         return;
       }
 
       setAutoScanState(btn, 'loading', 'Detecting location…');
 
-      // 1. Get browser coordinates
-      let coords;
       try {
-        const pos = await new Promise((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: false,
-            timeout: 12000,
-            maximumAge: 300000,
-          })
-        );
-        coords = pos.coords;
-      } catch (err) {
-        const msgs = {
-          1: 'Location access denied',
-          2: 'Location unavailable',
-          3: 'Location timed out',
-        };
-        setAutoScanState(btn, 'error', msgs[err.code] || 'Location failed');
-        return;
-      }
+        // 1. Get browser coordinates
+        let coords;
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 12000,
+              maximumAge: 300000,
+            })
+          );
+          coords = pos.coords;
+        } catch (err) {
+          const msgs = {
+            1: 'Allow location in browser settings',
+            2: 'Location unavailable',
+            3: 'Location timed out — try again',
+          };
+          setAutoScanState(btn, 'error', msgs[err.code] || 'Location failed');
+          btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 6000);
+          return;
+        }
 
-      const { latitude: lat, longitude: lon } = coords;
-      setAutoScanState(btn, 'loading', 'Finding nearby councils…');
+        const { latitude: lat, longitude: lon } = coords;
+        setAutoScanState(btn, 'loading', 'Finding nearby councils…');
 
-      // 2. Parallel fetch: nearest postcode (own council) + nearby outcodes (wider area)
-      const [pcResp, ocResp] = await Promise.allSettled([
-        fetch(`https://api.postcodes.io/postcodes?lon=${lon}&lat=${lat}&limit=1`)
-          .then(r => r.ok ? r.json() : null),
-        fetch(`https://api.postcodes.io/outcodes?lon=${lon}&lat=${lat}&limit=100&radius=20000`)
-          .then(r => r.ok ? r.json() : null),
-      ]);
+        // 2. Parallel fetch: nearest postcode + nearby outcodes
+        const [pcResp, ocResp] = await Promise.allSettled([
+          fetch(`https://api.postcodes.io/postcodes?lon=${lon}&lat=${lat}&limit=1`)
+            .then(r => r.ok ? r.json() : null),
+          fetch(`https://api.postcodes.io/outcodes?lon=${lon}&lat=${lat}&limit=100&radius=20000`)
+            .then(r => r.ok ? r.json() : null),
+        ]);
 
-      // 3. Tally districts — own council gets +10 weight to ensure it's always #1
-      const freq = {};
+        // 3. Tally districts — own council gets +10 weight
+        const freq = {};
 
-      if (pcResp.status === 'fulfilled' && pcResp.value?.result?.length) {
-        const d = pcResp.value.result[0].admin_district;
-        if (d) freq[d] = (freq[d] || 0) + 10;
-      }
+        if (pcResp.status === 'fulfilled' && pcResp.value?.result?.length) {
+          const d = pcResp.value.result[0].admin_district;
+          if (d) freq[d] = (freq[d] || 0) + 10;
+        }
 
-      if (ocResp.status === 'fulfilled' && ocResp.value?.result?.length) {
-        for (const oc of ocResp.value.result) {
-          const districts = Array.isArray(oc.admin_district) ? oc.admin_district : [oc.admin_district];
-          for (const d of districts) {
-            if (d) freq[d] = (freq[d] || 0) + 1;
+        if (ocResp.status === 'fulfilled' && ocResp.value?.result?.length) {
+          for (const oc of ocResp.value.result) {
+            const districts = Array.isArray(oc.admin_district) ? oc.admin_district : [oc.admin_district];
+            for (const d of districts) {
+              if (d) freq[d] = (freq[d] || 0) + 1;
+            }
           }
         }
+
+        if (Object.keys(freq).length === 0) {
+          setAutoScanState(btn, 'error', 'No council data returned — try again');
+          btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 5000);
+          return;
+        }
+
+        // 4. Sort by frequency, match to D_COUNCILS, take top 4
+        const sorted = Object.entries(freq)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name]) => name);
+
+        const matched = [];
+        for (const district of sorted) {
+          if (matched.length >= 4) break;
+          const council = matchDistrictToCouncil(district);
+          if (council && !matched.includes(council)) matched.push(council);
+        }
+
+        if (matched.length === 0) {
+          setAutoScanState(btn, 'error', 'No councils matched your area');
+          btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 5000);
+          return;
+        }
+
+        // 5. Apply selection
+        dActiveCouncils.clear();
+        matched.forEach(c => dActiveCouncils.add(c));
+
+        const allTab = document.querySelector('.d-region-tab');
+        if (allTab) setDRegion(null, allTab);
+        filterDCouncils();
+        updateDCouncilCount();
+        renderDSelectedPills();
+        markSSDirty();
+
+        // Scroll pills into view so user sees the selection
+        const pills = document.getElementById('dSelectedPills');
+        if (pills) pills.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        setAutoScanState(btn, 'success', `${matched.length} councils selected`);
+        btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 6000);
+
+      } catch (unexpected) {
+        console.error('autoScanLocation unexpected error:', unexpected);
+        setAutoScanState(btn, 'error', 'Something went wrong — try again');
+        btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 5000);
       }
-
-      if (Object.keys(freq).length === 0) {
-        setAutoScanState(btn, 'error', 'No council data found');
-        return;
-      }
-
-      // 4. Sort by frequency, match to D_COUNCILS, take top 4 unique
-      const sorted = Object.entries(freq)
-        .sort((a, b) => b[1] - a[1])
-        .map(([name]) => name);
-
-      const matched = [];
-      for (const district of sorted) {
-        if (matched.length >= 4) break;
-        const council = matchDistrictToCouncil(district);
-        if (council && !matched.includes(council)) matched.push(council);
-      }
-
-      if (matched.length === 0) {
-        setAutoScanState(btn, 'error', 'No supported councils found nearby');
-        return;
-      }
-
-      // 5. Apply selection — clear current, set matched
-      dActiveCouncils.clear();
-      matched.forEach(c => dActiveCouncils.add(c));
-
-      // Reset to ALL region tab so chips are visible
-      const allTab = document.querySelector('.d-region-tab');
-      if (allTab) setDRegion(null, allTab);
-
-      filterDCouncils();
-      updateDCouncilCount();
-      renderDSelectedPills();
-      markSSDirty();
-
-      setAutoScanState(btn, 'success', `${matched.length} councils near you selected`);
-      btn._resetTimer = setTimeout(() => setAutoScanState(btn, 'idle'), 4000);
     }
 
     function renderDSelectedPills() {
