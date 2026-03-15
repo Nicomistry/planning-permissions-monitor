@@ -319,7 +319,7 @@
               <div style="font-size:36px;margin-bottom:18px;">🔒</div>
               <div style="font-size:19px;font-weight:700;color:#f4f4f5;letter-spacing:-0.025em;margin-bottom:8px;">Request access to get started</div>
               <div style="font-size:13px;color:#71717a;line-height:1.65;margin-bottom:32px;max-width:340px;">Tell us your trade and the councils you cover. Once the admin approves, your planning leads go live.</div>
-              <button onclick="openCPRequest()"
+              <button onclick="enterRequestMode()"
                 style="padding:13px 36px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#00d084;color:#000;font-family:inherit;display:inline-flex;align-items:center;gap:8px;transition:background 0.15s;"
                 onmouseover="this.style.background='#33e39f'"
                 onmouseout="this.style.background='#00d084'">
@@ -418,6 +418,11 @@
             <!-- No access -->
             <div id="ss4NoRuns" class="flex flex-col sm:flex-row sm:items-center gap-3">
               <p class="text-xs text-zinc-600 flex-1">You can save your settings at any time. A scan run is needed to fetch results.</p>
+              <button id="ss4SubmitRequestBtn" onclick="submitCPRequest()" style="display:none;"
+                class="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold transition-all active:scale-95">
+                <iconify-icon icon="solar:share-bold" style="font-size:13px;"></iconify-icon>
+                Submit Request
+              </button>
             </div>
           </div>
 
@@ -1585,6 +1590,31 @@
       }
     }
 
+    // ── Request mode — lifts blur, lets user pick trades/councils then submit ──
+    let cpRequestMode = false;
+
+    function enterRequestMode() {
+      document.getElementById('scanAccessOverlay').style.display = 'none';
+      cpRequestMode = true;
+
+      // Step 1: swap to request mode banner
+      const s1None = document.getElementById('ss1NoAccess');
+      if (s1None) {
+        s1None.innerHTML = `
+          <div class="flex items-center gap-3 p-3 rounded-lg border border-purple-500/25 bg-purple-500/8 w-full">
+            <iconify-icon icon="solar:info-circle-linear" style="color:#c084fc;font-size:18px;flex-shrink:0;"></iconify-icon>
+            <div>
+              <div class="text-xs font-semibold text-purple-300">Select your trades and councils below</div>
+              <div class="text-[11px] text-zinc-500 mt-0.5">Once you're happy with your selections, click Submit Request at the bottom. The admin will review and activate your account.</div>
+            </div>
+          </div>`;
+      }
+
+      // Step 4: reveal submit button
+      const btn = document.getElementById('ss4SubmitRequestBtn');
+      if (btn) btn.style.display = 'flex';
+    }
+
     // ── Open CP request / run modal ───────────────────────────────────────────
     async function openCPRequest() {
       const { data: profile } = await sb.from('profiles')
@@ -1629,30 +1659,14 @@
       modal.classList.add('flex');
 
       if (mode === 'request') {
-        const tradeOptions = (typeof D_TRADES !== 'undefined' ? D_TRADES : []).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
         body.innerHTML = `
           <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
             <iconify-icon icon="solar:shield-keyhole-linear" style="color:#9333ea;font-size:18px;"></iconify-icon>
           </div>
-          <h3 class="text-white font-semibold mb-1">Request Access</h3>
-          <p class="text-xs text-zinc-500 mb-4 text-left">Tell us about your work so the admin can review your request.</p>
-          <div class="w-full text-left mb-3">
-            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Your trade</label>
-            <select id="cpReqTrade" class="w-full text-xs border border-white/10 rounded-lg px-3 py-2 text-zinc-300 focus:outline-none focus:border-purple-500/50" style="background:#1a1a1a;">
-              <option value="">Select a trade…</option>
-              ${tradeOptions}
-            </select>
-          </div>
-          <div class="w-full text-left mb-3">
-            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Area / councils you cover</label>
-            <input id="cpReqArea" type="text" placeholder="e.g. Kent, SW1A, Manchester…"
-              class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50">
-          </div>
-          <div class="w-full text-left mb-4">
-            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Additional notes (optional)</label>
-            <textarea id="cpReqMsg" placeholder="Anything else the admin should know…" rows="2"
-              class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 resize-none"></textarea>
-          </div>
+          <h3 class="text-white font-semibold mb-1">Request Early Access</h3>
+          <p class="text-xs text-zinc-500 mb-4">Send a note to the admin. You'll be notified by email when it's reviewed.</p>
+          <textarea id="cpReqMsg" placeholder="Optional: tell the admin why you need early access…" rows="3"
+            class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 resize-none mb-4"></textarea>
           <div class="flex gap-2 justify-end">
             <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
             <button onclick="submitCPRequest()" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Send Request</button>
@@ -1691,15 +1705,25 @@
     }
 
     async function submitCPRequest() {
-      const trade = document.getElementById('cpReqTrade')?.value?.trim() || '';
-      const area  = document.getElementById('cpReqArea')?.value?.trim() || '';
-      const msg   = document.getElementById('cpReqMsg')?.value?.trim() || '';
-      const btn   = event.target;
-      btn.disabled    = true;
-      btn.textContent = 'Sending…';
+      let message = null;
 
-      const parts   = [trade && `Trade: ${trade}`, area && `Area: ${area}`, msg].filter(Boolean);
-      const message = parts.join(' | ') || null;
+      if (cpRequestMode) {
+        // Build message from actual trade/council selections
+        const tradeNames = D_TRADES.filter(t => dActiveTrades.has(t.id)).map(t => t.name);
+        const councils   = [...dActiveCouncils];
+        const parts = [
+          tradeNames.length ? `Trades: ${tradeNames.join(', ')}` : '',
+          councils.length   ? `Councils: ${councils.slice(0, 15).join(', ')}${councils.length > 15 ? ` +${councils.length - 15} more` : ''}` : '',
+        ].filter(Boolean);
+        message = parts.join(' | ') || null;
+      } else {
+        message = document.getElementById('cpReqMsg')?.value?.trim() || null;
+      }
+
+      const btn = cpRequestMode
+        ? document.getElementById('ss4SubmitRequestBtn')
+        : event?.target;
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
       const { error } = await sb.from('control_panel_requests').insert({
         user_id:    currentUser.id,
@@ -1707,19 +1731,38 @@
         message,
       });
 
-      if (error) { btn.disabled = false; btn.textContent = 'Send Request'; alert('Error submitting request. Try again.'); return; }
+      if (error && error.code !== '23505') {
+        if (btn) { btn.disabled = false; btn.textContent = cpRequestMode ? 'Submit Request' : 'Send Request'; }
+        return;
+      }
 
       // Email admin
       try {
         await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'request', userEmail: currentUser.email, userName: currentUser.email, message: msg }),
+          body: JSON.stringify({ type: 'request', userEmail: currentUser.email, userName: currentUser.email, message }),
         });
       } catch (_) {}
 
-      closeCPModal();
-      showCPModal('request-pending');
+      if (cpRequestMode) {
+        // Inline confirmation in Step 1
+        const s1None = document.getElementById('ss1NoAccess');
+        if (s1None) {
+          s1None.innerHTML = `
+            <div class="flex items-center gap-3 p-3 rounded-lg border border-brand/25 bg-brand/8 w-full">
+              <iconify-icon icon="solar:check-circle-bold" style="color:#00d084;font-size:18px;flex-shrink:0;"></iconify-icon>
+              <div>
+                <div class="text-xs font-semibold text-brand">Request sent!</div>
+                <div class="text-[11px] text-zinc-500 mt-0.5">The admin will review your selections and activate your account. You'll be notified by email.</div>
+              </div>
+            </div>`;
+        }
+        if (btn) btn.style.display = 'none';
+      } else {
+        closeCPModal();
+        showCPModal('request-pending');
+      }
     }
 
     function openCPRunModal() {
