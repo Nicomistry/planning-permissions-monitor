@@ -312,7 +312,21 @@
           </div>
 
           <!-- ── STEP 2 + 3: Trades & Councils ─────────────────── -->
-          <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/5">
+          <div class="relative flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/5">
+
+            <!-- Blur overlay — shown when user has no access -->
+            <div id="scanAccessOverlay" style="display:none;position:absolute;inset:0;z-index:10;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);background:rgba(10,10,10,0.72);border-radius:0 0 20px 20px;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px;">
+              <div style="font-size:36px;margin-bottom:18px;">🔒</div>
+              <div style="font-size:19px;font-weight:700;color:#f4f4f5;letter-spacing:-0.025em;margin-bottom:8px;">Request access to get started</div>
+              <div style="font-size:13px;color:#71717a;line-height:1.65;margin-bottom:32px;max-width:340px;">Tell us your trade and the councils you cover. Once the admin approves, your planning leads go live.</div>
+              <button onclick="openCPRequest()"
+                style="padding:13px 36px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#00d084;color:#000;font-family:inherit;display:inline-flex;align-items:center;gap:8px;transition:background 0.15s;"
+                onmouseover="this.style.background='#33e39f'"
+                onmouseout="this.style.background='#00d084'">
+                <iconify-icon icon="solar:key-bold" style="font-size:15px;"></iconify-icon>
+                Request Access
+              </button>
+            </div>
 
             <!-- Trades -->
             <div class="ss-left lg:w-96 xl:w-96 flex-shrink-0 p-3 sm:p-4 lg:p-5 self-stretch">
@@ -1483,8 +1497,11 @@
       const s4Badge  = document.getElementById('step4Badge');
       const scanMeta = document.getElementById('inlineScanMeta');
 
+      const scanOverlay = document.getElementById('scanAccessOverlay');
+
       if (runsLeft > 0) {
         // Access granted
+        if (scanOverlay) scanOverlay.style.display = 'none';
         s1None?.classList.add('hidden');    s1None?.classList.remove('flex');
         s1Granted?.classList.remove('hidden'); s1Granted?.classList.add('flex');
         s1Cooldown?.classList.add('hidden'); s1Cooldown?.classList.remove('flex');
@@ -1505,6 +1522,7 @@
         }
       } else if (inCooldown) {
         // Post-scan cooldown
+        if (scanOverlay) scanOverlay.style.display = 'none';
         s1None?.classList.add('hidden');    s1None?.classList.remove('flex');
         s1Granted?.classList.add('hidden'); s1Granted?.classList.remove('flex');
         s1Cooldown?.classList.remove('hidden'); s1Cooldown?.classList.add('flex');
@@ -1517,7 +1535,8 @@
           if (tip)   tip.textContent   = '';
         }
       } else {
-        // No access, no cooldown — can request
+        // No access, no cooldown — show blur overlay
+        if (scanOverlay) scanOverlay.style.display = 'flex';
         s1None?.classList.remove('hidden'); s1None?.classList.add('flex');
         s1Granted?.classList.add('hidden'); s1Granted?.classList.remove('flex');
         s1Cooldown?.classList.add('hidden');s1Cooldown?.classList.remove('flex');
@@ -1610,14 +1629,30 @@
       modal.classList.add('flex');
 
       if (mode === 'request') {
+        const tradeOptions = (typeof D_TRADES !== 'undefined' ? D_TRADES : []).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
         body.innerHTML = `
           <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
             <iconify-icon icon="solar:shield-keyhole-linear" style="color:#9333ea;font-size:18px;"></iconify-icon>
           </div>
-          <h3 class="text-white font-semibold mb-1">Request Control Panel Access</h3>
-          <p class="text-xs text-zinc-500 mb-4">Send a request to the admin. You'll be notified by email when it's reviewed.</p>
-          <textarea id="cpReqMsg" placeholder="Optional: tell the admin why you need access…" rows="3"
-            class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 resize-none mb-4"></textarea>
+          <h3 class="text-white font-semibold mb-1">Request Access</h3>
+          <p class="text-xs text-zinc-500 mb-4 text-left">Tell us about your work so the admin can review your request.</p>
+          <div class="w-full text-left mb-3">
+            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Your trade</label>
+            <select id="cpReqTrade" class="w-full text-xs border border-white/10 rounded-lg px-3 py-2 text-zinc-300 focus:outline-none focus:border-purple-500/50" style="background:#1a1a1a;">
+              <option value="">Select a trade…</option>
+              ${tradeOptions}
+            </select>
+          </div>
+          <div class="w-full text-left mb-3">
+            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Area / councils you cover</label>
+            <input id="cpReqArea" type="text" placeholder="e.g. Kent, SW1A, Manchester…"
+              class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50">
+          </div>
+          <div class="w-full text-left mb-4">
+            <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">Additional notes (optional)</label>
+            <textarea id="cpReqMsg" placeholder="Anything else the admin should know…" rows="2"
+              class="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-purple-500/50 resize-none"></textarea>
+          </div>
           <div class="flex gap-2 justify-end">
             <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
             <button onclick="submitCPRequest()" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Send Request</button>
@@ -1656,15 +1691,20 @@
     }
 
     async function submitCPRequest() {
-      const msg = document.getElementById('cpReqMsg')?.value?.trim() || '';
-      const btn = event.target;
-      btn.disabled = true;
+      const trade = document.getElementById('cpReqTrade')?.value?.trim() || '';
+      const area  = document.getElementById('cpReqArea')?.value?.trim() || '';
+      const msg   = document.getElementById('cpReqMsg')?.value?.trim() || '';
+      const btn   = event.target;
+      btn.disabled    = true;
       btn.textContent = 'Sending…';
 
+      const parts   = [trade && `Trade: ${trade}`, area && `Area: ${area}`, msg].filter(Boolean);
+      const message = parts.join(' | ') || null;
+
       const { error } = await sb.from('control_panel_requests').insert({
-        user_id: currentUser.id,
+        user_id:    currentUser.id,
         user_email: currentUser.email,
-        message: msg || null,
+        message,
       });
 
       if (error) { btn.disabled = false; btn.textContent = 'Send Request'; alert('Error submitting request. Try again.'); return; }
