@@ -2259,27 +2259,6 @@
     </button>
   </div>
 
-  <!-- Mode 0: Access Gate -->
-  <div id="ppm-int-mode0" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;text-align:center;">
-    <div id="ppmGateDefault" style="display:flex;flex-direction:column;align-items:center;">
-      <div style="width:68px;height:68px;border-radius:20px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.22);display:flex;align-items:center;justify-content:center;margin-bottom:24px;font-size:30px;">🔑</div>
-      <div style="font-size:22px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:10px;">PPM Assistant</div>
-      <div style="font-size:13px;color:#71717a;line-height:1.65;margin-bottom:36px;max-width:280px;">AI-powered lead analysis tailored to your trade. Request access and an admin will activate your account.</div>
-      <button onclick="ppmGateStartRequest()"
-        style="padding:13px 32px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#a855f7;color:#fff;font-family:inherit;transition:background 0.15s;display:inline-flex;align-items:center;gap:8px;"
-        onmouseover="this.style.background='#9333ea'"
-        onmouseout="this.style.background='#a855f7'">
-        <iconify-icon icon="solar:key-bold" style="font-size:15px;"></iconify-icon>
-        Request Access
-      </button>
-    </div>
-    <div id="ppmGateSent" style="display:none;flex-direction:column;align-items:center;">
-      <div style="width:68px;height:68px;border-radius:20px;background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:24px;font-size:30px;">✓</div>
-      <div style="font-size:20px;font-weight:700;color:#f4f4f5;letter-spacing:-0.03em;margin-bottom:10px;">Request Sent</div>
-      <div style="font-size:13px;color:#71717a;line-height:1.65;max-width:280px;">Your request is with the admin. You'll be notified as soon as your access is activated.</div>
-    </div>
-  </div>
-
   <!-- Mode 1: Onboarding -->
   <div id="ppm-int-mode1">
     <div style="text-align:center;margin-bottom:28px;width:100%;">
@@ -2383,15 +2362,9 @@ async function ppmIntOpen() {
   ]);
 
   ppmIntPrefs         = prefRes.data || null;
-  ppmAssistantEnabled = profRes.data?.assistant_enabled === true;
+  ppmAssistantEnabled = true; // available to all logged-in clients
 
-  if (!ppmAssistantEnabled) {
-    ppmIntShowMode0();
-  } else if (!ppmIntPrefs) {
-    ppmIntShowMode1(false);
-  } else {
-    ppmIntShowMode2();
-  }
+  ppmIntPrefs ? ppmIntShowMode2() : ppmIntShowMode1(false);
 }
 
 function ppmIntClose() {
