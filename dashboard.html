@@ -455,7 +455,8 @@
       </div>
 
       <!-- Tabs -->
-      <div class="flex gap-1 p-1 bg-white/5 rounded-xl w-fit border border-white/[0.08] mb-6">
+      <div class="flex items-center gap-3 mb-6 flex-wrap">
+      <div class="flex gap-1 p-1 bg-white/5 rounded-xl w-fit border border-white/[0.08]">
         <button id="dtab-leads" onclick="switchDTab('leads')"
           class="px-4 py-2 rounded-lg text-xs font-medium transition-all bg-white/10 text-white">
           Planning Leads
@@ -465,6 +466,12 @@
           My Contacts
           <span id="dContactsBadge" class="hidden text-[10px] bg-brand/20 text-brand px-1.5 rounded-full"></span>
         </button>
+      </div>
+      <button id="leadsRefreshBtn" onclick="loadLeads(this)"
+        class="flex items-center gap-1.5 text-xs font-semibold border border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:border-white/20 rounded-lg px-3 py-1.5 transition-all active:scale-95">
+        <iconify-icon icon="solar:refresh-bold" style="font-size:13px;"></iconify-icon>
+        Refresh
+      </button>
       </div>
 
       <!-- Leads panel -->
@@ -1052,7 +1059,14 @@
     initScanSettings();
 
     // ── Load leads from Supabase ──────────────────────────────────────────────
-    async function loadLeads() {
+    async function loadLeads(triggerBtn) {
+      const refreshBtn = triggerBtn || document.getElementById('leadsRefreshBtn');
+      if (refreshBtn) {
+        refreshBtn.disabled = true;
+        const icon = refreshBtn.querySelector('iconify-icon');
+        if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+      }
+
       const { data, error } = await sb
         .from('leads')
         .select('*')
@@ -1060,6 +1074,11 @@
         .limit(2000);
 
       document.getElementById('tableLoading').classList.add('hidden');
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+        const icon = refreshBtn.querySelector('iconify-icon');
+        if (icon) icon.style.animation = '';
+      }
 
       if (error || !data || data.length === 0) {
         document.getElementById('tableEmpty').classList.remove('hidden');
@@ -2264,6 +2283,7 @@
 }
 
 /* Lead cards */
+@keyframes spin { to { transform: rotate(360deg); } }
 .lead-card { cursor:pointer; transition:background 0.15s; }
 .lead-card:hover { background:rgba(255,255,255,0.025); }
 .lead-card-expand { display:none; border-top:1px solid rgba(255,255,255,0.05); }
