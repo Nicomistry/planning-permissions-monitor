@@ -1547,7 +1547,30 @@
         }
       } else {
         // No access, no cooldown — show blur overlay
-        if (scanOverlay) scanOverlay.style.display = 'flex';
+        if (scanOverlay) {
+          scanOverlay.style.display = 'flex';
+          // Check if user already has a pending request
+          sb.from('control_panel_requests')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('status', 'pending')
+            .limit(1)
+            .then(({ data }) => {
+              if (data && data.length > 0) {
+                const overlayBtn = scanOverlay.querySelector('button');
+                if (overlayBtn) {
+                  overlayBtn.disabled = true;
+                  overlayBtn.onclick = null;
+                  overlayBtn.style.background = '#3f3f46';
+                  overlayBtn.style.color = '#a1a1aa';
+                  overlayBtn.style.cursor = 'not-allowed';
+                  overlayBtn.onmouseover = null;
+                  overlayBtn.onmouseout = null;
+                  overlayBtn.innerHTML = '<iconify-icon icon="solar:clock-circle-linear" style="font-size:15px;"></iconify-icon> Request Pending';
+                }
+              }
+            });
+        }
         s1None?.classList.remove('hidden'); s1None?.classList.add('flex');
         s1Granted?.classList.add('hidden'); s1Granted?.classList.remove('flex');
         s1Cooldown?.classList.add('hidden');s1Cooldown?.classList.remove('flex');
@@ -1600,7 +1623,18 @@
     let cpRequestMode = false;
 
     function enterRequestMode() {
-      document.getElementById('scanAccessOverlay').style.display = 'none';
+      // Immediately switch button to "Request Pending" — disable re-submission
+      const overlayBtn = document.querySelector('#scanAccessOverlay button');
+      if (overlayBtn) {
+        overlayBtn.disabled = true;
+        overlayBtn.onclick = null;
+        overlayBtn.style.background = '#3f3f46';
+        overlayBtn.style.color = '#a1a1aa';
+        overlayBtn.style.cursor = 'not-allowed';
+        overlayBtn.onmouseover = null;
+        overlayBtn.onmouseout = null;
+        overlayBtn.innerHTML = '<iconify-icon icon="solar:clock-circle-linear" style="font-size:15px;"></iconify-icon> Request Pending';
+      }
       cpRequestMode = true;
 
       // Step 1: swap to request mode banner
