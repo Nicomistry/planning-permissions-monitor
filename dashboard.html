@@ -50,41 +50,9 @@
     .d-trade-row-name { font-size: 13px; font-weight: 500; color: #71717a; transition: color 0.18s; white-space: nowrap; }
     .d-trade-row.active .d-trade-row-name { color: #f3e8ff; }
 
-    /* sector dropdown button */
-    .d-sectors-btn {
-      display: flex; align-items: center; gap: 3px; flex-shrink: 0;
-      font-size: 10px; padding: 2px 6px 2px 7px; border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
-      color: #52525b; cursor: pointer; transition: all 0.15s; white-space: nowrap;
-    }
-    .d-sectors-btn:hover { border-color: rgba(147,51,234,0.35); color: #a78bfa; background: rgba(147,51,234,0.07); }
-    .d-sectors-btn .d-sectors-chevron { font-size: 11px; transition: transform 0.2s; }
-    .d-sectors-btn.open .d-sectors-chevron { transform: rotate(180deg); }
-    .d-sectors-btn.filtered { border-color: rgba(147,51,234,0.45); color: #c084fc; background: rgba(147,51,234,0.1); }
-    .d-trade-row.active .d-sectors-btn { border-color: rgba(147,51,234,0.25); color: #9d71da; }
-    .d-trade-row.active .d-sectors-btn:hover { border-color: rgba(147,51,234,0.5); color: #c084fc; }
-
-    /* sector dropdown panel */
-    .d-sectors-panel {
-      display: none; flex-wrap: wrap; gap: 5px;
-      padding: 8px 10px 10px 10px;
-      border: 1px solid rgba(147,51,234,0.15);
-      border-top: none; border-radius: 0 0 10px 10px;
-      background: rgba(147,51,234,0.04);
-    }
-    .d-sectors-panel.open { display: flex; }
-    .d-sector-chip {
-      font-size: 10px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
-      color: #52525b; transition: all 0.14s; white-space: nowrap;
-    }
-    .d-sector-chip:hover { border-color: rgba(147,51,234,0.4); color: #a78bfa; background: rgba(147,51,234,0.08); }
-    .d-sector-chip.active { border-color: rgba(147,51,234,0.6); background: rgba(147,51,234,0.15); color: #c084fc; font-weight: 500; }
-
-    /* wrap each trade row + its panel together */
+    /* wrap each trade row */
     .d-trade-wrap { border-radius: 12px; }
     .d-trade-wrap .d-trade-row { border-radius: 12px; }
-    .d-trade-wrap:has(.d-sectors-panel.open) .d-trade-row { border-radius: 12px 12px 0 0; }
     .d-trade-pill {
       width: 32px; height: 18px; border-radius: 99px; flex-shrink: 0;
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: all 0.18s; position: relative;
@@ -580,17 +548,10 @@
     let dActiveTrades   = new Set();
     let dActiveCouncils = new Set();
     let dActiveRegion   = null;
-    let dActiveSectors  = {}; // { tradeId: Set<sectorName> }
 
     function initScanSettings() {
       try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
       try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
-      try {
-        const saved = JSON.parse(localStorage.getItem('ppm_active_sectors') || '{}');
-        D_TRADES.forEach(t => {
-          dActiveSectors[t.id] = new Set(saved[t.id] || []);
-        });
-      } catch(e) { D_TRADES.forEach(t => { dActiveSectors[t.id] = new Set(); }); }
 
       const grid = document.getElementById('dTradeGrid');
       grid.innerHTML = D_TRADES.map(t => {
@@ -599,15 +560,7 @@
           <div class="d-trade-row ${active ? 'active' : ''}" id="dtchip-${t.id}" onclick="dToggleTrade('${t.id}')">
             <div class="d-trade-row-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
             <span class="d-trade-row-name flex-1">${t.name}</span>
-            <button class="d-sectors-btn" id="dsbtn-${t.id}" onclick="event.stopPropagation();toggleDSectors('${t.id}')">
-              <span id="dslabel-${t.id}">${sectorLabel(t.id)}</span>
-              <iconify-icon icon="solar:alt-arrow-down-linear" class="d-sectors-chevron"></iconify-icon>
-            </button>
             <div class="d-trade-pill"></div>
-          </div>
-          <div class="d-sectors-panel" id="dspanel-${t.id}">
-            ${t.sectors.map(s => `<button class="d-sector-chip ${dActiveSectors[t.id].has(s) ? 'active' : ''}"
-              onclick="dToggleSector('${t.id}','${s.replace(/'/g,"\\'")}')">${s}</button>`).join('')}
           </div>
         </div>`;
       }).join('');
@@ -623,18 +576,14 @@
     }
 
     function saveScanSettings() {
-      const sectors = {};
-      D_TRADES.forEach(t => { sectors[t.id] = [...dActiveSectors[t.id]]; });
       const payload = {
         trades:   [...dActiveTrades],
         councils: [...dActiveCouncils],
-        sectors,
       };
 
       // Save to localStorage (instant)
       localStorage.setItem('ppm_active_trades',  JSON.stringify(payload.trades));
       localStorage.setItem('ppm_d_councils',     JSON.stringify(payload.councils));
-      localStorage.setItem('ppm_active_sectors', JSON.stringify(sectors));
 
       // Save to Supabase (cross-device persistence)
       if (currentUser) {
@@ -653,47 +602,6 @@
       updateCPNavState({ cp_runs_remaining: cpRunsRemaining });
     }
 
-    function sectorLabel(tradeId) {
-      const active = dActiveSectors[tradeId];
-      if (!active || active.size === 0) return 'Sectors';
-      return active.size === 1 ? [...active][0] : `${active.size} sectors`;
-    }
-
-    function toggleDSectors(tradeId) {
-      const panel = document.getElementById('dspanel-' + tradeId);
-      const btn   = document.getElementById('dsbtn-'   + tradeId);
-      const wrap  = document.getElementById('dtwrap-'  + tradeId);
-      const isOpen = panel.classList.contains('open');
-      // close all others first
-      document.querySelectorAll('.d-sectors-panel.open').forEach(p => p.classList.remove('open'));
-      document.querySelectorAll('.d-sectors-btn.open').forEach(b => b.classList.remove('open'));
-      if (!isOpen) {
-        panel.classList.add('open');
-        btn.classList.add('open');
-        // square off the trade row's bottom corners when panel is open
-        document.getElementById('dtchip-' + tradeId).style.borderRadius = '12px 12px 0 0';
-      } else {
-        document.getElementById('dtchip-' + tradeId).style.borderRadius = '';
-      }
-    }
-
-    function dToggleSector(tradeId, sector) {
-      const set = dActiveSectors[tradeId];
-      if (set.has(sector)) set.delete(sector);
-      else set.add(sector);
-      // update chip visual
-      document.querySelectorAll(`#dspanel-${tradeId} .d-sector-chip`).forEach(el => {
-        el.classList.toggle('active', set.has(el.textContent));
-      });
-      // update button label + filtered state
-      const btn = document.getElementById('dsbtn-' + tradeId);
-      document.getElementById('dslabel-' + tradeId).textContent = sectorLabel(tradeId);
-      btn.classList.toggle('filtered', set.size > 0);
-      // persist
-      const toSave = {};
-      D_TRADES.forEach(t => { toSave[t.id] = [...dActiveSectors[t.id]]; });
-      markSSDirty();
-    }
 
     const D_COUNCIL_PAGE = 50;
 
@@ -1048,7 +956,6 @@
         const ss = profile.scan_settings;
         if (Array.isArray(ss.trades))   { dActiveTrades.clear();   ss.trades.forEach(id => dActiveTrades.add(id)); }
         if (Array.isArray(ss.councils)) { dActiveCouncils.clear(); ss.councils.forEach(c => dActiveCouncils.add(c)); }
-        if (ss.sectors) D_TRADES.forEach(t => { dActiveSectors[t.id] = new Set(ss.sectors[t.id] || []); });
         // Re-render scan settings with synced data
         initScanSettings();
       }
