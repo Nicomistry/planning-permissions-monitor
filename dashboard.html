@@ -1785,6 +1785,113 @@
         </div>`;
     }
 
+    // ── Scan engine (same as admin scanner) ──────────────────────────────────
+    const INCLUDE_PATTERNS = [
+      /\bextension\b|\bextend\b/,/\bloft\s+conversion\b|\bdormer\b/,/\bgarage\s+conversion\b/,
+      /\bbasement\b/,/\bnew\s+dwelling\b|\bnew\s+house\b|\bnew\s+build\b|\bnewbuild\b/,
+      /\bsubdivision\b|\bconversion\s+to\s+flats?\b|\bflat\s+conversion\b/,
+      /\brear\s+extension\b|\bside\s+extension\b|\bfront\s+extension\b|\bdouble\s+storey\b/,
+      /\bwrap[\s-]?around\b/,/\borangery\b/,/\bsingle\s+storey\b/,
+      /\bfull\s+planning\b|\bfull\s+planning\s+permission\b/,
+      /\broof\s+extension\b|\broof\s+terrace\b|\broof\s+conversion\b|\bmansard\b/,
+      /\bknockdown\b|\bknock\s+down\b|\bdemolish\b|\bdemolition\b/,
+      /\blandscap\b|\bdriveway\b|\bpatio\b|\bdeck(?:ing)?\b/,
+      /\bswimming\s+pool\b|\bpool\b/,
+      /\bnew\s+build\b|newbuild\b/,/\b2[\s-]storey\b|two[\s-]storey\b|double\s+storey\b/,/\bsingle[\s-]storey\b/,
+    ];
+    const EXCLUDE_PATTERNS = [
+      /\badvertisement\b/,/\bsignage\b|\bsign\s+face\b|\bfascia\s+sign\b/,
+      /\btelecoms?\b|\btelecommunication/,/\bmast\b/,/\bsolar\s+farm\b/,
+      /\bwind\s+turbine\b/,/\bcommercial\s+unit\b|\bcommercial\s+premises\b|\bcommercial\s+development\b|\bcommercial\s+property\b/,
+      /\bretail\b/,/\bcommercial\s+office\b|\boffice\s+building\b|\boffice\s+block\b|\boffice\s+space\b/,
+      /\bindustrial\b/,/\bwarehouse\b/,/\bchange\s+of\s+use\b.*\bshop\b|\bchange\s+of\s+use\b.*\bretail\b/,
+      /\bchange\s+of\s+use\b.*\boffice\b/,/\blisted\s+building\s+consent\s+only\b/,
+      /\btree\s+preservation\b|\btpo\b/,/\bprior\s+notification\b.*\btelecom/,
+      /\bdemolition\s+only\b/,/\bhazardous\b/,
+      /\bwaste\s+(?:disposal|management|facility|transfer|treatment|collection)\b/,
+      /\bmining\b/,/\bmineral\s+extraction\b/,
+    ];
+
+    function passesKeywordFilter(desc, appType) {
+      const text = (desc + ' ' + appType).toLowerCase();
+      if (EXCLUDE_PATTERNS.some(rx => rx.test(text))) return false;
+      return INCLUDE_PATTERNS.some(rx => rx.test(text));
+    }
+
+    function scoreApplication(desc, appType) {
+      const d = (desc + ' ' + appType).toLowerCase();
+      let score = 5;
+      if (/new\s+dwelling|new\s+house|new\s+build|new build/.test(d)) score += 3;
+      if (/two-?storey|double storey/.test(d))   score += 2;
+      if (/loft conversion|dormer/.test(d))       score += 2;
+      if (/extension/.test(d))                    score += 1;
+      if (/basement|underground/.test(d))         score += 2;
+      if (/orangery|bi-?fold|glazed|lantern/.test(d)) score += 1;
+      if (/conversion.*flat|flat.*conversion|2 flat|two flat/.test(d)) score += 2;
+      if (/garage conversion/.test(d))            score += 1;
+      if (/landscap|driveway|patio|decking/.test(d)) score += 1;
+      if (/full planning permission/.test(d))     score += 1;
+      if (/single storey|single-storey/.test(d)) score -= 1;
+      if (/certificate of lawfulness|lawful development/.test(d)) score -= 2;
+      if (/prior approval/.test(d))               score -= 1;
+      if (/fence|wall only|gates only/.test(d))   score -= 2;
+      score = Math.min(10, Math.max(1, score));
+      return { score, priority: score >= 8 ? 'HIGH' : score >= 6 ? 'MEDIUM' : 'LOW' };
+    }
+
+    function enrichDescription(desc) {
+      const d = (desc || '').toLowerCase();
+      let dwelling_type = null;
+      if (/detached/.test(d))            dwelling_type = 'Detached';
+      else if (/semi-?detached/.test(d)) dwelling_type = 'Semi-Detached';
+      else if (/terraced/.test(d))       dwelling_type = 'Terraced';
+      else if (/flat|apartment/.test(d)) dwelling_type = 'Flat/Apartment';
+      else if (/bungalow/.test(d))       dwelling_type = 'Bungalow';
+      const m = d.match(/(\d+)\s*(no\.|number\s+of\s+)?\s*(dwelling|flat|unit|apartment|house)/);
+      const unit_count = m ? parseInt(m[1]) : 1;
+      return { dwelling_type, unit_count, development_scale: unit_count >= 10 ? 'Large' : unit_count >= 3 ? 'Medium' : 'Small' };
+    }
+
+    function extractPlanitFields(rec) {
+      const of = rec.other_fields || {};
+      const clean = v => (v && v !== 'See source' && v.trim()) ? v.trim() : null;
+      return {
+        description: rec.description || of.description || '',
+        app_type: rec.app_type || of.application_type || '',
+        app_state: rec.app_state || of.status || 'Undecided',
+        start_date: rec.start_date || of.date_received || of.date_validated || '',
+        target_decision_date: rec.target_decision_date || of.application_expires_date || '',
+        postcode: rec.postcode || null,
+        address: rec.address || '',
+        uid: rec.uid || '',
+        planit_url: rec.link || null,
+        council_url: rec.url || of.source_url || null,
+        applicant_name: clean(rec.applicant_name) || clean(of.applicant_name) || null,
+        agent_name: clean(rec.agent_name) || clean(of.agent_name) || null,
+        agent_phone: clean(of.agent_tel) || clean(of.agent_phone) || null,
+        agent_email: clean(of.email) || clean(of.agent_email) || null,
+      };
+    }
+
+    function mapPlanitRecord(rec, councilName) {
+      const f = extractPlanitFields(rec);
+      const { score, priority } = scoreApplication(f.description, f.app_type);
+      const { dwelling_type, unit_count, development_scale } = enrichDescription(f.description);
+      return { ...f, council: councilName, score, priority, dwelling_type, development_scale, unit_count };
+    }
+
+    async function fetchCouncilLeads(councilName) {
+      const params = new URLSearchParams({ council: councilName, recent: '60', pg_sz: '200', app_state: 'Undecided' });
+      const resp = await fetch(`/api/planit?${params}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      const records = data.records || data.results || data.objects || [];
+      return records
+        .filter(r => passesKeywordFilter(r.description || r.proposal_text || '', r.app_type || ''))
+        .map(r => mapPlanitRecord(r, councilName));
+    }
+
     async function runCPScan(btnElement) {
       const btn = btnElement
         || (typeof event !== 'undefined' && event?.target?.closest('button'))
@@ -1816,46 +1923,91 @@
         status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
 
-      setStatus('Triggering scan…');
+      setStatus('Authorising scan…');
 
-      // Build councils list from user settings (fallback: all defaults)
-      const selectedCouncils = dActiveCouncils.size > 0 ? [...dActiveCouncils] : null;
-
-      // Trigger + deduct — server handles both atomically
-      try {
-        const resp = await fetch('/api/trigger-scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, councils: selectedCouncils }),
-        });
-        const data = await resp.json();
-
-        if (!resp.ok) {
-          if (data.code === 'NO_RUNS') {
-            updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
-            setStatus('Your scan run has already been used. Request another from admin to run again.', 'warn');
-          } else {
-            setStatus('Scan failed: ' + (data.error || `HTTP ${resp.status}`) + ' — your run has not been used.', 'error');
-          }
-          if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
-          return;
-        }
-
-        // Success — show refresh button, update empty state to "in progress"
-        setStatus('Scan running — tap Refresh Results when ready (takes ~5 min).', 'success', true);
-        document.getElementById('emptyStateTitle').textContent = 'Scan in progress…';
-        document.getElementById('emptyStateMsg').textContent   = 'Your councils are being processed. Tap Refresh Results to check for new leads.';
-        const emptyRefresh = document.getElementById('emptyRefreshBtn');
-        if (emptyRefresh) { emptyRefresh.classList.remove('hidden'); emptyRefresh.classList.add('flex'); }
-
-      } catch (err) {
-        setStatus('Scan failed: ' + (err.message || 'unknown error') + ' — your run has not been used. Please try again.', 'error');
+      const selectedCouncils = [...dActiveCouncils];
+      if (selectedCouncils.length === 0) {
+        setStatus('No councils selected — add councils in step 3 first.', 'warn');
         if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
         return;
       }
 
-      // Update nav + hide scan bar (server already wrote to Supabase)
+      // 1. Deduct the run server-side (validates access, returns NO_RUNS if none left)
+      try {
+        const authResp = await fetch('/api/trigger-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id }),
+        });
+        const authData = await authResp.json();
+
+        if (!authResp.ok) {
+          if (authData.code === 'NO_RUNS') {
+            updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
+            setStatus('No scan runs available. Request access from admin to run again.', 'warn');
+          } else {
+            setStatus('Could not authorise scan: ' + (authData.error || `HTTP ${authResp.status}`), 'error');
+          }
+          if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
+          return;
+        }
+      } catch (e) {
+        setStatus('Connection error — could not reach server.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
+        return;
+      }
+
       updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
+
+      // 2. Run the scan directly via /api/planit (same engine as admin scanner)
+      const allLeads = [];
+      let done = 0;
+      for (const council of selectedCouncils) {
+        setStatus(`Scanning ${council} (${done + 1} / ${selectedCouncils.length})…`);
+        try {
+          const leads = await fetchCouncilLeads(council);
+          allLeads.push(...leads);
+        } catch (e) {
+          console.warn(`Scan failed for ${council}:`, e.message);
+        }
+        done++;
+      }
+
+      // 3. Save leads to Supabase (upsert by user_id + uid to avoid duplicates)
+      if (allLeads.length > 0) {
+        setStatus(`Saving ${allLeads.length} leads…`);
+        const rows = allLeads.map(l => ({
+          user_id:              currentUser.id,
+          uid:                  l.uid,
+          council:              l.council,
+          address:              l.address,
+          description:          l.description,
+          app_type:             l.app_type,
+          app_state:            l.app_state,
+          start_date:           l.start_date || null,
+          target_decision_date: l.target_decision_date || null,
+          applicant_name:       l.applicant_name,
+          agent_name:           l.agent_name,
+          agent_phone:          l.agent_phone,
+          agent_email:          l.agent_email,
+          planit_url:           l.planit_url,
+          opportunity_score:    l.score,
+          priority:             l.priority,
+          dwelling_type:        l.dwelling_type,
+          development_scale:    l.development_scale,
+          unit_count:           l.unit_count,
+          scraped_date:         new Date().toISOString().split('T')[0],
+        }));
+        for (let i = 0; i < rows.length; i += 200) {
+          await sb.from('leads').upsert(rows.slice(i, i + 200), { onConflict: 'user_id,uid' });
+        }
+      }
+
+      setStatus(`Scan complete — ${allLeads.length} leads found.`, 'success', true);
+      document.getElementById('emptyStateTitle').textContent = allLeads.length > 0 ? 'Scan complete' : 'No matching leads';
+      document.getElementById('emptyStateMsg').textContent   = allLeads.length > 0 ? 'Your leads are ready below.' : 'Try selecting more councils and running again.';
+      loadLeads();
+
     }
 
     function openHelpModal() {

@@ -1,8 +1,7 @@
 // POST /api/trigger-scan
-// Body: { userId, councils? }
-// 1. Verifies user has cp_runs_remaining > 0 (service role — bypasses RLS)
-// 2. Triggers the Trigger.dev task
-// 3. Deducts the run server-side (service role — client has no UPDATE permission)
+// Body: { userId }
+// Validates the user has a run available, deducts it server-side.
+// The actual scan runs client-side via /api/planit (same engine as admin).
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,20 +10,19 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const TRIGGER_SECRET_KEY = process.env.TRIGGER_SECRET_KEY;
-  const SUPABASE_URL        = process.env.SUPABASE_URL;
+  const SUPABASE_URL         = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-  if (!TRIGGER_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return res.status(500).json({ error: 'Server misconfigured' });
   }
 
-  const { userId, councils } = req.body || {};
+  const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
-  // ── 1. Check the user actually has a run available ────────────────────────
+  // 1. Verify the user has a run available (service role bypasses RLS)
   const profileResp = await fetch(
-    `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=cp_runs_remaining,cp_last_run_at&limit=1`,
+    `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=cp_runs_remaining&limit=1`,
     {
       headers: {
         'apikey':        SUPABASE_SERVICE_KEY,
@@ -47,24 +45,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── 2. Trigger the scan ───────────────────────────────────────────────────
-  const triggerResp = await fetch('https://api.trigger.dev/api/v1/tasks/planning-scraper/trigger', {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${TRIGGER_SECRET_KEY}`,
-    },
-    body: JSON.stringify({ payload: { userId, councils: councils || null } }),
-  });
-
-  if (!triggerResp.ok) {
-    const err = await triggerResp.text();
-    return res.status(502).json({ error: 'Trigger.dev error: ' + err });
-  }
-
-  const triggerData = await triggerResp.json();
-
-  // ── 3. Deduct the run server-side (service role — bypasses RLS) ───────────
+  // 2. Deduct the run server-side
   await fetch(
     `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}`,
     {
@@ -82,5 +63,5 @@ export default async function handler(req, res) {
     }
   );
 
-  return res.status(200).json({ ok: true, runId: triggerData.id });
+  return res.status(200).json({ ok: true });
 }
