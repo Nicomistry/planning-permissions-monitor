@@ -573,6 +573,22 @@
     let dActiveCouncils = new Set();
     let dActiveRegion   = null;
 
+    // ── Council coverage — councils with planit_auth configured ──────────────
+    let availableCouncils = new Set(); // populated on load; empty = treat all as available
+
+    async function loadAvailableCouncils() {
+      try {
+        const { data } = await sb
+          .from('council_portal_configs')
+          .select('council_name')
+          .not('planit_auth', 'is', null)
+          .neq('planit_auth', '');
+        if (data) data.forEach(r => availableCouncils.add(r.council_name));
+      } catch (_) {
+        // Fail silently — all councils treated as available
+      }
+    }
+
     function initScanSettings() {
       try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
       try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
@@ -638,9 +654,14 @@
       grid.innerHTML = visible.map(c => {
         const safe = c.replace(/[^a-z0-9]/gi, '-');
         const region = D_COUNCIL_REGION[c] || '';
-        return `<button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}' )" id="dcchip-${safe}"
+        const unavailable = availableCouncils.size > 0 && !availableCouncils.has(c);
+        const badge = unavailable
+          ? `<span style="font-size:9px;font-weight:600;color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:1px 4px;line-height:1.4;flex-shrink:0;">Soon</span>`
+          : '';
+        const tooltip = unavailable ? ` title="Coverage coming soon — not yet available for scanning"` : '';
+        return `<button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}' )" id="dcchip-${safe}"${tooltip}
           class="d-council-chip ${dActiveCouncils.has(c) ? 'active' : ''}">
-          <span class="chip-name">${c}</span>${region ? `<span class="chip-region">${region}</span>` : ''}
+          <span class="chip-name">${c}</span>${region ? `<span class="chip-region">${region}</span>` : ''}${badge}
         </button>`;
       }).join('');
 
@@ -985,6 +1006,7 @@
       }
       updateCPNavState(profile);
       loadLeads();
+      loadAvailableCouncils().then(() => filterDCouncils()); // re-render chips with badges
       ppmIntActivateBubble();
       // Show banner if already approved and not dismissed; otherwise start polling
       const runsOnLoad = profile?.cp_runs_remaining || 0;
@@ -1975,6 +1997,57 @@
     }
 
     async function runCPScan(btnElement) {
+      // Coverage check — warn if any selected councils have no planit_auth
+      if (availableCouncils.size > 0 && dActiveCouncils.size > 0) {
+        const missing = [...dActiveCouncils].filter(c => !availableCouncils.has(c));
+        const available = [...dActiveCouncils].filter(c => availableCouncils.has(c));
+        if (missing.length > 0) {
+          if (available.length === 0) {
+            // All selected councils are unavailable — block entirely
+            showCPModal && closeCPModal();
+            const modal = document.getElementById('cpModal');
+            const body  = document.getElementById('cpModalBody');
+            if (modal && body) {
+              modal.classList.remove('hidden'); modal.classList.add('flex');
+              body.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+                  <iconify-icon icon="solar:danger-triangle-bold" style="color:#f59e0b;font-size:18px;"></iconify-icon>
+                </div>
+                <h3 class="text-white font-semibold mb-1">No scannable councils selected</h3>
+                <p class="text-xs text-zinc-500 mb-4">All ${missing.length} of your selected councils are not yet available for scanning. Select at least one supported council to run a scan.</p>
+                <div class="flex gap-2 justify-end">
+                  <button onclick="closeCPModal()" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">OK</button>
+                </div>`;
+            }
+            return;
+          }
+          // Some unavailable — ask to continue with available only
+          const proceed = await new Promise(resolve => {
+            closeCPModal();
+            const modal = document.getElementById('cpModal');
+            const body  = document.getElementById('cpModalBody');
+            if (modal && body) {
+              modal.classList.remove('hidden'); modal.classList.add('flex');
+              body.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+                  <iconify-icon icon="solar:danger-triangle-bold" style="color:#f59e0b;font-size:18px;"></iconify-icon>
+                </div>
+                <h3 class="text-white font-semibold mb-1">Some councils not yet available</h3>
+                <p class="text-xs text-zinc-500 mb-4">${missing.length} of your selected council${missing.length !== 1 ? 's are' : ' is'} not yet available for scanning and will be skipped. Continue with ${available.length} available council${available.length !== 1 ? 's' : ''} only?</p>
+                <div class="flex gap-2 justify-end">
+                  <button onclick="closeCPModal();window._cpCoverageCb&&window._cpCoverageCb(false)" class="text-xs px-4 py-2 rounded-lg border border-white/10 text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                  <button onclick="closeCPModal();window._cpCoverageCb&&window._cpCoverageCb(true)" class="text-xs px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors">Continue</button>
+                </div>`;
+              window._cpCoverageCb = resolve;
+            } else {
+              resolve(true);
+            }
+          });
+          window._cpCoverageCb = null;
+          if (!proceed) return;
+        }
+      }
+
       const btn = btnElement
         || (typeof event !== 'undefined' && event?.target?.closest('button'))
         || document.getElementById('inlineScanBtn');
