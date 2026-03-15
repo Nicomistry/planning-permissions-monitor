@@ -272,10 +272,21 @@
                 <p class="text-xs text-zinc-400 font-medium">Scan complete.</p>
                 <p class="text-[11px] text-zinc-600 mt-0.5" id="ss1CooldownMsg">Your results are loading below. You can request another scan once the cooldown ends.</p>
               </div>
-              <button onclick="openCPRequest()" class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition-all">
+              <!-- shown during cooldown -->
+              <div id="ss1CooldownTimer" class="hidden shrink-0 text-xs text-zinc-500 font-mono border border-white/8 rounded-lg px-3 py-2">
+                <iconify-icon icon="solar:clock-circle-linear" style="font-size:12px;vertical-align:-1px;margin-right:4px;"></iconify-icon>
+                <span id="ss1CooldownCountdown">--:--</span> remaining
+              </div>
+              <!-- shown when cooldown expired + no pending request -->
+              <button id="ss1RequestAgainBtn" onclick="openCPRequest()" class="hidden shrink-0 items-center gap-2 px-4 py-2 rounded-lg border border-brand/30 bg-brand/8 text-brand hover:bg-brand/15 text-xs font-semibold transition-all">
                 <iconify-icon icon="solar:restart-bold" style="font-size:13px;"></iconify-icon>
-                Request Again
+                Request Another Scan
               </button>
+              <!-- shown when cooldown expired + request already pending -->
+              <div id="ss1RequestPending" class="hidden shrink-0 text-xs text-zinc-500 border border-white/8 rounded-lg px-3 py-2">
+                <iconify-icon icon="solar:clock-circle-linear" style="font-size:12px;vertical-align:-1px;margin-right:4px;"></iconify-icon>
+                Request pending — awaiting admin approval
+              </div>
             </div>
           </div>
 
@@ -1534,11 +1545,15 @@
           if (tip)   tip.textContent   = 'You have 1 scan available. Click to run it.';
         }
       } else if (inCooldown) {
-        // Post-scan cooldown
+        // Post-scan cooldown — show timer, hide request button
         if (scanOverlay) scanOverlay.style.display = 'none';
         s1None?.classList.add('hidden');    s1None?.classList.remove('flex');
         s1Granted?.classList.add('hidden'); s1Granted?.classList.remove('flex');
         s1Cooldown?.classList.remove('hidden'); s1Cooldown?.classList.add('flex');
+        document.getElementById('ss1CooldownTimer')?.classList.remove('hidden');
+        document.getElementById('ss1RequestAgainBtn')?.classList.add('hidden');
+        document.getElementById('ss1RequestAgainBtn')?.classList.remove('flex');
+        document.getElementById('ss1RequestPending')?.classList.add('hidden');
         s4Run?.classList.add('hidden');     s4Run?.classList.remove('flex');
         s4NoRuns?.classList.remove('hidden');
         if (s4Badge) s4Badge.className = s4Badge.className.replace(/bg-purple-500\/20 border-purple-500\/40 text-purple-300/g,'') + ' bg-white/8 border-white/15 text-zinc-400';
@@ -1588,20 +1603,39 @@
 
     function startCooldownTick(lastRun, cooldownMs) {
       if (cpCooldownTimer) clearInterval(cpCooldownTimer);
-      const tip = document.getElementById('cpTooltipText');
+      const tip        = document.getElementById('cpTooltipText');
+      const countdown  = document.getElementById('ss1CooldownCountdown');
+      const timerBadge = document.getElementById('ss1CooldownTimer');
+
       function tick() {
         const remaining = Math.max(0, cooldownMs - (Date.now() - lastRun.getTime()));
         if (remaining <= 0) {
           clearInterval(cpCooldownTimer);
-          tip.textContent = 'Request access to the Control Panel to run a scan.';
+          if (tip) tip.textContent = 'Request access to the Control Panel to run a scan.';
+          if (timerBadge) timerBadge.classList.add('hidden');
+          // Cooldown just expired — check pending request and show correct button
+          showPostCooldownState();
           return;
         }
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
-        tip.textContent = `Cooldown: ${mins}m ${secs}s remaining. Use Help to contact admin for an exception.`;
+        if (tip) tip.textContent = `Cooldown: ${mins}m ${secs}s remaining.`;
+        if (countdown) countdown.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
       }
       tick();
       cpCooldownTimer = setInterval(tick, 1000);
+    }
+
+    async function showPostCooldownState() {
+      const { data } = await sb.from('control_panel_requests')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'pending')
+        .limit(1);
+      const hasPending = data && data.length > 0;
+      document.getElementById('ss1RequestAgainBtn')?.classList.toggle('hidden', hasPending);
+      document.getElementById('ss1RequestAgainBtn')?.classList.toggle('flex', !hasPending);
+      document.getElementById('ss1RequestPending')?.classList.toggle('hidden', !hasPending);
     }
 
     // ── Check if access has been granted (called from pending modal) ─────────
