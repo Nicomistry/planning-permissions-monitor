@@ -197,7 +197,13 @@
         .eq('token', token)
         .single();
 
-      if (error || !data) { show('stateNotFound'); return; }
+      if (error || !data) {
+        console.error('share.html fetch error:', error);
+        show('stateNotFound');
+        document.getElementById('stateNotFound').querySelector('p').textContent =
+          error ? `Error: ${error.message}` : 'Report not found or access denied.';
+        return;
+      }
 
       const now      = new Date();
       const expiresAt = new Date(data.expires_at);
