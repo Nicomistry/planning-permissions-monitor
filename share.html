@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPM Planning Leads Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <style>
+    body { background:#0a0a0a; font-family:'Inter',system-ui,sans-serif; color:#f4f4f5; }
+    .brand { color:#00d084; }
+    .glass { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:16px; }
+    .lead-card { border-bottom:1px solid rgba(255,255,255,0.06); transition:background 0.15s; }
+    .lead-card:last-child { border-bottom:none; }
+    .lead-card:hover { background:rgba(255,255,255,0.02); }
+    .lead-expand { display:none; }
+    .lead-expand.open { display:block; }
+    .chevron { transition:transform 0.2s; }
+    .chevron.open { transform:rotate(180deg); }
+    .badge-high   { background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.25); }
+    .badge-medium { background:rgba(251,191,36,0.15);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25); }
+    .badge-low    { background:rgba(156,163,175,0.12); color:#9ca3af; border:1px solid rgba(156,163,175,0.2); }
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff; color:#111; }
+      .glass { background:#fff; border:1px solid #e5e7eb; }
+      .lead-expand { display:block !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <header class="border-b border-white/8 px-6 py-4 flex items-center justify-between flex-wrap gap-3 no-print">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);">
+        <iconify-icon icon="solar:radar-2-linear" style="color:#00d084;font-size:16px;"></iconify-icon>
+      </div>
+      <span class="font-semibold text-sm tracking-tight">PPM Planning Leads</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="expiryBadge" class="text-[11px] text-amber-400 border border-amber-500/25 bg-amber-500/8 rounded-lg px-3 py-1.5 flex items-center gap-1.5"></div>
+      <button onclick="window.print()"
+        class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg border border-white/15 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition-all active:scale-95">
+        <iconify-icon icon="solar:file-download-bold" style="font-size:13px;"></iconify-icon>
+        Download PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Print header (only shows in PDF) -->
+  <div class="hidden print:block px-6 py-4 border-b border-gray-200 mb-6">
+    <div class="flex items-center justify-between">
+      <div class="text-xl font-bold text-black">PPM Planning Leads Report</div>
+      <div class="text-sm text-gray-500" id="printDate"></div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8" id="mainContent">
+    <!-- Loading state -->
+    <div id="stateLoading" class="flex flex-col items-center justify-center py-24 gap-4">
+      <iconify-icon icon="svg-spinners:3-dots-fade" style="color:#00d084;font-size:32px;"></iconify-icon>
+      <p class="text-zinc-500 text-sm">Loading report…</p>
+    </div>
+
+    <!-- Expired state -->
+    <div id="stateExpired" class="hidden flex-col items-center justify-center py-24 gap-4 text-center">
+      <iconify-icon icon="solar:clock-circle-bold" style="color:#f59e0b;font-size:40px;"></iconify-icon>
+      <h2 class="text-white font-semibold text-lg">This report has expired</h2>
+      <p class="text-zinc-500 text-sm max-w-xs">Planning lead reports are available for 48 hours. Contact your PPM account manager for a fresh report.</p>
+    </div>
+
+    <!-- Not found state -->
+    <div id="stateNotFound" class="hidden flex-col items-center justify-center py-24 gap-4 text-center">
+      <iconify-icon icon="solar:danger-triangle-bold" style="color:#f87171;font-size:40px;"></iconify-icon>
+      <h2 class="text-white font-semibold text-lg">Report not found</h2>
+      <p class="text-zinc-500 text-sm max-w-xs">This link is invalid or has been removed.</p>
+    </div>
+
+    <!-- Report content -->
+    <div id="stateReport" class="hidden">
+      <!-- Summary bar -->
+      <div class="flex flex-wrap items-center gap-4 mb-6">
+        <div>
+          <h1 class="text-lg font-bold text-white" id="reportTitle">Planning Leads Report</h1>
+          <p class="text-xs text-zinc-500 mt-0.5" id="reportMeta"></p>
+        </div>
+        <div class="ml-auto flex gap-3 flex-wrap">
+          <div class="glass px-4 py-2.5 text-center">
+            <div class="text-xl font-bold brand" id="statTotal">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5">Leads</div>
+          </div>
+          <div class="glass px-4 py-2.5 text-center">
+            <div class="text-xl font-bold text-green-400" id="statHigh">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5">HIGH</div>
+          </div>
+          <div class="glass px-4 py-2.5 text-center">
+            <div class="text-xl font-bold text-yellow-400" id="statMed">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5">MEDIUM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leads list -->
+      <div class="glass overflow-hidden" id="leadsList"></div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    function show(id) {
+      ['stateLoading','stateExpired','stateNotFound','stateReport'].forEach(s => {
+        const el = document.getElementById(s);
+        if (el) { el.classList.toggle('hidden', s !== id); el.classList.toggle('flex', s === id && s !== 'stateReport'); }
+      });
+      if (id === 'stateReport') document.getElementById('stateReport').classList.remove('hidden');
+    }
+
+    function badgeClass(p) {
+      return p === 'HIGH' ? 'badge-high' : p === 'MEDIUM' ? 'badge-medium' : 'badge-low';
+    }
+
+    function toggleCard(i) {
+      const expand  = document.getElementById('lx-' + i);
+      const chevron = document.getElementById('lc-' + i);
+      if (!expand) return;
+      expand.classList.toggle('open');
+      chevron?.classList.toggle('open');
+    }
+
+    function renderLeads(leads) {
+      document.getElementById('statTotal').textContent = leads.length;
+      document.getElementById('statHigh').textContent  = leads.filter(l => l.priority === 'HIGH').length;
+      document.getElementById('statMed').textContent   = leads.filter(l => l.priority === 'MEDIUM').length;
+
+      document.getElementById('leadsList').innerHTML = leads.map((l, i) => {
+        const score   = l.opportunity_score ?? l.score ?? '—';
+        const pri     = l.priority || 'LOW';
+        const date    = l.scraped_date || (l.created_at ? new Date(l.created_at).toLocaleDateString('en-GB') : '—');
+        const desc    = l.description || l.score_reasoning || '';
+        const shortDesc = desc.length > 100 ? desc.slice(0, 100) + '…' : desc;
+
+        return `
+          <div class="lead-card px-5 py-4 cursor-pointer" onclick="toggleCard(${i})">
+            <div class="flex items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass(pri)}">${pri}</span>
+                  ${l.app_type ? `<span class="text-[11px] text-zinc-500">${l.app_type}</span>` : ''}
+                  ${l.council ? `<span class="text-[11px] text-zinc-600">${l.council}</span>` : ''}
+                </div>
+                <div class="text-sm font-medium text-white truncate">${l.address || '—'}</div>
+                <div class="text-[11px] text-zinc-500 mt-1 leading-relaxed">${shortDesc}</div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <div class="text-lg font-bold brand">${score}<span class="text-xs text-zinc-600 font-normal">/10</span></div>
+                <div class="text-[10px] text-zinc-600">${date}</div>
+                <iconify-icon id="lc-${i}" icon="solar:alt-arrow-down-linear" class="chevron" style="font-size:14px;color:#71717a;"></iconify-icon>
+              </div>
+            </div>
+
+            <!-- Expanded detail -->
+            <div id="lx-${i}" class="lead-expand mt-4 pt-4 border-t border-white/5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                ${desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Description</div><div class="text-zinc-300 leading-relaxed">${desc}</div></div>` : ''}
+                ${l.score_reasoning && l.score_reasoning !== desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Score Reasoning</div><div class="text-zinc-400 leading-relaxed italic">${l.score_reasoning}</div></div>` : ''}
+                ${l.applicant_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Applicant</div><div class="text-white">${l.applicant_name}</div></div>` : ''}
+                ${l.agent_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Agent</div><div class="text-zinc-300">${l.agent_name}</div></div>` : ''}
+                ${l.dwelling_type ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Dwelling Type</div><div class="text-zinc-300">${l.dwelling_type}</div></div>` : ''}
+                ${l.development_scale ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Scale</div><div class="text-zinc-300">${l.development_scale}</div></div>` : ''}
+                ${l.unit_count != null ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Units</div><div class="text-zinc-300">${l.unit_count}</div></div>` : ''}
+                ${l.postcode ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Postcode</div><div class="text-zinc-300">${l.postcode}</div></div>` : ''}
+                ${l.app_state ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Status</div><div class="text-zinc-300">${l.app_state}</div></div>` : ''}
+                ${l.uid ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Reference</div><div class="text-zinc-400 font-mono">${l.uid}</div></div>` : ''}
+              </div>
+              ${l.planit_url ? `<a href="${l.planit_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-4 text-[11px] font-semibold text-brand hover:underline no-print"><iconify-icon icon="solar:arrow-right-up-bold" style="font-size:12px;"></iconify-icon>View on PlanIt</a>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function init() {
+      document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-GB', { dateStyle:'long' });
+
+      const token = new URLSearchParams(location.search).get('t');
+      if (!token) { show('stateNotFound'); return; }
+
+      const { data, error } = await sb
+        .from('shared_reports')
+        .select('leads_data, expires_at, created_at')
+        .eq('token', token)
+        .single();
+
+      if (error || !data) { show('stateNotFound'); return; }
+
+      const now      = new Date();
+      const expiresAt = new Date(data.expires_at);
+
+      if (now > expiresAt) { show('stateExpired'); return; }
+
+      // Expiry countdown badge
+      const msLeft   = expiresAt - now;
+      const hrsLeft  = Math.floor(msLeft / 3600000);
+      const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+      const badge    = document.getElementById('expiryBadge');
+      if (badge) {
+        badge.innerHTML = `<iconify-icon icon="solar:clock-circle-linear" style="font-size:12px;"></iconify-icon> Expires in ${hrsLeft > 0 ? hrsLeft + 'h ' : ''}${minsLeft}m`;
+      }
+
+      const leads = Array.isArray(data.leads_data) ? data.leads_data : [];
+      if (leads.length === 0) { show('stateNotFound'); return; }
+
+      // Report meta
+      const councils = [...new Set(leads.map(l => l.council).filter(Boolean))];
+      document.getElementById('reportTitle').textContent = councils.length === 1
+        ? `${councils[0]} Planning Leads`
+        : `Planning Leads Report`;
+      document.getElementById('reportMeta').textContent =
+        `${leads.length} lead${leads.length !== 1 ? 's' : ''} · ${councils.length} council${councils.length !== 1 ? 's' : ''} · Generated ${new Date(data.created_at).toLocaleDateString('en-GB', { dateStyle:'medium' })}`;
+
+      renderLeads(leads);
+      show('stateReport');
+    }
+
+    init();
+  </script>
+</body>
+</html>
