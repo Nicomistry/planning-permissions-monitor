@@ -500,7 +500,7 @@
               <span class="text-xs">Loading…</span>
             </div>
             <div id="cpReqEmpty" class="hidden items-center justify-center py-5 text-center">
-              <span class="text-xs text-zinc-600">No requests yet.</span>
+              <span class="text-xs text-zinc-600">No pending requests.</span>
             </div>
             <div id="cpReqList" class="hidden divide-y divide-white/5"></div>
           </div>
@@ -2283,6 +2283,7 @@
       const { data, error } = await sb
         .from('control_panel_requests')
         .select('*')
+        .eq('status', 'pending')
         .order('requested_at', { ascending: false });
 
       document.getElementById('cpReqLoading').classList.add('hidden');
@@ -2310,26 +2311,33 @@
       const list = document.getElementById('cpReqList');
       list.innerHTML = data.map(r => {
         const date = new Date(r.requested_at).toLocaleString('en-GB', { dateStyle:'short', timeStyle:'short' });
-        const statusColors = { pending: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30', granted: 'text-green-400 bg-green-400/10 border-green-400/30', denied: 'text-red-400 bg-red-400/10 border-red-400/30' };
-        const sc = statusColors[r.status] || '';
-        const isPending = r.status === 'pending';
+        const email = r.user_email || r.user_id.slice(0,8) + '…';
+        // Parse trade/council lines from message
+        const msgParts = (r.message || '').split(' | ');
+        const tradeLine   = msgParts.find(p => p.startsWith('Trades:'))?.replace('Trades: ','') || null;
+        const councilLine = msgParts.find(p => p.startsWith('Councils:'))?.replace('Councils: ','') || null;
+        const noteLine    = msgParts.find(p => !p.startsWith('Trades:') && !p.startsWith('Councils:')) || null;
         return `
-          <div class="flex items-start justify-between gap-4 px-6 py-4" id="cpreq-${r.id}">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm text-white font-medium">${r.user_email || r.user_id.slice(0,8) + '…'}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full border ${sc} font-medium uppercase">${r.status}</span>
-                ${r.help_message ? '<span class="text-[10px] px-2 py-0.5 rounded-full border border-amber-400/30 text-amber-400 bg-amber-400/10 font-medium">HELP REQUEST</span>' : ''}
+          <div id="cpreq-${r.id}" style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+              <div style="min-width:0;flex:1;">
+                <div style="font-size:13px;font-weight:600;color:#f4f4f5;word-break:break-all;">${email}</div>
+                <div style="font-size:11px;color:#52525b;margin-top:3px;">${date}</div>
+                ${tradeLine   ? `<div style="font-size:11px;color:#a1a1aa;margin-top:6px;"><span style="color:#71717a;">Trades: </span>${tradeLine}</div>` : ''}
+                ${councilLine ? `<div style="font-size:11px;color:#a1a1aa;margin-top:3px;"><span style="color:#71717a;">Councils: </span>${councilLine}</div>` : ''}
+                ${noteLine    ? `<div style="font-size:11px;color:#71717a;margin-top:4px;font-style:italic;">"${noteLine}"</div>` : ''}
               </div>
-              <div class="text-xs text-zinc-500 mt-1">${date}</div>
-              ${r.message ? `<div class="text-xs text-zinc-400 mt-1.5 italic">"${r.message}"</div>` : ''}
-              ${r.help_message ? `<div class="text-xs text-amber-300 mt-1.5 italic">"${r.help_message}"</div>` : ''}
+              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                <button onclick="reviewCPRequest('${r.id}','granted')"
+                  style="font-size:12px;font-weight:600;padding:7px 16px;border-radius:8px;background:rgba(0,208,132,0.12);border:1px solid rgba(0,208,132,0.3);color:#00d084;cursor:pointer;font-family:inherit;transition:background 0.15s;"
+                  onmouseover="this.style.background='rgba(0,208,132,0.22)'"
+                  onmouseout="this.style.background='rgba(0,208,132,0.12)'">Grant</button>
+                <button onclick="reviewCPRequest('${r.id}','denied')"
+                  style="font-size:12px;font-weight:600;padding:7px 16px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;cursor:pointer;font-family:inherit;transition:background 0.15s;"
+                  onmouseover="this.style.background='rgba(239,68,68,0.18)'"
+                  onmouseout="this.style.background='rgba(239,68,68,0.08)'">Deny</button>
+              </div>
             </div>
-            ${isPending ? `
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <button onclick="reviewCPRequest('${r.id}','granted')" class="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors font-medium">Grant</button>
-              <button onclick="reviewCPRequest('${r.id}','denied')" class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors font-medium">Deny</button>
-            </div>` : ''}
           </div>`;
       }).join('');
       list.classList.remove('hidden');
