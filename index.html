@@ -230,9 +230,9 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
     <!-- Headline -->
     <div class="text-center max-w-4xl mx-auto">
       <h1 class="text-5xl md:text-7xl font-semibold text-white tracking-tighter leading-[1.05] mb-6">
-        <span class="text-reveal-wrapper"><span class="text-reveal">Find new build jobs</span></span><br>
+        <span class="text-reveal-wrapper"><span class="text-reveal">Find qualified jobs</span></span><br>
         <span class="text-reveal-wrapper"><span class="text-reveal text-brand text-reveal-delay-1">before anyone else</span></span><br>
-        <span class="text-reveal-wrapper"><span class="text-reveal text-reveal-delay-2">even knows they exist</span></span>
+        <span class="text-reveal-wrapper"><span class="text-reveal text-reveal-delay-2">knows they exist</span></span>
       </h1>
       <p class="text-lg md:text-xl text-zinc-400 font-light max-w-2xl mx-auto mb-10 animate-fade-in-up leading-relaxed" style="animation-delay:0.6s">
         PPM scans every UK planning application that matches your trade and territory — AI-scores each lead and delivers them straight to your inbox.
@@ -988,6 +988,8 @@ async function handleDemoSubmit(e) {
   } else {
     form.classList.add('hidden');
     document.getElementById('demoSuccess').classList.remove('hidden');
+    // Activate AI chat widget — slides in after 3 seconds
+    activateChatWidget(data.first_name, data.email);
   }
 }
 
@@ -1196,5 +1198,269 @@ setInterval(loadHeroDashboard, 20 * 60 * 1000);
     }
   } catch (_) {}
 })();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PPM AI Chat Widget
+═══════════════════════════════════════════════════════════ -->
+<style>
+@keyframes ppmSlideIn  { from{opacity:0;transform:translateY(20px) scale(0.8)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes ppmPulseRing{ 0%{transform:scale(1);opacity:0.6} 100%{transform:scale(1.85);opacity:0} }
+@keyframes ppmFadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ppmDot      { 0%,80%,100%{transform:scale(0.5);opacity:0.3} 40%{transform:scale(1);opacity:1} }
+@keyframes ppmPanelIn  { from{opacity:0;transform:translateY(14px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+#ppm-chat-bubble { position:fixed; bottom:28px; right:28px; z-index:9999; display:none; }
+#ppm-chat-bubble.ppm-active { display:block; animation:ppmSlideIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+.ppm-bubble-btn {
+  width:56px; height:56px; border-radius:50%; background:#00d084; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 24px rgba(0,208,132,0.45); position:relative;
+  transition:transform 0.2s, box-shadow 0.2s;
+}
+.ppm-bubble-btn:hover { transform:scale(1.08); box-shadow:0 6px 32px rgba(0,208,132,0.55); }
+.ppm-pulse-ring {
+  position:absolute; inset:-5px; border-radius:50%;
+  border:2px solid rgba(0,208,132,0.45);
+  animation:ppmPulseRing 2.2s ease-out infinite;
+  pointer-events:none;
+}
+.ppm-notif-dot {
+  position:absolute; top:1px; right:1px; width:13px; height:13px;
+  background:#f87171; border-radius:50%; border:2px solid #0a0a0a;
+}
+
+#ppm-chat-panel {
+  position:fixed; bottom:96px; right:28px; width:380px; height:520px; z-index:9998;
+  background:#0f1117; border:1px solid rgba(0,208,132,0.2); border-radius:20px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03);
+  display:none; flex-direction:column; overflow:hidden;
+}
+#ppm-chat-panel.ppm-open { display:flex; animation:ppmPanelIn 0.28s cubic-bezier(0.34,1.2,0.64,1) forwards; }
+
+.ppm-panel-header {
+  padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.06);
+  background:rgba(0,208,132,0.04); display:flex; align-items:center; gap:11px; flex-shrink:0;
+}
+.ppm-avatar {
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background:linear-gradient(135deg,rgba(0,208,132,0.18),rgba(168,85,247,0.12));
+  border:1px solid rgba(0,208,132,0.22); display:flex; align-items:center; justify-content:center; font-size:17px;
+}
+
+#ppm-messages {
+  flex:1; overflow-y:auto; padding:14px 12px;
+  display:flex; flex-direction:column; gap:9px; scroll-behavior:smooth;
+}
+#ppm-messages::-webkit-scrollbar { width:4px; }
+#ppm-messages::-webkit-scrollbar-track { background:transparent; }
+#ppm-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.07); border-radius:2px; }
+
+.ppm-msg {
+  max-width:83%; padding:10px 13px; font-size:13px; line-height:1.55;
+  animation:ppmFadeUp 0.22s ease-out;
+}
+.ppm-msg-agent {
+  align-self:flex-start; background:rgba(255,255,255,0.06); color:#e4e4e7;
+  border-radius:14px 14px 14px 4px; border:1px solid rgba(255,255,255,0.05);
+}
+.ppm-msg-user {
+  align-self:flex-end; background:#00d084; color:#000; font-weight:500;
+  border-radius:14px 14px 4px 14px;
+}
+
+#ppm-typing {
+  align-self:flex-start; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.05);
+  padding:10px 13px; border-radius:14px 14px 14px 4px;
+  display:none; gap:5px; align-items:center;
+}
+#ppm-typing.ppm-show { display:flex; }
+.ppm-dot { width:6px; height:6px; background:#71717a; border-radius:50%; animation:ppmDot 1.2s ease-in-out infinite; }
+.ppm-dot:nth-child(2) { animation-delay:0.2s; }
+.ppm-dot:nth-child(3) { animation-delay:0.4s; }
+
+.ppm-input-bar {
+  padding:11px 12px; border-top:1px solid rgba(255,255,255,0.06);
+  display:flex; gap:8px; align-items:center; flex-shrink:0; background:rgba(0,0,0,0.18);
+}
+#ppm-input {
+  flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px; padding:9px 12px; font-size:13px; color:#fff; outline:none;
+  transition:border-color 0.2s; font-family:inherit;
+}
+#ppm-input:focus { border-color:rgba(0,208,132,0.4); }
+#ppm-input::placeholder { color:#52525b; }
+#ppm-input:disabled { opacity:0.45; cursor:not-allowed; }
+.ppm-send-btn {
+  width:36px; height:36px; border-radius:9px; background:#00d084; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:background 0.15s, transform 0.1s;
+}
+.ppm-send-btn:hover:not(:disabled) { background:#33e39f; }
+.ppm-send-btn:active:not(:disabled) { transform:scale(0.92); }
+.ppm-send-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+@media (max-width:440px) {
+  #ppm-chat-panel { width:calc(100vw - 32px); right:16px; }
+  #ppm-chat-bubble { right:16px; bottom:16px; }
+}
+</style>
+
+<!-- Floating bubble -->
+<div id="ppm-chat-bubble">
+  <div class="ppm-pulse-ring"></div>
+  <button class="ppm-bubble-btn" onclick="ppmToggleChat()" aria-label="Open PPM AI Assistant">
+    <iconify-icon icon="solar:chat-round-dots-bold" style="font-size:24px;color:#000;"></iconify-icon>
+  </button>
+  <div class="ppm-notif-dot" id="ppmNotifDot"></div>
+</div>
+
+<!-- Chat panel -->
+<div id="ppm-chat-panel">
+  <div class="ppm-panel-header">
+    <div class="ppm-avatar">🏗️</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:600;color:#f4f4f5;letter-spacing:-0.01em;">PPM Assistant</div>
+      <div style="font-size:11px;color:#00d084;display:flex;align-items:center;gap:5px;margin-top:1px;">
+        <span style="width:6px;height:6px;background:#00d084;border-radius:50%;display:inline-block;"></span>Online
+      </div>
+    </div>
+    <button onclick="ppmToggleChat()" aria-label="Close"
+      style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#71717a;transition:all 0.15s;"
+      onmouseover="this.style.background='rgba(255,255,255,0.09)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+      <iconify-icon icon="solar:close-linear" style="font-size:15px;"></iconify-icon>
+    </button>
+  </div>
+
+  <div id="ppm-messages">
+    <div id="ppm-typing">
+      <div class="ppm-dot"></div><div class="ppm-dot"></div><div class="ppm-dot"></div>
+    </div>
+  </div>
+
+  <div class="ppm-input-bar">
+    <input id="ppm-input" type="text" placeholder="Type a message…" disabled
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ppmSendMessage();}">
+    <button class="ppm-send-btn" id="ppm-send-btn" onclick="ppmSendMessage()" disabled aria-label="Send">
+      <iconify-icon icon="solar:arrow-up-bold" style="font-size:16px;color:#000;"></iconify-icon>
+    </button>
+  </div>
+</div>
+
+<script>
+// ── PPM Chat Widget ────────────────────────────────────────────────────────────
+let ppmProspect     = null;   // { firstName, email }
+let ppmConversation = [];     // message history for API
+let ppmGreeted      = false;  // guard: only greet once
+let ppmBusy         = false;  // block double-sends
+
+function activateChatWidget(firstName, email) {
+  ppmProspect = { firstName: firstName || 'there', email };
+  setTimeout(() => {
+    document.getElementById('ppm-chat-bubble').classList.add('ppm-active');
+  }, 3000);
+}
+
+function ppmToggleChat() {
+  const panel = document.getElementById('ppm-chat-panel');
+  const notif = document.getElementById('ppmNotifDot');
+  const open  = panel.classList.contains('ppm-open');
+
+  if (open) {
+    panel.classList.remove('ppm-open');
+  } else {
+    panel.classList.add('ppm-open');
+    if (notif) notif.style.display = 'none';
+    if (!ppmGreeted) {
+      ppmGreeted = true;
+      setTimeout(ppmDeliverGreeting, 420);
+    }
+  }
+}
+
+function ppmDeliverGreeting() {
+  const name = ppmProspect?.firstName || 'there';
+  const greeting = `Hi ${name}! I can pull a sample leads report for your area right now while we get your demo ready. Shall I go ahead?`;
+  ppmShowTyping();
+  setTimeout(() => {
+    ppmHideTyping();
+    ppmAppendMessage(greeting, 'agent');
+    ppmConversation.push({ role: 'assistant', content: greeting });
+    ppmEnableInput();
+  }, 1100);
+}
+
+function ppmAppendMessage(text, role) {
+  const wrap   = document.getElementById('ppm-messages');
+  const typing = document.getElementById('ppm-typing');
+  const div    = document.createElement('div');
+  div.className = 'ppm-msg ' + (role === 'agent' ? 'ppm-msg-agent' : 'ppm-msg-user');
+  div.textContent = text;
+  wrap.insertBefore(div, typing);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function ppmShowTyping() {
+  document.getElementById('ppm-typing').classList.add('ppm-show');
+  const w = document.getElementById('ppm-messages');
+  w.scrollTop = w.scrollHeight;
+}
+function ppmHideTyping()  { document.getElementById('ppm-typing').classList.remove('ppm-show'); }
+function ppmEnableInput() {
+  document.getElementById('ppm-input').disabled = false;
+  document.getElementById('ppm-send-btn').disabled = false;
+  document.getElementById('ppm-input').focus();
+}
+function ppmDisableInput() {
+  document.getElementById('ppm-input').disabled = true;
+  document.getElementById('ppm-send-btn').disabled = true;
+}
+
+async function ppmSendMessage() {
+  if (ppmBusy) return;
+  const input = document.getElementById('ppm-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  ppmDisableInput();
+  ppmBusy = true;
+  ppmAppendMessage(text, 'user');
+  ppmConversation.push({ role: 'user', content: text });
+  ppmShowTyping();
+
+  try {
+    const res  = await fetch('/api/prospect-agent', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        messages:      ppmConversation,
+        prospectEmail: ppmProspect?.email  || '',
+        prospectName:  ppmProspect?.firstName || '',
+      }),
+    });
+    const json = await res.json();
+    ppmHideTyping();
+
+    const reply = json.reply || 'Something went wrong — please try again.';
+    ppmAppendMessage(reply, 'agent');
+    ppmConversation.push({ role: 'assistant', content: reply });
+
+    if (json.reportSent) {
+      ppmDisableInput();
+      document.getElementById('ppm-input').placeholder = 'Report sent — check your inbox ✓';
+    } else {
+      ppmEnableInput();
+    }
+  } catch (_) {
+    ppmHideTyping();
+    ppmAppendMessage('Connection error — please try again in a moment.', 'agent');
+    ppmEnableInput();
+  }
+
+  ppmBusy = false;
+}
 </script>
 </body></html>
