@@ -122,6 +122,14 @@
       if (id === 'stateReport') document.getElementById('stateReport').classList.remove('hidden');
     }
 
+    function esc(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function safeUrl(url) {
+      return (typeof url === 'string' && url.startsWith('https://')) ? url : null;
+    }
+
     function badgeClass(p) {
       return p === 'HIGH' ? 'badge-high' : p === 'MEDIUM' ? 'badge-medium' : 'badge-low';
     }
@@ -146,21 +154,22 @@
         const desc    = l.description || l.score_reasoning || '';
         const shortDesc = desc.length > 100 ? desc.slice(0, 100) + '…' : desc;
 
+        const planitHref = safeUrl(l.planit_url);
         return `
           <div class="lead-card px-5 py-4 cursor-pointer" onclick="toggleCard(${i})">
             <div class="flex items-start gap-3">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass(pri)}">${pri}</span>
-                  ${l.app_type ? `<span class="text-[11px] text-zinc-500">${l.app_type}</span>` : ''}
-                  ${l.council ? `<span class="text-[11px] text-zinc-600">${l.council}</span>` : ''}
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass(pri)}">${esc(pri)}</span>
+                  ${l.app_type ? `<span class="text-[11px] text-zinc-500">${esc(l.app_type)}</span>` : ''}
+                  ${l.council ? `<span class="text-[11px] text-zinc-600">${esc(l.council)}</span>` : ''}
                 </div>
-                <div class="text-sm font-medium text-white truncate">${l.address || '—'}</div>
-                <div class="text-[11px] text-zinc-500 mt-1 leading-relaxed">${shortDesc}</div>
+                <div class="text-sm font-medium text-white truncate">${esc(l.address) || '—'}</div>
+                <div class="text-[11px] text-zinc-500 mt-1 leading-relaxed">${esc(shortDesc)}</div>
               </div>
               <div class="flex flex-col items-end gap-2 shrink-0">
-                <div class="text-lg font-bold brand">${score}<span class="text-xs text-zinc-600 font-normal">/10</span></div>
-                <div class="text-[10px] text-zinc-600">${date}</div>
+                <div class="text-lg font-bold brand">${esc(score)}<span class="text-xs text-zinc-600 font-normal">/10</span></div>
+                <div class="text-[10px] text-zinc-600">${esc(date)}</div>
                 <iconify-icon id="lc-${i}" icon="solar:alt-arrow-down-linear" class="chevron" style="font-size:14px;color:#71717a;"></iconify-icon>
               </div>
             </div>
@@ -168,18 +177,18 @@
             <!-- Expanded detail -->
             <div id="lx-${i}" class="lead-expand mt-4 pt-4 border-t border-white/5">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                ${desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Description</div><div class="text-zinc-300 leading-relaxed">${desc}</div></div>` : ''}
-                ${l.score_reasoning && l.score_reasoning !== desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Score Reasoning</div><div class="text-zinc-400 leading-relaxed italic">${l.score_reasoning}</div></div>` : ''}
-                ${l.applicant_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Applicant</div><div class="text-white">${l.applicant_name}</div></div>` : ''}
-                ${l.agent_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Agent</div><div class="text-zinc-300">${l.agent_name}</div></div>` : ''}
-                ${l.dwelling_type ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Dwelling Type</div><div class="text-zinc-300">${l.dwelling_type}</div></div>` : ''}
-                ${l.development_scale ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Scale</div><div class="text-zinc-300">${l.development_scale}</div></div>` : ''}
-                ${l.unit_count != null ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Units</div><div class="text-zinc-300">${l.unit_count}</div></div>` : ''}
-                ${l.postcode ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Postcode</div><div class="text-zinc-300">${l.postcode}</div></div>` : ''}
-                ${l.app_state ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Status</div><div class="text-zinc-300">${l.app_state}</div></div>` : ''}
-                ${l.uid ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Reference</div><div class="text-zinc-400 font-mono">${l.uid}</div></div>` : ''}
+                ${desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Description</div><div class="text-zinc-300 leading-relaxed">${esc(desc)}</div></div>` : ''}
+                ${l.score_reasoning && l.score_reasoning !== desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Score Reasoning</div><div class="text-zinc-400 leading-relaxed italic">${esc(l.score_reasoning)}</div></div>` : ''}
+                ${l.applicant_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Applicant</div><div class="text-white">${esc(l.applicant_name)}</div></div>` : ''}
+                ${l.agent_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Agent</div><div class="text-zinc-300">${esc(l.agent_name)}</div></div>` : ''}
+                ${l.dwelling_type ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Dwelling Type</div><div class="text-zinc-300">${esc(l.dwelling_type)}</div></div>` : ''}
+                ${l.development_scale ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Scale</div><div class="text-zinc-300">${esc(l.development_scale)}</div></div>` : ''}
+                ${l.unit_count != null ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Units</div><div class="text-zinc-300">${esc(l.unit_count)}</div></div>` : ''}
+                ${l.postcode ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Postcode</div><div class="text-zinc-300">${esc(l.postcode)}</div></div>` : ''}
+                ${l.app_state ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Status</div><div class="text-zinc-300">${esc(l.app_state)}</div></div>` : ''}
+                ${l.uid ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Reference</div><div class="text-zinc-400 font-mono">${esc(l.uid)}</div></div>` : ''}
               </div>
-              ${l.planit_url ? `<a href="${l.planit_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-4 text-[11px] font-semibold text-brand hover:underline no-print"><iconify-icon icon="solar:arrow-right-up-bold" style="font-size:12px;"></iconify-icon>View on PlanIt</a>` : ''}
+              ${planitHref ? `<a href="${planitHref}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-4 text-[11px] font-semibold text-brand hover:underline no-print"><iconify-icon icon="solar:arrow-right-up-bold" style="font-size:12px;"></iconify-icon>View on PlanIt</a>` : ''}
             </div>
           </div>`;
       }).join('');
