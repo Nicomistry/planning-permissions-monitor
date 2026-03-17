@@ -53,13 +53,24 @@
     /* wrap each trade row */
     .d-trade-wrap { border-radius: 12px; }
     .d-trade-wrap .d-trade-row { border-radius: 12px; }
-    .d-trade-pill {
-      width: 32px; height: 18px; border-radius: 99px; flex-shrink: 0;
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: all 0.18s; position: relative;
+    .d-trade-btn {
+      font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 7px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+      color: #71717a; transition: all 0.18s; pointer-events: none; letter-spacing: 0.02em;
     }
-    .d-trade-pill::after { content:''; position:absolute; top:3px; left:3px; width:10px; height:10px; border-radius:50%; background:#444; transition:all 0.18s; }
-    .d-trade-row.active .d-trade-pill { background: rgba(147,51,234,0.3); border-color: rgba(147,51,234,0.7); }
-    .d-trade-row.active .d-trade-pill::after { background:#c084fc; transform:translateX(14px); box-shadow:0 0 6px rgba(147,51,234,0.7); }
+    .d-trade-row.active .d-trade-btn {
+      background: rgba(147,51,234,0.25); border-color: rgba(147,51,234,0.6);
+      color: #c084fc;
+    }
+    .d-trade-sectors { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 12px 8px 46px; }
+    .d-sector-chip {
+      font-size: 10px; padding: 2px 8px; border-radius: 5px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+      color: #52525b; transition: all 0.18s;
+    }
+    .d-trade-row.active ~ .d-trade-sectors .d-sector-chip {
+      background: rgba(147,51,234,0.1); border-color: rgba(147,51,234,0.3); color: #c084fc;
+    }
 
     /* council chips — green */
     #dCouncilGrid { align-content: flex-start; }
@@ -600,12 +611,14 @@
       const grid = document.getElementById('dTradeGrid');
       grid.innerHTML = D_TRADES.map(t => {
         const active = dActiveTrades.has(t.id);
+        const sectors = t.sectors || [];
         return `<div class="d-trade-wrap" id="dtwrap-${t.id}">
           <div class="d-trade-row ${active ? 'active' : ''}" id="dtchip-${t.id}" onclick="dToggleTrade('${t.id}')">
             <div class="d-trade-row-icon"><iconify-icon icon="${t.icon}"></iconify-icon></div>
             <span class="d-trade-row-name flex-1">${t.name}</span>
-            <div class="d-trade-pill"></div>
+            <span class="d-trade-btn">${active ? '✓ Selected' : 'Select'}</span>
           </div>
+          <div class="d-trade-sectors">${sectors.map(s => `<span class="d-sector-chip">${s}</span>`).join('')}</div>
         </div>`;
       }).join('');
       updateDTradeCount();
@@ -681,7 +694,11 @@
     function dToggleTrade(id) {
       if (dActiveTrades.has(id)) dActiveTrades.delete(id);
       else dActiveTrades.add(id);
-      document.getElementById('dtchip-' + id)?.classList.toggle('active', dActiveTrades.has(id));
+      const active = dActiveTrades.has(id);
+      const chip = document.getElementById('dtchip-' + id);
+      chip?.classList.toggle('active', active);
+      const btn = chip?.querySelector('.d-trade-btn');
+      if (btn) btn.textContent = active ? '✓ Selected' : 'Select';
       updateDTradeCount();
       markSSDirty();
     }
@@ -689,7 +706,13 @@
     function dToggleAllTrades() {
       if (dActiveTrades.size === D_TRADES.length) dActiveTrades.clear();
       else D_TRADES.forEach(t => dActiveTrades.add(t.id));
-      D_TRADES.forEach(t => document.getElementById('dtchip-' + t.id)?.classList.toggle('active', dActiveTrades.has(t.id)));
+      D_TRADES.forEach(t => {
+        const active = dActiveTrades.has(t.id);
+        const chip = document.getElementById('dtchip-' + t.id);
+        chip?.classList.toggle('active', active);
+        const btn = chip?.querySelector('.d-trade-btn');
+        if (btn) btn.textContent = active ? '✓ Selected' : 'Select';
+      });
       updateDTradeCount();
       markSSDirty();
     }
