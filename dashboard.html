@@ -536,6 +536,10 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+    window.addEventListener('beforeunload', e => {
+      if (window._ssDirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
     let currentUser      = null;
     let allLeads         = [];
     let cpRunsRemaining  = 0;
@@ -613,6 +617,7 @@
       document.getElementById('ssSavedLabel').style.display   = 'none';
       document.getElementById('ssUnsavedLabel').style.display = 'flex';
       document.getElementById('ssSaveBtn').style.display      = 'flex';
+      window._ssDirty = true;
     }
 
     function saveScanSettings() {
@@ -633,6 +638,7 @@
           .then(({ error }) => { if (error) console.warn('scan_settings save failed', error); });
       }
 
+      window._ssDirty = false;
       document.getElementById('ssUnsavedLabel').style.display = 'none';
       document.getElementById('ssSaveBtn').style.display      = 'none';
       document.getElementById('ssSavedLabel').style.display   = 'flex';

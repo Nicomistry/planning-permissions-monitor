@@ -899,12 +899,12 @@
                   <tr class="border-b border-white/5 text-left">
                     <th class="px-4 py-3 w-8"><input type="checkbox" id="lSelectAll" onchange="toggleSelectAllLeads(this)" class="accent-brand cursor-pointer"></th>
                     <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Address</th>
-                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Council</th>
-                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Type</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide hidden sm:table-cell">Council</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide hidden md:table-cell">Type</th>
                     <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Priority</th>
                     <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Score</th>
-                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Date</th>
-                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">User</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide hidden sm:table-cell">Date</th>
+                    <th class="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide hidden md:table-cell">User</th>
                   </tr>
                 </thead>
                 <tbody id="lTableBody"></tbody>
@@ -2833,12 +2833,12 @@
           <tr class="row-hover border-b border-white/5 transition-colors" id="lrow-${rid}">
             <td class="px-4 py-3 w-8"><input type="checkbox" class="lead-share-chk accent-brand cursor-pointer" data-id="${rid}" onchange="updateShareSelection()"></td>
             <td class="px-4 py-3 text-white text-xs font-medium max-w-xs truncate">${r.address || '—'}</td>
-            <td class="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">${r.council || '—'}</td>
-            <td class="px-4 py-3 text-zinc-400 text-xs">${r.app_type || '—'}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap hidden sm:table-cell">${r.council || '—'}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs hidden md:table-cell">${r.app_type || '—'}</td>
             <td class="px-4 py-3 text-xs font-medium ${priClass[pri] || 'text-zinc-500'}">${pri}</td>
             <td class="px-4 py-3 text-brand text-xs font-mono">${r.opportunity_score ?? '—'}</td>
-            <td class="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">${date}</td>
-            <td class="px-4 py-3 text-zinc-600 text-[10px] font-mono truncate max-w-[120px]">${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td>
+            <td class="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap hidden sm:table-cell">${date}</td>
+            <td class="px-4 py-3 text-zinc-600 text-[10px] font-mono truncate max-w-[120px] hidden md:table-cell">${r.user_id ? r.user_id.slice(0,8)+'…' : '—'}</td>
           </tr>`;
       }).join('');
     }
