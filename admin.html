@@ -760,6 +760,11 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8h6.1l-4.95 3.6 1.9 5.8L12 14.6l-4.95 3.6 1.9-5.8L4 8.8h6.1z"/></svg>
             Intelligence
           </button>
+          <button id="tab-system" onclick="switchTab('system')"
+            class="tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-zinc-500 hover:text-zinc-300 flex items-center gap-1.5">
+            <iconify-icon icon="solar:settings-linear" style="font-size:12px;"></iconify-icon>
+            System
+          </button>
         </div>
 
         <!-- ══════════════════════════════════════════════════
@@ -1084,6 +1089,29 @@
           </div>
 
         </div><!-- /panel-intelligence -->
+
+        <!-- ══════════════════════════════════════════════════
+             SYSTEM TAB
+        ═══════════════════════════════════════════════════ -->
+        <div id="panel-system" class="hidden space-y-6">
+          <div class="glass-panel rounded-2xl p-6">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);">
+                <iconify-icon icon="solar:database-bold" style="color:#00d084;font-size:18px;"></iconify-icon>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-white font-semibold text-sm mb-1">Council Database Sync</h3>
+                <p class="text-zinc-500 text-xs leading-relaxed mb-4">Fetches all 417 active UK planning authorities from PlanIt and stores their numeric area IDs. Scanners use these IDs for reliable council matching. Run once after setup, then periodically to pick up new authorities.</p>
+                <button id="syncCouncilsBtn" onclick="syncCouncils()"
+                  class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-black text-xs font-semibold hover:bg-brand/80 transition-all active:scale-95">
+                  <iconify-icon icon="solar:refresh-bold" style="font-size:13px;"></iconify-icon>
+                  Sync All Councils from PlanIt
+                </button>
+                <div id="syncCouncilsResult" class="mt-3 text-xs text-zinc-500"></div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /panel-system -->
 
       </div>
     </div>
@@ -2739,7 +2767,7 @@
 
     // ── Tab switching ─────────────────────────────────────────────────────────
     function switchTab(tab) {
-      ['demos','leads','contacts','intelligence'].forEach(t => {
+      ['demos','leads','contacts','intelligence','system'].forEach(t => {
         document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById('tab-' + t);
         if (t === tab) {
@@ -2753,6 +2781,28 @@
       if (tab === 'leads')         loadLeads();
       if (tab === 'contacts')      loadContacts();
       if (tab === 'intelligence') { loadProspectConversations(); loadClientIntelligence(); }
+    }
+
+    // ── Council sync ─────────────────────────────────────────────────────────
+    async function syncCouncils() {
+      const btn    = document.getElementById('syncCouncilsBtn');
+      const result = document.getElementById('syncCouncilsResult');
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:13px;"></iconify-icon> Syncing…';
+      result.textContent = '';
+      try {
+        const res  = await fetch('/api/sync-councils', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          result.innerHTML = `<span class="text-brand">✓ ${data.upserted} councils synced (${data.unique} unique from PlanIt)</span>${data.errors?.length ? '<br><span class="text-amber-400">Warnings: ' + data.errors.join(', ') + '</span>' : ''}`;
+        } else {
+          result.innerHTML = `<span class="text-red-400">Error: ${data.error}</span>`;
+        }
+      } catch (err) {
+        result.innerHTML = `<span class="text-red-400">Request failed: ${err.message}</span>`;
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<iconify-icon icon="solar:refresh-bold" style="font-size:13px;"></iconify-icon> Sync All Councils from PlanIt';
     }
 
     // ── Load all leads (admin) ────────────────────────────────────────────────
