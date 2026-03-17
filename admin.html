@@ -1157,6 +1157,15 @@
     const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
     const ADMIN_EMAIL   = 'nicomistry@gmail.com';
+
+    // XSS helper — escape any user/API-supplied string before inserting into innerHTML
+    const esc = (s) => String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
     // Replace with your Trigger.dev task webhook URL once deployed
     // Live data mode — fetch directly from PlanIt via /api/planit proxy
 
@@ -1392,7 +1401,7 @@
         pillsEl.innerHTML = [...selectedCouncils].map(name => `
           <span onclick="toggleChip('${name.replace(/'/g,"\\'")}'); event.stopPropagation()"
             class="flex items-center gap-1 text-[10px] font-mono bg-brand/10 text-brand border border-brand/30 px-2 py-0.5 rounded-full cursor-pointer hover:bg-brand/20">
-            ${name} <iconify-icon icon="solar:close-circle-bold" style="font-size:10px;"></iconify-icon>
+            ${esc(name)} <iconify-icon icon="solar:close-circle-bold" style="font-size:10px;"></iconify-icon>
           </span>`).join('');
       } else {
         pillsEl.classList.add('hidden');
@@ -2055,21 +2064,21 @@
       panel.innerHTML = `
         <!-- ① Pills row — always full-width horizontal -->
         <div class="flex flex-wrap gap-1.5 pb-3">
-          ${l.app_type    ? `<span class="pill bg-blue-500/10 border-blue-500/20 text-blue-400"><iconify-icon icon="solar:document-text-linear" style="font-size:10px;"></iconify-icon>${l.app_type}</span>` : ''}
-          ${l.app_state   ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${l.app_state}</span>` : ''}
-          ${l.app_size    ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${l.app_size}</span>` : ''}
-          ${l.ward_name   ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:map-point-linear" style="font-size:10px;"></iconify-icon>${l.ward_name}</span>` : ''}
-          ${l.postcode    ? `<span class="pill bg-white/5 border-white/10 text-zinc-500 font-mono">${l.postcode}</span>` : ''}
-          ${l.start_date  ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:calendar-linear" style="font-size:10px;"></iconify-icon>Submitted ${l.start_date}</span>` : ''}
-          ${l.target_decision_date ? `<span class="pill border ${urgCls}"><iconify-icon icon="solar:clock-circle-linear" style="font-size:10px;"></iconify-icon>Decision ${daysLabel}</span>` : ''}
-          ${l.consulted_date ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:chat-line-linear" style="font-size:10px;"></iconify-icon>Consultation ends ${l.consulted_date}</span>` : ''}
-          ${l.n_documents ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:file-text-linear" style="font-size:10px;"></iconify-icon>${l.n_documents} docs</span>` : ''}
+          ${l.app_type    ? `<span class="pill bg-blue-500/10 border-blue-500/20 text-blue-400"><iconify-icon icon="solar:document-text-linear" style="font-size:10px;"></iconify-icon>${esc(l.app_type)}</span>` : ''}
+          ${l.app_state   ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${esc(l.app_state)}</span>` : ''}
+          ${l.app_size    ? `<span class="pill bg-white/5 border-white/10 text-zinc-400">${esc(l.app_size)}</span>` : ''}
+          ${l.ward_name   ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:map-point-linear" style="font-size:10px;"></iconify-icon>${esc(l.ward_name)}</span>` : ''}
+          ${l.postcode    ? `<span class="pill bg-white/5 border-white/10 text-zinc-500 font-mono">${esc(l.postcode)}</span>` : ''}
+          ${l.start_date  ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:calendar-linear" style="font-size:10px;"></iconify-icon>Submitted ${esc(l.start_date)}</span>` : ''}
+          ${l.target_decision_date ? `<span class="pill border ${urgCls}"><iconify-icon icon="solar:clock-circle-linear" style="font-size:10px;"></iconify-icon>Decision ${esc(daysLabel)}</span>` : ''}
+          ${l.consulted_date ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:chat-line-linear" style="font-size:10px;"></iconify-icon>Consultation ends ${esc(l.consulted_date)}</span>` : ''}
+          ${l.n_documents ? `<span class="pill bg-white/5 border-white/10 text-zinc-500"><iconify-icon icon="solar:file-text-linear" style="font-size:10px;"></iconify-icon>${esc(String(l.n_documents))} docs</span>` : ''}
         </div>
 
         <!-- ② Planning description — full width -->
         ${l.description ? `<div class="border-t border-white/5 pt-3 pb-3">
           <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Planning Description</div>
-          <p class="text-zinc-300 text-xs leading-relaxed">${l.description}</p>
+          <p class="text-zinc-300 text-xs leading-relaxed">${esc(l.description)}</p>
         </div>` : ''}
 
         <!-- ③ Contact Details — full width with quick-action buttons -->
@@ -2079,15 +2088,15 @@
             <div class="grid grid-cols-2 gap-4 mb-3">
               ${hasApplicant ? `<div>
                 <div class="text-[10px] text-zinc-600 mb-1">Applicant</div>
-                <div class="text-xs text-white font-medium">${l.applicant_name || '—'}</div>
-                ${l.applicant_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${l.applicant_address}</div>` : ''}
+                <div class="text-xs text-white font-medium">${esc(l.applicant_name) || '—'}</div>
+                ${l.applicant_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${esc(l.applicant_address)}</div>` : ''}
               </div>` : '<div></div>'}
               ${hasAgent ? `<div>
                 <div class="text-[10px] text-zinc-600 mb-1">Agent / Architect</div>
-                <div class="text-xs text-white font-medium">${l.agent_name || '—'}</div>
-                ${l.agent_email   ? `<div class="text-[11px] text-blue-400 mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:10px;"></iconify-icon>${l.agent_email}</div>` : ''}
-                ${l.agent_phone   ? `<div class="text-[11px] text-brand mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:10px;"></iconify-icon>${l.agent_phone}</div>` : ''}
-                ${l.agent_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${l.agent_address}</div>` : ''}
+                <div class="text-xs text-white font-medium">${esc(l.agent_name) || '—'}</div>
+                ${l.agent_email   ? `<div class="text-[11px] text-blue-400 mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:10px;"></iconify-icon>${esc(l.agent_email)}</div>` : ''}
+                ${l.agent_phone   ? `<div class="text-[11px] text-brand mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:10px;"></iconify-icon>${esc(l.agent_phone)}</div>` : ''}
+                ${l.agent_address ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-0.5">${esc(l.agent_address)}</div>` : ''}
               </div>` : '<div></div>'}
             </div>
           ` : `<p class="text-[11px] text-zinc-600 mb-2">Contact details not published for this council. Use the portal link below to find applicant/agent information.</p>`}
@@ -2104,7 +2113,7 @@
           <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5 flex items-center gap-1.5">
             <iconify-icon icon="solar:magic-stick-3-linear" style="font-size:11px;color:#00d084;"></iconify-icon>AI Reasoning
           </div>
-          <p class="text-zinc-400 text-xs leading-relaxed">${l.score_reasoning}</p>
+          <p class="text-zinc-400 text-xs leading-relaxed">${esc(l.score_reasoning)}</p>
         </div>` : ''}
 
         <!-- ⑤ Outreach templates — collapsed by default -->
@@ -2705,8 +2714,12 @@
         </div>`;
       document.getElementById('shareModalSubtitle').textContent = 'Generating secure link…';
 
-      // Collect selected lead IDs and look up full data from allLeads
+      // Snapshot checked IDs BEFORE the reload (DOM checkboxes will be re-rendered by loadLeads)
       const checkedIds = [...document.querySelectorAll('.lead-share-chk:checked')].map(cb => cb.dataset.id);
+
+      // Reload leads from Supabase to ensure we share current data, not a stale snapshot
+      await loadLeads();
+
       const leadsToShare = allLeads.filter(r => checkedIds.includes(String(r.id || r.uid || '')));
 
       if (leadsToShare.length === 0) {
@@ -2791,7 +2804,11 @@
       btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:13px;"></iconify-icon> Syncing…';
       result.textContent = '';
       try {
-        const res  = await fetch('/api/sync-councils', { method: 'POST' });
+        const { data: { session } } = await supabase.auth.getSession();
+        const res  = await fetch('/api/sync-councils', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session?.access_token}` },
+        });
         const data = await res.json();
         if (res.ok) {
           result.innerHTML = `<span class="text-brand">✓ ${data.upserted} councils synced (${data.unique} unique from PlanIt)</span>${data.errors?.length ? '<br><span class="text-amber-400">Warnings: ' + data.errors.join(', ') + '</span>' : ''}`;
@@ -3021,20 +3038,20 @@
           <tr id="crow-${ci}" onclick="toggleContactExpand(${ci})" style="cursor:pointer"
             class="row-hover border-b border-white/5">
             <td class="px-4 py-3">
-              <div class="text-white text-xs font-medium whitespace-nowrap">${r.name || '—'}</div>
-              ${r.agent_name ? `<div class="text-zinc-600 text-[10px] mt-0.5">Agent: ${r.agent_name}</div>` : ''}
+              <div class="text-white text-xs font-medium whitespace-nowrap">${esc(r.name) || '—'}</div>
+              ${r.agent_name ? `<div class="text-zinc-600 text-[10px] mt-0.5">Agent: ${esc(r.agent_name)}</div>` : ''}
             </td>
             <td class="px-4 py-3 text-xs whitespace-nowrap" onclick="event.stopPropagation()">
-              ${r.phone ? `<a href="tel:${r.phone}" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${r.phone}</a>` : '<span class="text-zinc-600">—</span>'}
+              ${r.phone ? `<a href="tel:${esc(r.phone)}" class="text-brand hover:text-brand-light flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:12px;"></iconify-icon>${esc(r.phone)}</a>` : '<span class="text-zinc-600">—</span>'}
             </td>
             <td class="px-4 py-3 text-xs whitespace-nowrap" onclick="event.stopPropagation()">
-              ${r.email ? `<a href="mailto:${r.email}" class="text-blue-400 hover:text-blue-300 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:12px;"></iconify-icon>${r.email}</a>` : '<span class="text-zinc-600">—</span>'}
+              ${r.email ? `<a href="mailto:${esc(r.email)}" class="text-blue-400 hover:text-blue-300 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:12px;"></iconify-icon>${esc(r.email)}</a>` : '<span class="text-zinc-600">—</span>'}
             </td>
-            <td class="px-4 py-3 text-zinc-400 text-xs max-w-[160px] truncate">${r.address || '—'}</td>
+            <td class="px-4 py-3 text-zinc-400 text-xs max-w-[160px] truncate">${esc(r.address) || '—'}</td>
             <td class="px-4 py-3"><span class="pri-badge pri-${r.priority || 'LOW'}">${r.priority || '—'}</span></td>
             <td class="px-4 py-3 text-brand text-xs font-mono font-semibold">${r.score ?? '—'}</td>
             <td class="px-4 py-3" onclick="event.stopPropagation()">
-              <select onchange="updateContactStatus('${r.id}', this.value)"
+              <select id="cstatus-${r.id}" onchange="updateContactStatus('${r.id}', this.value, this)"
                 class="text-[11px] font-medium px-2 py-0.5 rounded-full ${cls} bg-transparent border-0 cursor-pointer focus:outline-none">
                 <option value="new"       ${r.status==='new'       ?'selected':''}>New</option>
                 <option value="contacted" ${r.status==='contacted' ?'selected':''}>Contacted</option>
@@ -3070,19 +3087,19 @@
                       </div>
                       ${daysLabel ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
                         <div class="flex items-center gap-1.5"><iconify-icon icon="solar:clock-circle-linear" style="font-size:11px;color:#fbbf24;"></iconify-icon><span class="text-[11px] text-zinc-500">Decision</span></div>
-                        <span class="text-[11px] font-semibold ${urgencyCls}">${daysLabel}</span>
+                        <span class="text-[11px] font-semibold ${urgencyCls}">${esc(daysLabel)}</span>
                       </div>` : ''}
                       ${r.app_state ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
                         <div class="flex items-center gap-1.5"><iconify-icon icon="solar:document-linear" style="font-size:11px;color:#94a3b8;"></iconify-icon><span class="text-[11px] text-zinc-500">Status</span></div>
-                        <span class="text-[11px] font-semibold text-slate-300">${r.app_state}</span>
+                        <span class="text-[11px] font-semibold text-slate-300">${esc(r.app_state)}</span>
                       </div>` : ''}
                       ${r.development_scale ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
                         <div class="flex items-center gap-1.5"><iconify-icon icon="solar:scale-linear" style="font-size:11px;color:#34d399;"></iconify-icon><span class="text-[11px] text-zinc-500">Scale</span></div>
-                        <span class="text-[11px] font-semibold text-emerald-400">${r.development_scale}</span>
+                        <span class="text-[11px] font-semibold text-emerald-400">${esc(r.development_scale)}</span>
                       </div>` : ''}
                       ${r.unit_count > 1 ? `<div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03]">
                         <div class="flex items-center gap-1.5"><iconify-icon icon="solar:buildings-2-linear" style="font-size:11px;color:#60a5fa;"></iconify-icon><span class="text-[11px] text-zinc-500">Units</span></div>
-                        <span class="text-[11px] font-semibold text-blue-400">${r.unit_count}</span>
+                        <span class="text-[11px] font-semibold text-blue-400">${esc(String(r.unit_count))}</span>
                       </div>` : ''}
                     </div>
                     <button onclick="event.stopPropagation();toggleAccordion('cdet-${ci}')" class="flex items-center justify-between w-full py-1.5 px-2 rounded-lg border border-white/6 text-[11px] text-zinc-500 hover:text-zinc-300 hover:border-white/12">
@@ -3090,14 +3107,14 @@
                       <iconify-icon id="acc-icon-cdet-${ci}" icon="solar:alt-arrow-down-linear" style="font-size:11px;transition:transform 0.2s;"></iconify-icon>
                     </button>
                     <div id="acc-cdet-${ci}" class="hidden space-y-1.5 px-1">
-                      ${r.council ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Council</span><span class="text-[10px] text-zinc-400 text-right">${r.council}</span></div>` : ''}
-                      ${r.address ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Address</span><span class="text-[10px] text-zinc-400 text-right truncate max-w-[110px]">${r.address}</span></div>` : ''}
-                      ${r.dwelling_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Dwelling</span><span class="text-[10px] text-zinc-400 text-right">${r.dwelling_type}</span></div>` : ''}
-                      ${r.start_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Submitted</span><span class="text-[10px] text-zinc-400 font-mono">${r.start_date}</span></div>` : ''}
-                      ${r.target_decision_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Decision by</span><span class="text-[10px] ${urgencyCls} font-mono">${r.target_decision_date}</span></div>` : ''}
-                      ${r.uid ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Ref</span><span class="text-[10px] text-zinc-500 font-mono truncate">${r.uid}</span></div>` : ''}
-                      ${r.app_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Type</span><span class="text-[10px] text-zinc-400 text-right">${r.app_type}</span></div>` : ''}
-                      ${r.agent_name ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Agent</span><span class="text-[10px] text-zinc-400 text-right">${r.agent_name}</span></div>` : ''}
+                      ${r.council ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Council</span><span class="text-[10px] text-zinc-400 text-right">${esc(r.council)}</span></div>` : ''}
+                      ${r.address ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Address</span><span class="text-[10px] text-zinc-400 text-right truncate max-w-[110px]">${esc(r.address)}</span></div>` : ''}
+                      ${r.dwelling_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Dwelling</span><span class="text-[10px] text-zinc-400 text-right">${esc(r.dwelling_type)}</span></div>` : ''}
+                      ${r.start_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Submitted</span><span class="text-[10px] text-zinc-400 font-mono">${esc(r.start_date)}</span></div>` : ''}
+                      ${r.target_decision_date ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Decision by</span><span class="text-[10px] ${urgencyCls} font-mono">${esc(r.target_decision_date)}</span></div>` : ''}
+                      ${r.uid ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Ref</span><span class="text-[10px] text-zinc-500 font-mono truncate">${esc(r.uid)}</span></div>` : ''}
+                      ${r.app_type ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Type</span><span class="text-[10px] text-zinc-400 text-right">${esc(r.app_type)}</span></div>` : ''}
+                      ${r.agent_name ? `<div class="flex justify-between gap-2"><span class="text-[10px] text-zinc-600">Agent</span><span class="text-[10px] text-zinc-400 text-right">${esc(r.agent_name)}</span></div>` : ''}
                     </div>
                     <button onclick="event.stopPropagation();toggleAccordion('cact-${ci}')" class="flex items-center justify-between w-full py-1.5 px-2 rounded-lg border border-white/6 text-[11px] text-zinc-500 hover:text-zinc-300 hover:border-white/12">
                       <span>Contact</span>
@@ -3115,18 +3132,18 @@
                   <div class="flex-1 flex flex-col gap-3 min-w-0">
                     ${r.description ? `<div>
                       <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Planning Description</div>
-                      <p class="text-zinc-300 text-xs leading-relaxed">${r.description}</p>
+                      <p class="text-zinc-300 text-xs leading-relaxed">${esc(r.description)}</p>
                     </div>` : ''}
                     ${r.score_reasoning ? `<div class="${r.description ? 'border-t border-white/5 pt-3' : ''}">
                       <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5 flex items-center gap-1.5">
                         <iconify-icon icon="solar:magic-stick-3-linear" style="font-size:11px;color:#00d084;"></iconify-icon>
                         AI Opportunity Reasoning
                       </div>
-                      <p class="text-zinc-400 text-xs leading-relaxed">${r.score_reasoning}</p>
+                      <p class="text-zinc-400 text-xs leading-relaxed">${esc(r.score_reasoning)}</p>
                     </div>` : ''}
                     ${r.notes ? `<div class="border-t border-white/5 pt-3">
                       <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Notes</div>
-                      <p class="text-zinc-400 text-xs leading-relaxed">${r.notes}</p>
+                      <p class="text-zinc-400 text-xs leading-relaxed">${esc(r.notes)}</p>
                     </div>` : ''}
                     <div class="${(r.description || r.score_reasoning || r.notes) ? 'border-t border-white/5 pt-3' : ''}">
                       <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-2 flex items-center gap-1.5">
@@ -3143,9 +3160,16 @@
       }).join('');
     }
 
-    async function updateContactStatus(id, status) {
-      await sb.from('contacts').update({ status }).eq('id', id);
+    async function updateContactStatus(id, status, selectEl) {
       const row = allContacts.find(r => r.id === id);
+      const prevStatus = row?.status;
+      const { error } = await sb.from('contacts').update({ status }).eq('id', id);
+      if (error) {
+        console.error('updateContactStatus failed:', error.message);
+        // Revert select to original value
+        if (selectEl && prevStatus) selectEl.value = prevStatus;
+        return;
+      }
       if (row) row.status = status;
     }
 
@@ -3167,9 +3191,13 @@
     // INTELLIGENCE TAB — Panel 2: Client Intelligence
     // ══════════════════════════════════════════════════════════════════════════
 
-    let ciRefreshTimer = null;
+    let ciRefreshTimer  = null;
+    let ciLoading       = false;
 
     async function loadClientIntelligence() {
+      if (ciLoading) return;
+      ciLoading = true;
+      clearInterval(ciRefreshTimer);
       // Reset UI
       ['ciProfilesLoading','ciSearchesLoading'].forEach(id =>
         document.getElementById(id).classList.remove('hidden'));
@@ -3256,8 +3284,8 @@
       }
 
       // Auto-refresh every 60s
-      clearInterval(ciRefreshTimer);
       ciRefreshTimer = setInterval(loadClientIntelligence, 60000);
+      ciLoading = false;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -3267,6 +3295,7 @@
     let allConversations  = [];
     let convFilter        = 'all';   // 'all' | 'sent' | 'not'
     let convRefreshTimer  = null;
+    let convLoading       = false;
 
     function timeAgo(iso) {
       if (!iso) return '—';
@@ -3287,6 +3316,9 @@
     };
 
     async function loadProspectConversations() {
+      if (convLoading) return;
+      convLoading = true;
+      clearInterval(convRefreshTimer);
       document.getElementById('convLoading').classList.remove('hidden');
       document.getElementById('convTableWrap').classList.add('hidden');
       document.getElementById('convEmpty').classList.add('hidden');
@@ -3309,8 +3341,8 @@
       renderConversations();
 
       // Auto-refresh every 60s
-      clearInterval(convRefreshTimer);
       convRefreshTimer = setInterval(loadProspectConversations, 60000);
+      convLoading = false;
     }
 
     function setConvFilter(f, btn) {

@@ -604,9 +604,15 @@
       }
     }
 
+    let _scanSettingsInited = false;
     function initScanSettings() {
-      try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
-      try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
+      // Only load from localStorage on the first call; subsequent calls (e.g. after Supabase
+      // sync) just re-render with whatever is already in dActiveTrades / dActiveCouncils.
+      if (!_scanSettingsInited) {
+        _scanSettingsInited = true;
+        try { const s = JSON.parse(localStorage.getItem('ppm_active_trades') || '[]'); s.forEach(id => dActiveTrades.add(id)); } catch(e) {}
+        try { const s = JSON.parse(localStorage.getItem('ppm_d_councils') || '[]'); s.forEach(c => dActiveCouncils.add(c)); } catch(e) {}
+      }
 
       const grid = document.getElementById('dTradeGrid');
       grid.innerHTML = D_TRADES.map(t => {
@@ -2242,6 +2248,12 @@
       const modal = document.getElementById('cpModal');
       modal.classList.add('hidden');
       modal.classList.remove('flex');
+      // Drain any pending coverage-check Promise so the scan button never stays stuck
+      if (window._cpCoverageCb) {
+        const cb = window._cpCoverageCb;
+        window._cpCoverageCb = null;
+        cb(false);
+      }
     }
 
     // ── Account dropdown ──────────────────────────────────────────────────────

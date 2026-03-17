@@ -49,6 +49,43 @@ export default async function handler(req, res) {
     prospect_name  = null,
   } = req.body || {};
 
+  // ── Rate limiting ──────────────────────────────────────────────────────────
+  // Cap messages array to prevent token abuse on single calls
+  const MAX_MESSAGES = caller_type === 'prospect' ? 10 : 20;
+  if (!Array.isArray(messages) || messages.length > MAX_MESSAGES) {
+    return res.status(429).json({ error: 'Too many messages in request — start a new conversation.' });
+  }
+
+  // Per-client daily call limit (stored in profiles.ai_calls_today / ai_calls_date)
+  if (caller_type === 'client' && user_id) {
+    try {
+      const profRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${user_id}&select=ai_calls_today,ai_calls_date&limit=1`,
+        { headers: SUPABASE_HEADERS(SUPABASE_KEY) }
+      );
+      const profRows = await profRes.json();
+      const prof = profRows?.[0];
+      const today = new Date().toISOString().slice(0, 10);
+      const callsToday = (prof?.ai_calls_date === today) ? (prof.ai_calls_today || 0) : 0;
+      const DAILY_LIMIT = 50;
+      if (callsToday >= DAILY_LIMIT) {
+        return res.status(429).json({ error: 'Daily AI call limit reached — resets at midnight UTC.' });
+      }
+      // Increment counter (best-effort, non-blocking)
+      fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${user_id}`,
+        {
+          method:  'PATCH',
+          headers: { ...SUPABASE_HEADERS(SUPABASE_KEY), Prefer: 'return=minimal' },
+          body: JSON.stringify({ ai_calls_today: callsToday + 1, ai_calls_date: today }),
+        }
+      ).catch(() => {});
+    } catch (e) {
+      // Non-fatal — if counter check fails, allow the call through
+      console.warn('Rate limit check failed:', e.message);
+    }
+  }
+
   const svcH = SUPABASE_HEADERS(SUPABASE_KEY);
 
   // ── STEP 1: Load ai_config ─────────────────────────────────────────────────

@@ -18,7 +18,17 @@ export default async function handler(req, res) {
   const { type, userEmail, userName, message } = req.body || {};
   if (!type || !userEmail) return res.status(400).json({ error: 'type and userEmail required' });
 
-  const display = userName || userEmail;
+  // Escape user-supplied strings before inserting into HTML
+  const esc = (s) => String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const display = esc(userName || userEmail);
+  const safeEmail   = esc(userEmail);
+  const safeMessage = esc(message);
 
   const templates = {
     request: {
@@ -27,8 +37,8 @@ export default async function handler(req, res) {
       html:    `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
           <h2 style="color:#111;margin-bottom:8px;">Control Panel Access Request</h2>
-          <p style="color:#555;"><strong>${display}</strong> (${userEmail}) has requested access to the Control Panel.</p>
-          ${message ? `<p style="color:#555;border-left:3px solid #00d084;padding-left:12px;"><em>"${message}"</em></p>` : ''}
+          <p style="color:#555;"><strong>${display}</strong> (${safeEmail}) has requested access to the Control Panel.</p>
+          ${safeMessage ? `<p style="color:#555;border-left:3px solid #00d084;padding-left:12px;"><em>&ldquo;${safeMessage}&rdquo;</em></p>` : ''}
           <p style="margin-top:24px;">
             <a href="https://pm-sand.vercel.app/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review Request</a>
           </p>
@@ -54,7 +64,7 @@ export default async function handler(req, res) {
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
           <h2 style="color:#111;margin-bottom:8px;">Access Request Denied</h2>
           <p style="color:#555;">Hi ${display}, your Control Panel access request has been <strong style="color:#ef4444;">denied</strong>.</p>
-          ${message ? `<p style="color:#555;border-left:3px solid #ef4444;padding-left:12px;"><em>"${message}"</em></p>` : ''}
+          ${safeMessage ? `<p style="color:#555;border-left:3px solid #ef4444;padding-left:12px;"><em>&ldquo;${safeMessage}&rdquo;</em></p>` : ''}
           <p style="color:#555;">You can request access again after 30 minutes.</p>
         </div>`,
     },
@@ -64,8 +74,8 @@ export default async function handler(req, res) {
       html:    `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
           <h2 style="color:#111;margin-bottom:8px;">Scan Exception Request</h2>
-          <p style="color:#555;"><strong>${display}</strong> (${userEmail}) says their scan had an issue and is requesting an extra run.</p>
-          ${message ? `<p style="color:#555;border-left:3px solid #f59e0b;padding-left:12px;"><em>"${message}"</em></p>` : ''}
+          <p style="color:#555;"><strong>${display}</strong> (${safeEmail}) says their scan had an issue and is requesting an extra run.</p>
+          ${safeMessage ? `<p style="color:#555;border-left:3px solid #f59e0b;padding-left:12px;"><em>&ldquo;${safeMessage}&rdquo;</em></p>` : ''}
           <p style="margin-top:24px;">
             <a href="https://pm-sand.vercel.app/admin.html#requests" style="background:#00d084;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Review in Admin Panel</a>
           </p>

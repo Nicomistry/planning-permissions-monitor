@@ -207,17 +207,24 @@
       const token = new URLSearchParams(location.search).get('t');
       if (!token) { show('stateNotFound'); return; }
 
-      const { data, error } = await sb
-        .from('shared_reports')
-        .select('leads_data, expires_at, created_at')
-        .eq('token', token)
-        .single();
-
-      if (error || !data) {
-        console.error('share.html fetch error:', error);
+      let data;
+      try {
+        const res = await fetch(`/api/get-report?token=${encodeURIComponent(token)}`);
+        if (res.status === 404 || res.status === 410) {
+          const body = await res.json().catch(() => ({}));
+          if (res.status === 410) { show('stateExpired'); return; }
+          show('stateNotFound');
+          document.getElementById('stateNotFound').querySelector('p').textContent =
+            body.error ?? 'Report not found.';
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+      } catch (err) {
+        console.error('share.html fetch error:', err);
         show('stateNotFound');
         document.getElementById('stateNotFound').querySelector('p').textContent =
-          error ? `Error: ${error.message}` : 'Report not found or access denied.';
+          `Error: ${err.message}`;
         return;
       }
 
