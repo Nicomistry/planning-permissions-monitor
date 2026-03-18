@@ -2804,7 +2804,7 @@
       btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:13px;"></iconify-icon> Syncing…';
       result.textContent = '';
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await sb.auth.getSession();
         const res  = await fetch('/api/admin-councils', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${session?.access_token}` },
