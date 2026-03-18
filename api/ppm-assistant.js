@@ -183,33 +183,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'user_id required for client caller' });
     }
 
-    // Check assistant_enabled
-    try {
-      const profRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${user_id}&select=assistant_enabled&limit=1`,
-        { headers: svcH }
-      );
-      const profRows = await profRes.json();
-      if (!profRows?.[0]?.assistant_enabled) {
-        return res.status(200).json({
-          reply:       'PPM Assistant access is not yet active on your account. Request access from your dashboard.',
-          lead_cards:  null,
-          stat_teaser: null,
-          report_sent: false,
-          learned:     false,
-        });
-      }
-    } catch (e) {
-      console.warn('Profile check failed:', e.message);
-    }
-
-    // Fetch client leads
+    // Fetch client leads — assistant is open to all logged-in clients
     try {
       const leadsRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/leads?user_id=eq.${user_id}&select=id,address,council,app_type,dwelling_type,opportunity_score,priority,score_reasoning,target_decision_date,planit_url,applicant_name,postcode,description&order=opportunity_score.desc&limit=${config.max_leads_in_context}`,
+        `${SUPABASE_URL}/rest/v1/leads?user_id=eq.${user_id}&select=id,address,council,app_type,dwelling_type,opportunity_score,priority,score_reasoning,target_decision_date,planit_url,council_url,applicant_name,agent_name,agent_email,agent_phone,postcode,description,uid,ward_name&order=opportunity_score.desc&limit=${config.max_leads_in_context}`,
         { headers: svcH }
       );
-      clientLeads = await leadsRes.json() || [];
+      clientLeads = (await leadsRes.json()) || [];
     } catch (e) {
       console.warn('Leads fetch failed:', e.message);
     }
@@ -323,31 +303,39 @@ Always end messages with a clear next step or question.`;
 
   } else {
     const leadsBlock = clientLeads.length
-      ? `\nCLIENT LEADS (${clientLeads.length} total for ${trade}${area ? ` in ${area}` : ''}):\n` +
-        clientLeads.slice(0, 20).map((l, i) =>
-          `${i + 1}. ${l.address} | ${l.council} | ${l.dwelling_type} | Score:${l.opportunity_score}/10 | ${l.priority} | ${l.score_reasoning?.slice(0, 80) || ''}`
-        ).join('\n')
-      : '\nNo leads currently loaded for this client.';
+      ? `\nCLIENT LEADS — ${clientLeads.length} leads scraped from UK planning portals${area ? ` in ${area}` : ''}:\n` +
+        clientLeads.map((l, i) => {
+          const contact = [l.agent_name, l.agent_email, l.agent_phone].filter(Boolean).join(' | ');
+          const url = l.council_url || l.planit_url || '';
+          return `${i + 1}. [${l.priority || 'LOW'} ${l.opportunity_score || 0}/10] ${l.address} | ${l.council}${l.ward_name ? ` (${l.ward_name})` : ''} | ${l.app_type || '—'} | ${l.dwelling_type || '—'} | Ref:${l.uid || '—'} | Decision:${l.target_decision_date || 'TBC'}${contact ? ` | Contact: ${contact}` : ''}${url ? ` | URL: ${url}` : ''}\n   Description: ${(l.description || '').slice(0, 150)}`;
+        }).join('\n')
+      : '\nNo leads found yet — client needs to run a scan first.';
 
     systemPrompt += `
 
-CLIENT MODE — you are assisting a ${trade} professional${area ? ` covering ${area}` : ''}.
+CLIENT MODE — you are a planning intelligence assistant for a ${trade} professional${area ? ` covering ${area}` : ''}.
 ${leadsBlock}
 
-When the client asks about leads, respond with ONLY this JSON (no other text):
-{"action":"show_leads","leads":[...matching lead objects from the list above...],"explanation":"...one sentence..."}
+RULES:
+- All lead data above is REAL, scraped from official UK planning portals. Never say you don't have data if it's in the list above.
+- When asked about leads, scores, contacts or addresses: use ONLY the data above.
+- Scores are out of 10. HIGH = 7+, MEDIUM = 4–6, LOW = 1–3.
+- Contact details (agent name/email/phone) are the architects or agents who submitted the planning application — these are the people to reach out to.
 
-For outreach message requests, write a professional note from a ${trade} to the homeowner. Friendly, specific, max 150 words.
+When the client asks to SEE leads (e.g. "show my leads", "which are high priority", "leads in Barnet"):
+Respond with ONLY this JSON:
+{"action":"show_leads","leads":[...matching lead objects from the numbered list above, as full objects...],"explanation":"one sentence summary"}
 
-For questions you cannot answer from the leads data or background knowledge:
-1. Acknowledge you don't have that data yet
-2. Respond with ONLY: {"action":"learn","topic":"...the unanswered question..."}
+For outreach message requests ("draft outreach", "write a message for [address]"):
+Write a concise, professional note from a ${trade} to the homeowner/agent. Reference the specific project. Max 120 words.
 
-If the client requests a fresh scan for specific councils:
-Respond with ONLY: {"action":"trigger_scan","councils":["council name 1","council name 2"]}
+For questions you cannot answer:
+{"action":"learn","topic":"exact question asked"}
 
-For all other questions: answer in plain text using leads data and background knowledge.
-Never invent statistics or lead details not in the data above.`;
+For fresh scan requests:
+{"action":"trigger_scan","councils":["council1","council2"]}
+
+For everything else: answer in plain text. Be specific, reference actual lead data. Never invent.`;
   }
 
   // ── STEP 5: Call OpenRouter ────────────────────────────────────────────────
@@ -362,9 +350,9 @@ Never invent statistics or lead details not in the data above.`;
         'X-Title':       'PPM Assistant',
       },
       body: JSON.stringify({
-        model:       'anthropic/claude-3-5-haiku',
-        max_tokens:  600,
-        temperature: 0.3,
+        model:       'anthropic/claude-3-5-haiku-20241022',
+        max_tokens:  800,
+        temperature: 0.2,
         messages: [
           { role: 'system', content: systemPrompt },
           ...(caller_type === 'client' ? priorMessages : []),

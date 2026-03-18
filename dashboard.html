@@ -2632,10 +2632,12 @@
     <!-- Footer -->
     <div class="ppm-int-footer">
       <span style="font-size:11px;color:#3f3f46;">Powered by PPM Assistant</span>
-      <button onclick="ppmIntResetPreferences()"
+      <button onclick="ppmIntShowMode1(false)"
         style="font-size:11px;color:#71717a;background:none;border:none;cursor:pointer;padding:0;transition:color 0.15s;font-family:inherit;"
         onmouseover="this.style.color='#c084fc'"
-        onmouseout="this.style.color='#71717a'">Update preferences</button>
+        onmouseout="this.style.color='#71717a'" id="ppmSetPrefsBtn">
+        <span id="ppmPrefsLabel"></span>
+      </button>
     </div>
   </div>
 
@@ -2672,9 +2674,10 @@ async function ppmIntOpen() {
   ]);
 
   ppmIntPrefs         = prefRes.data || null;
-  ppmAssistantEnabled = true; // available to all logged-in clients
+  ppmAssistantEnabled = true; // open to all clients and admin
 
-  ppmIntPrefs ? ppmIntShowMode2() : ppmIntShowMode1(false);
+  // Go straight to chat — preferences are optional (can set later)
+  ppmIntShowMode2();
 }
 
 function ppmIntClose() {
@@ -2761,21 +2764,9 @@ async function ppmIntSavePreferences() {
 
   ppmIntPrefs = { trade: ppmIntSelectedTrade, area };
 
-  if (ppmIntFromGate) {
-    await sb.from('assistant_requests').insert({
-      user_id: currentUser.id,
-      message: `Trade: ${ppmIntSelectedTrade}, Area: ${area}`,
-    });
-    // Show confirmation in Mode 0
-    ppmIntShowMode0();
-    document.getElementById('ppmGateDefault').style.display = 'none';
-    const sent = document.getElementById('ppmGateSent');
-    sent.style.display        = 'flex';
-    sent.style.flexDirection  = 'column';
-    sent.style.alignItems     = 'center';
-  } else {
-    ppmIntShowMode2();
-  }
+  // Always go to chat after saving preferences
+  ppmAssistantHistory = []; // reset so greeting re-fires with new prefs
+  ppmIntShowMode2();
 }
 
 // ── Mode 2: Chat ──────────────────────────────────────────────────────────────
@@ -2803,6 +2794,10 @@ async function ppmIntShowMode2() {
   sendBtn.disabled = false;
   chat.scrollTop   = 0;
 
+  // Footer label: prompt to set trade/area if not done yet
+  const prefsLabel = document.getElementById('ppmPrefsLabel');
+  if (prefsLabel) prefsLabel.textContent = ppmIntPrefs ? 'Update preferences' : 'Set trade & area';
+
   // Load last 10 messages from client_conversations if history empty
   if (ppmAssistantHistory.length === 0) {
     const { data } = await sb
@@ -2823,8 +2818,17 @@ async function ppmIntShowMode2() {
   if (ppmAssistantHistory.length === 0) {
     const raw       = (currentUser?.email || '').split('@')[0].split('.')[0];
     const firstName = raw.charAt(0).toUpperCase() + raw.slice(1);
-    const trade     = ppmIntPrefs?.trade || 'your trade';
-    const greeting  = `Hi ${firstName}! I can see you're set up as a ${trade}. Ask me about your leads, request a summary, or say "draft outreach" for any address.`;
+    const trade     = ppmIntPrefs?.trade;
+    const leadCount = allLeads?.length || 0;
+    let greeting;
+    if (trade && leadCount > 0) {
+      const high = allLeads.filter(l => l.priority === 'HIGH').length;
+      greeting = `Hi ${firstName}! I can see ${leadCount} planning leads across your councils — ${high} are HIGH priority. Ask me to show your top leads, draft outreach for an address, or ask anything about the planning applications.`;
+    } else if (leadCount > 0) {
+      greeting = `Hi ${firstName}! You have ${leadCount} planning leads loaded. Ask me to show your top leads, filter by council or type, draft outreach messages, or explain any application.`;
+    } else {
+      greeting = `Hi ${firstName}! I'm your PPM planning assistant. Run a scan first to load your leads, then ask me to analyse them, draft outreach, or answer questions about planning applications.`;
+    }
     ppmAssistantRenderMessage('agent', greeting, true);
   }
 
