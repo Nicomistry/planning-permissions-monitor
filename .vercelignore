@@ -1,3 +1,4 @@
 planning-scraper/
-*.json
+multi-council-agentic-workflow.json
+south-bucks-agentic-workflow.json
 .env
