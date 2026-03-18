@@ -2012,7 +2012,7 @@
         // Attempt council-portal enrichment (agent_email via Idox REST if available)
         try {
           const ccParams = new URLSearchParams({ council: lead.council, uid: lead.uid });
-          const ccResp = await fetch(`/api/council-contact?${ccParams}`);
+          const ccResp = await fetch(`/api/admin-councils?${ccParams}`);
           if (ccResp.ok) {
             const cc = await ccResp.json();
             if (cc.agent_email && !lead.agent_email) lead.agent_email = cc.agent_email;
@@ -2552,10 +2552,10 @@
 
       // Use server-side endpoint (service role) to update request + profile atomically
       const { data: { session } } = await sb.auth.getSession();
-      const resp = await fetch('/api/grant-cp', {
+      const resp = await fetch('/api/admin-grant-runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ requestId: id, userId: req.user_id, decision }),
+        body: JSON.stringify({ action: 'review', requestId: id, userId: req.user_id, decision }),
       });
       const result = await resp.json();
       if (!resp.ok) { alert('Error: ' + result.error); btn.disabled = false; btn.textContent = decision === 'granted' ? 'Grant' : 'Deny'; return; }
@@ -2805,7 +2805,7 @@
       result.textContent = '';
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const res  = await fetch('/api/sync-councils', {
+        const res  = await fetch('/api/admin-councils', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${session?.access_token}` },
         });

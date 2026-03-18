@@ -1137,9 +1137,10 @@
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
       try {
-        const res = await fetch('/api/billing-portal', {
+        const res = await fetch('/api/stripe-manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'portal' }),
         });
         const data = await res.json();
         if (data.url) window.location.href = data.url;

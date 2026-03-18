@@ -122,5 +122,38 @@ export default async function handler(req, res) {
     return res.status(200).json({ users });
   }
 
-  return res.status(400).json({ error: 'action must be "search", "grant", or "list"' });
+  // ── Review CP request (was grant-cp.js) ───────────────────────────────────
+  if (action === 'review') {
+    const { requestId, userId: targetUserId, decision } = req.body || {};
+    if (!requestId || !targetUserId || !decision) {
+      return res.status(400).json({ error: 'requestId, userId, decision required' });
+    }
+    const reqResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/control_panel_requests?id=eq.${requestId}`,
+      {
+        method:  'PATCH',
+        headers: { ...svcHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: decision, reviewed_at: new Date().toISOString(), reviewed_by: caller.id }),
+      }
+    );
+    if (!reqResp.ok) {
+      return res.status(500).json({ error: 'Failed to update request: ' + await reqResp.text() });
+    }
+    if (decision === 'granted') {
+      const profResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${targetUserId}`,
+        {
+          method:  'PATCH',
+          headers: { ...svcHeaders, Prefer: 'return=minimal' },
+          body: JSON.stringify({ cp_runs_remaining: 1 }),
+        }
+      );
+      if (!profResp.ok) {
+        return res.status(500).json({ error: 'Request updated but profile failed: ' + await profResp.text() });
+      }
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  return res.status(400).json({ error: 'action must be "search", "grant", "list", or "review"' });
 }
