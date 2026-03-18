@@ -78,20 +78,22 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const allAreas = [];
-    const errors   = [];
-    for (const areaType of AREA_TYPES) {
-      try {
-        const upstream = await fetch(
-          `https://www.planit.org.uk/api/areas/json?area_type=${encodeURIComponent(areaType)}&pg_sz=200&select=area_id,area_name,area_type`,
-          { headers: { 'User-Agent': 'PPM-Scanner/1.0', Accept: 'application/json' } }
-        );
-        if (!upstream.ok) { errors.push(`${areaType}: HTTP ${upstream.status}`); continue; }
-        const data = await upstream.json();
-        if (!Array.isArray(data.records)) { errors.push(`${areaType}: no records`); continue; }
-        allAreas.push(...data.records.map(r => ({ area_id: r.area_id, area_name: r.area_name, area_type: r.area_type, synced_at: new Date().toISOString() })));
-      } catch (err) { errors.push(`${areaType}: ${err.message}`); }
-    }
+    const errors = [];
+    const results = await Promise.all(
+      AREA_TYPES.map(async (areaType) => {
+        try {
+          const upstream = await fetch(
+            `https://www.planit.org.uk/api/areas/json?area_type=${encodeURIComponent(areaType)}&pg_sz=200&select=area_id,area_name,area_type`,
+            { headers: { 'User-Agent': 'PPM-Scanner/1.0', Accept: 'application/json' } }
+          );
+          if (!upstream.ok) { errors.push(`${areaType}: HTTP ${upstream.status}`); return []; }
+          const data = await upstream.json();
+          if (!Array.isArray(data.records)) { errors.push(`${areaType}: no records`); return []; }
+          return data.records.map(r => ({ area_id: r.area_id, area_name: r.area_name, area_type: r.area_type, synced_at: new Date().toISOString() }));
+        } catch (err) { errors.push(`${areaType}: ${err.message}`); return []; }
+      })
+    );
+    const allAreas = results.flat();
 
     if (allAreas.length === 0) return res.status(502).json({ error: 'No areas fetched from PlanIt', errors });
 
