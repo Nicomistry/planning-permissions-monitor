@@ -670,7 +670,14 @@
           <div class="glass-panel rounded-2xl overflow-hidden">
             <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
               <div class="text-sm font-medium text-white">Top Leads</div>
-              <div class="text-xs text-zinc-500" id="topLeadsCount">—</div>
+              <div class="flex items-center gap-3">
+                <button onclick="toggleAllLeads()" id="showAllLeadsBtn"
+                  class="text-[11px] font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+                  style="background:rgba(0,208,132,0.12);border:1px solid rgba(0,208,132,0.25);color:#00d084;">
+                  Show all leads
+                </button>
+                <div class="text-xs text-zinc-500" id="topLeadsCount">—</div>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -1818,6 +1825,30 @@
             <!-- Expandable detail -->
             <div class="council-expand" id="cc-body-${ci}">
 
+              <!-- Action buttons — top of expand -->
+              <div class="flex gap-2 mb-3">
+                <a href="/council-leads.html?council=${encodeURIComponent(name)}&recent=60"
+                  target="_blank" onclick="event.stopPropagation()"
+                  class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold text-black hover:opacity-90 transition-all"
+                  style="background:#00d084;">
+                  <iconify-icon icon="solar:list-bold" style="font-size:12px;"></iconify-icon>
+                  See all ${leads.length} leads
+                </a>
+                <button onclick="event.stopPropagation();sendCouncilToClient('${name.replace(/'/g,"\\'")}',${ci})"
+                  class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold hover:opacity-90 transition-all"
+                  style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);color:#93c5fd;">
+                  <iconify-icon icon="solar:share-bold" style="font-size:12px;"></iconify-icon>
+                  Send to client
+                </button>
+              </div>
+              <div id="cc-share-${ci}" class="hidden mb-3 rounded-lg p-2.5" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);">
+                <div class="text-[10px] text-blue-400 mb-1.5">Share link — expires in 48h</div>
+                <div class="flex gap-1.5">
+                  <input id="cc-share-input-${ci}" type="text" readonly class="flex-1 text-[10px] font-mono bg-white/5 border border-white/10 rounded px-2 py-1.5 text-zinc-300 min-w-0" placeholder="Generating…">
+                  <button onclick="event.stopPropagation();copyCouncilLink(${ci})" class="flex-shrink-0 px-2.5 py-1.5 rounded text-[10px] font-semibold text-black" style="background:#00d084;">Copy</button>
+                </div>
+              </div>
+
               <!-- Stats row -->
               <div class="grid grid-cols-3 gap-2 mb-3">
                 <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
@@ -1893,7 +1924,16 @@
       window._scanLeads = top; // safe reference — avoids JSON-in-onclick issues
       document.getElementById('topLeadsCount').textContent = `Top ${top.length} of ${allLeads.length}`;
       const savedIds = new Set(JSON.parse(localStorage.getItem('ppm_saved_contacts') || '[]'));
-      document.getElementById('resultsTableBody').innerHTML = top.map((l, i) => {
+      document.getElementById('resultsTableBody').innerHTML = top.map((l, i) => buildResultRow(l, i, savedIds)).join('');
+
+      const panel = document.getElementById('scanResultsPanel');
+      panel.classList.remove('hidden');
+      panel.classList.add('fade-in');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function buildResultRow(l, i, savedIds) {
+      savedIds = savedIds || new Set(JSON.parse(localStorage.getItem('ppm_saved_contacts') || '[]'));
         const uid = btoa(encodeURIComponent((l.address||'') + '|' + (l.phone||''))).slice(0,20);
         const isSaved = savedIds.has(uid);
         const hasPlanit = l.planit_url || l.uid;
@@ -1981,12 +2021,6 @@
             </div>
           </td>
         </tr>`;
-      }).join('');
-
-      const panel = document.getElementById('scanResultsPanel');
-      panel.classList.remove('hidden');
-      panel.classList.add('fade-in');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // Fetch full application details from PlanIt via our proxy (auto-called on expand)
@@ -2283,6 +2317,54 @@
         btn.classList.add('text-brand');
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); }, 2000);
       });
+    }
+
+    // ── Per-council send to client ────────────────────────────────────────────
+    async function sendCouncilToClient(councilName, ci) {
+      const box   = document.getElementById('cc-share-' + ci);
+      const input = document.getElementById('cc-share-input-' + ci);
+      if (!box || !input) return;
+      box.classList.remove('hidden');
+      input.value = 'Generating…';
+
+      const leads = allLeads.filter(l => l.council === councilName);
+      if (leads.length === 0) { input.value = 'No leads for this council'; return; }
+
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await sb.from('shared_reports').insert({
+        created_by: (await sb.auth.getUser()).data.user?.id,
+        leads_data: leads,
+        expires_at: expiresAt,
+        label: `${councilName} — ${leads.length} leads`,
+      }).select('token').single();
+
+      if (error || !data) { input.value = 'Error — check console'; console.error(error); return; }
+      input.value = `https://pm-sand.vercel.app/share.html?t=${data.token}`;
+    }
+
+    function copyCouncilLink(ci) {
+      const input = document.getElementById('cc-share-input-' + ci);
+      if (!input || !input.value.startsWith('http')) return;
+      navigator.clipboard.writeText(input.value).then(() => {
+        const btn = input.nextElementSibling;
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 2000); }
+      });
+    }
+
+    // ── Show all / top 15 toggle ──────────────────────────────────────────────
+    let _showingAllLeads = false;
+    function toggleAllLeads() {
+      _showingAllLeads = !_showingAllLeads;
+      const btn = document.getElementById('showAllLeadsBtn');
+      const top = _showingAllLeads
+        ? [...allLeads].sort((a,b) => (b.score||0)-(a.score||0))
+        : [...allLeads].sort((a,b) => (b.score||0)-(a.score||0)).slice(0,15);
+      window._scanLeads = top;
+      document.getElementById('topLeadsCount').textContent =
+        _showingAllLeads ? `All ${top.length} leads` : `Top ${top.length} of ${allLeads.length}`;
+      if (btn) btn.textContent = _showingAllLeads ? 'Show top 15' : 'Show all leads';
+      window._scanLeads = top;
+      document.getElementById('resultsTableBody').innerHTML = top.map((l, i) => buildResultRow(l, i)).join('');
     }
 
     async function sendReportEmail() {
