@@ -155,8 +155,9 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     // Redirect if already logged in
+    const _redirectParam = new URLSearchParams(location.search).get('redirect');
     sb.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = '/dashboard.html';
+      if (data.session) window.location.href = _redirectParam || '/dashboard.html';
     });
 
     // ── Tab switching ─────────────────────────────────────────────────────────
@@ -232,9 +233,10 @@
         showError(error.message);
         setLoading('signup', false);
       } else {
-        showSuccess('Account created! Check your email to confirm, then sign in.');
+        // After signup, redirect to pricing to choose a plan
+        showSuccess('Account created! Redirecting to plans…');
         setLoading('signup', false);
-        document.getElementById('signupForm').reset();
+        setTimeout(() => { window.location.href = '/pricing.html'; }, 1200);
       }
     }
   </script>

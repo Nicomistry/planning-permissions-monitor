@@ -170,12 +170,17 @@
             <div id="userInitials" class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[0.7rem] text-emerald-300 font-medium">?</div>
             <div class="hidden sm:flex flex-col items-start">
               <span id="userEmail" class="text-[0.7rem] font-medium text-white tracking-tight">Loading…</span>
-              <span class="text-[0.65rem] text-zinc-500">Logged in</span>
+              <span id="planBadgeNav" class="text-[0.65rem] text-zinc-500">Logged in</span>
             </div>
             <iconify-icon icon="solar:alt-arrow-down-linear" class="text-zinc-400 w-3 h-3" style="stroke-width:1.5;" width="12" height="12"></iconify-icon>
           </button>
-          <div id="accountDropdown" class="hidden absolute right-0 mt-2 w-40 bg-[#050505]/95 border border-white/10 rounded-xl shadow-lg backdrop-blur pt-1 pb-1">
-            <button onclick="handleLogout()" class="flex items-center justify-center gap-1.5 w-full text-[0.7rem] font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg px-3 py-2 transition-colors">
+          <div id="accountDropdown" class="hidden absolute right-0 mt-2 w-44 bg-[#050505]/95 border border-white/10 rounded-xl shadow-lg backdrop-blur pt-1 pb-1">
+            <button onclick="openBillingPortal()" class="flex items-center gap-1.5 w-full text-[0.7rem] font-medium text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg px-3 py-2 transition-colors">
+              <iconify-icon icon="solar:card-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
+              Manage billing
+            </button>
+            <div class="my-1 border-t border-white/5"></div>
+            <button onclick="handleLogout()" class="flex items-center gap-1.5 w-full text-[0.7rem] font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg px-3 py-2 transition-colors">
               <iconify-icon icon="solar:logout-2-linear" class="w-3.5 h-3.5" style="stroke-width:1.5;"></iconify-icon>
               Log out
             </button>
@@ -184,6 +189,19 @@
       </div>
     </div>
   </nav>
+
+  <!-- Welcome banner (shown on ?welcome=1 after Stripe checkout) -->
+  <div id="welcomeBanner" class="hidden fixed top-14 inset-x-0 z-30 bg-brand/10 border-b border-brand/20 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 text-sm text-brand">
+        <iconify-icon icon="solar:check-circle-bold" style="font-size:17px;flex-shrink:0;"></iconify-icon>
+        <span>You're all set! Your subscription is active — run your first scan below.</span>
+      </div>
+      <button onclick="dismissWelcomeBanner()" class="text-brand/60 hover:text-brand transition-colors flex-shrink-0">
+        <iconify-icon icon="solar:close-linear" style="font-size:16px;"></iconify-icon>
+      </button>
+    </div>
+  </div>
 
   <!-- MAIN -->
   <main class="pt-14 min-h-screen">
@@ -587,6 +605,8 @@
     let dActiveTrades   = new Set();
     let dActiveCouncils = new Set();
     let dActiveRegion   = null;
+    let userCouncilLimit = null; // null = unlimited (Pro); 3 = Starter
+    let userPlanName     = null; // 'Starter' | 'Pro' | null
 
     // ── Council coverage — councils with planit_auth configured ──────────────
     let availableCouncils = new Set(); // populated on load; empty = treat all as available
@@ -724,8 +744,27 @@
     }
 
     function dToggleCouncil(c) {
-      if (dActiveCouncils.has(c)) dActiveCouncils.delete(c);
-      else dActiveCouncils.add(c);
+      if (!dActiveCouncils.has(c)) {
+        // Enforce plan council limit on add
+        if (userCouncilLimit !== null && dActiveCouncils.size >= userCouncilLimit) {
+          // Show inline upgrade prompt
+          let msg = document.getElementById('councilLimitMsg');
+          if (!msg) {
+            msg = document.createElement('div');
+            msg.id = 'councilLimitMsg';
+            msg.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#111;border:1px solid rgba(0,208,132,0.3);border-radius:12px;padding:10px 18px;font-size:12px;color:#a1a1aa;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+            msg.innerHTML = `<iconify-icon icon="solar:lock-bold" style="color:#00d084;font-size:15px;flex-shrink:0;"></iconify-icon><span>Starter plan is limited to ${userCouncilLimit} councils. <a href="/pricing.html" style="color:#00d084;text-decoration:underline;">Upgrade to Pro</a> for unlimited.</span>`;
+            document.body.appendChild(msg);
+          }
+          msg.style.display = 'flex';
+          clearTimeout(msg._hideTimer);
+          msg._hideTimer = setTimeout(() => { if (msg) msg.style.display = 'none'; }, 4000);
+          return;
+        }
+        dActiveCouncils.add(c);
+      } else {
+        dActiveCouncils.delete(c);
+      }
       const safe = c.replace(/[^a-z0-9]/gi, '-');
       document.getElementById('dcchip-' + safe)?.classList.toggle('active', dActiveCouncils.has(c));
       updateDCouncilCount();
@@ -1023,14 +1062,50 @@
       const email = currentUser.email || '';
       document.getElementById('userEmail').textContent    = email;
       document.getElementById('userInitials').textContent = email.slice(0, 2).toUpperCase();
-      const { data: profile } = await sb.from('profiles')
-        .select('is_admin, cp_runs_remaining, cp_last_run_at, scan_settings')
-        .eq('user_id', currentUser.id)
-        .single();
+      const [profileRes, planRes] = await Promise.all([
+        sb.from('profiles')
+          .select('is_admin, cp_runs_remaining, cp_last_run_at, scan_settings')
+          .eq('user_id', currentUser.id)
+          .single(),
+        sb.from('user_plans')
+          .select('status, plan_id, plans(name, council_limit)')
+          .eq('user_id', currentUser.id)
+          .single(),
+      ]);
+      const profile = profileRes.data;
+      const userPlan = planRes.data;
+
       if (profile?.is_admin) {
         window.location.href = '/admin.html';
         return;
       }
+
+      // Set plan variables for council limit enforcement
+      if (userPlan?.status === 'active') {
+        userCouncilLimit = userPlan.plans?.council_limit ?? null; // null = unlimited
+        userPlanName     = userPlan.plans?.name ?? null;
+      }
+
+      // Update nav plan badge
+      const planBadge = document.getElementById('planBadgeNav');
+      if (planBadge) {
+        if (userPlanName) {
+          planBadge.textContent = userPlanName;
+          planBadge.style.color = '#00d084';
+        } else {
+          planBadge.textContent = 'Logged in';
+        }
+      }
+
+      // Show welcome banner on ?welcome=1
+      if (new URLSearchParams(location.search).get('welcome') === '1') {
+        const wb = document.getElementById('welcomeBanner');
+        if (wb) {
+          wb.classList.remove('hidden');
+          document.querySelector('main').style.paddingTop = (14 + 44) + 'px';
+        }
+      }
+
       // Merge Supabase scan_settings on top of localStorage (Supabase wins)
       if (profile?.scan_settings) {
         const ss = profile.scan_settings;
@@ -1049,6 +1124,28 @@
         showApprovalBanner();
       } else {
         startApprovalPolling(runsOnLoad);
+      }
+    }
+
+    function dismissWelcomeBanner() {
+      const wb = document.getElementById('welcomeBanner');
+      if (wb) wb.classList.add('hidden');
+    }
+
+    async function openBillingPortal() {
+      document.getElementById('accountDropdown').classList.add('hidden');
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      try {
+        const res = await fetch('/api/billing-portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else alert(data.error || 'Could not open billing portal.');
+      } catch (e) {
+        alert('Request failed — please try again.');
       }
     }
 
