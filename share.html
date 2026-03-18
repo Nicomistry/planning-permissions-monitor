@@ -7,202 +7,238 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { background:#0a0a0a; font-family:'Inter',system-ui,sans-serif; color:#f4f4f5; }
-    .brand { color:#00d084; }
+    body { background:#0a0a0a; font-family:'Geist',system-ui,sans-serif; color:#f4f4f5; -webkit-font-smoothing:antialiased; }
     .glass { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:16px; }
-    .lead-card { border-bottom:1px solid rgba(255,255,255,0.06); transition:background 0.15s; }
-    .lead-card:last-child { border-bottom:none; }
-    .lead-card:hover { background:rgba(255,255,255,0.02); }
+    .badge-high   { background:rgba(74,222,128,0.15);  color:#4ade80; border:1px solid rgba(74,222,128,0.25);  font-size:9px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .badge-medium { background:rgba(251,191,36,0.15);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25);  font-size:9px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .badge-low    { background:rgba(156,163,175,0.12); color:#9ca3af; border:1px solid rgba(156,163,175,0.2);   font-size:9px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .lead-row { border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer; transition:background 0.15s; }
+    .lead-row:last-child { border-bottom:none; }
+    .lead-row:hover { background:rgba(255,255,255,0.02); }
     .lead-expand { display:none; }
     .lead-expand.open { display:block; }
     .chevron { transition:transform 0.2s; }
     .chevron.open { transform:rotate(180deg); }
-    .badge-high   { background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.25); }
-    .badge-medium { background:rgba(251,191,36,0.15);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25); }
-    .badge-low    { background:rgba(156,163,175,0.12); color:#9ca3af; border:1px solid rgba(156,163,175,0.2); }
+    .council-section { margin-bottom:32px; }
+    .score-high { color:#4ade80; }
+    .score-med  { color:#fbbf24; }
+    .score-low  { color:#9ca3af; }
+
+    /* ── Print / PDF styles ────────────────────────────────────────── */
     @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       .no-print { display:none !important; }
-      body { background:#fff; color:#111; }
-      .glass { background:#fff; border:1px solid #e5e7eb; }
+      body { background:#fff !important; color:#111 !important; font-size:11px; }
+      .glass { background:#f9fafb !important; border:1px solid #e5e7eb !important; border-radius:8px; }
       .lead-expand { display:block !important; }
+      .chevron { display:none; }
+      .badge-high   { background:#dcfce7 !important; color:#166534 !important; border-color:#bbf7d0 !important; }
+      .badge-medium { background:#fef9c3 !important; color:#854d0e !important; border-color:#fde68a !important; }
+      .badge-low    { background:#f1f5f9 !important; color:#475569 !important; border-color:#cbd5e1 !important; }
+      .score-high { color:#166534 !important; }
+      .score-med  { color:#92400e !important; }
+      .score-low  { color:#64748b !important; }
+      .print-header { display:flex !important; }
+      .council-section { page-break-inside:avoid; }
+      a { color:#111 !important; text-decoration:none; }
     }
   </style>
 </head>
 <body class="min-h-screen">
 
-  <!-- Header -->
-  <header class="border-b border-white/8 px-6 py-4 flex items-center justify-between flex-wrap gap-3 no-print">
+  <!-- Nav -->
+  <header class="no-print border-b border-white/8 px-6 py-3.5 flex items-center justify-between flex-wrap gap-3 sticky top-0 z-10" style="background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);">
-        <iconify-icon icon="solar:radar-2-linear" style="color:#00d084;font-size:16px;"></iconify-icon>
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(0,208,132,0.1);border:1px solid rgba(0,208,132,0.2);">
+        <iconify-icon icon="solar:radar-2-linear" style="color:#00d084;font-size:14px;"></iconify-icon>
       </div>
-      <span class="font-semibold text-sm tracking-tight">PPM Planning Leads</span>
+      <span class="font-semibold text-sm tracking-tight text-white">PPM Planning Leads</span>
     </div>
     <div class="flex items-center gap-3">
-      <div id="expiryBadge" class="text-[11px] text-amber-400 border border-amber-500/25 bg-amber-500/8 rounded-lg px-3 py-1.5 flex items-center gap-1.5"></div>
-      <button onclick="window.print()"
-        class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg border border-white/15 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition-all active:scale-95">
+      <div id="expiryBadge" class="text-[11px] text-amber-400 border border-amber-500/25 bg-amber-500/8 rounded-lg px-3 py-1.5 flex items-center gap-1.5 hidden"></div>
+      <button onclick="downloadPDF()"
+        class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg text-black hover:opacity-90 transition-all active:scale-95"
+        style="background:#00d084;">
         <iconify-icon icon="solar:file-download-bold" style="font-size:13px;"></iconify-icon>
         Download PDF
       </button>
     </div>
   </header>
 
-  <!-- Print header (only shows in PDF) -->
-  <div class="hidden print:block px-6 py-4 border-b border-gray-200 mb-6">
-    <div class="flex items-center justify-between">
+  <!-- Print-only header -->
+  <div class="print-header hidden items-center justify-between px-6 py-4 border-b border-gray-200 mb-6">
+    <div>
       <div class="text-xl font-bold text-black">PPM Planning Leads Report</div>
       <div class="text-sm text-gray-500" id="printDate"></div>
     </div>
+    <div class="text-sm text-gray-500">ppm-leads.vercel.app</div>
   </div>
 
-  <!-- Main content -->
+  <!-- Main -->
   <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8" id="mainContent">
-    <!-- Loading state -->
+
+    <!-- Loading -->
     <div id="stateLoading" class="flex flex-col items-center justify-center py-24 gap-4">
       <iconify-icon icon="svg-spinners:3-dots-fade" style="color:#00d084;font-size:32px;"></iconify-icon>
       <p class="text-zinc-500 text-sm">Loading report…</p>
     </div>
 
-    <!-- Expired state -->
+    <!-- Expired -->
     <div id="stateExpired" class="hidden flex-col items-center justify-center py-24 gap-4 text-center">
       <iconify-icon icon="solar:clock-circle-bold" style="color:#f59e0b;font-size:40px;"></iconify-icon>
       <h2 class="text-white font-semibold text-lg">This report has expired</h2>
       <p class="text-zinc-500 text-sm max-w-xs">Planning lead reports are available for 48 hours. Contact your PPM account manager for a fresh report.</p>
     </div>
 
-    <!-- Not found state -->
+    <!-- Not found -->
     <div id="stateNotFound" class="hidden flex-col items-center justify-center py-24 gap-4 text-center">
       <iconify-icon icon="solar:danger-triangle-bold" style="color:#f87171;font-size:40px;"></iconify-icon>
       <h2 class="text-white font-semibold text-lg">Report not found</h2>
       <p class="text-zinc-500 text-sm max-w-xs">This link is invalid or has been removed.</p>
     </div>
 
-    <!-- Empty state -->
-    <div id="stateEmpty" class="hidden flex-col items-center justify-center py-24 gap-4 text-center">
-      <iconify-icon icon="solar:document-text-linear" style="color:#71717a;font-size:40px;"></iconify-icon>
-      <h2 class="text-white font-semibold text-lg">No leads in this report</h2>
-      <p class="text-zinc-500 text-sm max-w-xs">This report was shared with no leads attached. Contact your PPM account manager for a new report.</p>
-    </div>
-
-    <!-- Report content -->
+    <!-- Report -->
     <div id="stateReport" class="hidden">
-      <!-- Summary bar -->
-      <div class="flex flex-wrap items-center gap-4 mb-6">
-        <div>
-          <h1 class="text-lg font-bold text-white" id="reportTitle">Planning Leads Report</h1>
-          <p class="text-xs text-zinc-500 mt-0.5" id="reportMeta"></p>
-        </div>
-        <div class="ml-auto flex gap-3 flex-wrap">
-          <div class="glass px-4 py-2.5 text-center">
-            <div class="text-xl font-bold brand" id="statTotal">—</div>
-            <div class="text-[10px] text-zinc-500 mt-0.5">Leads</div>
+
+      <!-- Title + stats -->
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white tracking-tight mb-1" id="reportTitle">Planning Leads Report</h1>
+        <p class="text-sm text-zinc-500" id="reportMeta"></p>
+        <div class="flex flex-wrap gap-3 mt-4">
+          <div class="glass px-4 py-3 text-center min-w-[80px]">
+            <div class="text-2xl font-bold" style="color:#00d084;" id="statTotal">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Total leads</div>
           </div>
-          <div class="glass px-4 py-2.5 text-center">
-            <div class="text-xl font-bold text-green-400" id="statHigh">—</div>
-            <div class="text-[10px] text-zinc-500 mt-0.5">HIGH</div>
+          <div class="glass px-4 py-3 text-center min-w-[80px]">
+            <div class="text-2xl font-bold text-green-400" id="statHigh">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">High priority</div>
           </div>
-          <div class="glass px-4 py-2.5 text-center">
-            <div class="text-xl font-bold text-yellow-400" id="statMed">—</div>
-            <div class="text-[10px] text-zinc-500 mt-0.5">MEDIUM</div>
+          <div class="glass px-4 py-3 text-center min-w-[80px]">
+            <div class="text-2xl font-bold text-yellow-400" id="statMed">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Medium</div>
+          </div>
+          <div class="glass px-4 py-3 text-center min-w-[80px]">
+            <div class="text-2xl font-bold text-zinc-400" id="statCouncils">—</div>
+            <div class="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Councils</div>
           </div>
         </div>
       </div>
 
-      <!-- Leads list -->
-      <div class="glass overflow-hidden" id="leadsList"></div>
+      <!-- Per-council sections -->
+      <div id="councilSections"></div>
+
     </div>
   </main>
 
   <script>
-    const SUPABASE_URL  = 'https://sgnmbvwwdshttdbbspou.supabase.co';
-    const SUPABASE_ANON = 'sb_publishable_1L8oo4V_-71yfr1MjWydZA_WXKmavjX';
-    const { createClient } = supabase;
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
-
-    function show(id) {
-      ['stateLoading','stateExpired','stateNotFound','stateEmpty','stateReport'].forEach(s => {
-        const el = document.getElementById(s);
-        if (el) { el.classList.toggle('hidden', s !== id); el.classList.toggle('flex', s === id && s !== 'stateReport'); }
-      });
-      if (id === 'stateReport') document.getElementById('stateReport').classList.remove('hidden');
+    function esc(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-
-    function esc(str) {
-      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
-
-    function safeUrl(url) {
-      return (typeof url === 'string' && url.startsWith('https://')) ? url : null;
-    }
-
     function badgeClass(p) {
       return p === 'HIGH' ? 'badge-high' : p === 'MEDIUM' ? 'badge-medium' : 'badge-low';
     }
+    function scoreClass(s) {
+      return s >= 8 ? 'score-high' : s >= 5 ? 'score-med' : 'score-low';
+    }
 
-    function toggleCard(i) {
-      const expand  = document.getElementById('lx-' + i);
-      const chevron = document.getElementById('lc-' + i);
-      if (!expand) return;
-      expand.classList.toggle('open');
+    function show(id) {
+      ['stateLoading','stateExpired','stateNotFound','stateReport'].forEach(s => {
+        const el = document.getElementById(s);
+        if (!el) return;
+        el.classList.toggle('hidden', s !== id);
+        if (s !== 'stateReport') el.classList.toggle('flex', s === id);
+      });
+    }
+
+    function toggleLead(id) {
+      const body    = document.getElementById('lx-' + id);
+      const chevron = document.getElementById('lc-' + id);
+      if (!body) return;
+      body.classList.toggle('open');
       chevron?.classList.toggle('open');
     }
 
-    function renderLeads(leads) {
-      document.getElementById('statTotal').textContent = leads.length;
-      document.getElementById('statHigh').textContent  = leads.filter(l => l.priority === 'HIGH').length;
-      document.getElementById('statMed').textContent   = leads.filter(l => l.priority === 'MEDIUM').length;
+    function renderCouncilSection(council, leads) {
+      const high   = leads.filter(l => l.priority === 'HIGH').length;
+      const med    = leads.filter(l => l.priority === 'MEDIUM').length;
+      const low    = leads.filter(l => l.priority === 'LOW').length;
+      const avgScore = leads.length
+        ? (leads.reduce((s, l) => s + (l.score ?? l.opportunity_score ?? 0), 0) / leads.length).toFixed(1)
+        : '—';
 
-      document.getElementById('leadsList').innerHTML = leads.map((l, i) => {
-        const score   = l.opportunity_score ?? l.score ?? '—';
-        const pri     = l.priority || 'LOW';
-        const date    = l.scraped_date || (l.created_at ? new Date(l.created_at).toLocaleDateString('en-GB') : '—');
-        const desc    = l.description || l.score_reasoning || '';
-        const shortDesc = desc.length > 100 ? desc.slice(0, 100) + '…' : desc;
+      const leadsHtml = leads.map((l, i) => {
+        const id      = council + '-' + i;
+        const score   = l.score ?? l.opportunity_score ?? '—';
+        const desc    = l.description || '';
+        const shortDesc = desc.length > 120 ? desc.slice(0, 120) + '…' : desc;
+        const daysLeft = l.target_decision_date
+          ? Math.ceil((new Date(l.target_decision_date) - new Date()) / 86400000) : null;
+        const urgency = daysLeft === null ? '' : daysLeft < 0
+          ? `<span style="color:#f87171;font-size:10px;">${Math.abs(daysLeft)}d overdue</span>`
+          : daysLeft <= 14
+          ? `<span style="color:#fbbf24;font-size:10px;">${daysLeft}d left</span>`
+          : `<span style="color:#52525b;font-size:10px;">${daysLeft}d left</span>`;
 
-        const planitHref = safeUrl(l.planit_url);
         return `
-          <div class="lead-card px-5 py-4 cursor-pointer" onclick="toggleCard(${i})">
+          <div class="lead-row px-5 py-4" onclick="toggleLead('${id}')">
             <div class="flex items-start gap-3">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass(pri)}">${esc(pri)}</span>
+                  <span class="${badgeClass(l.priority || 'LOW')}">${esc(l.priority || 'LOW')}</span>
                   ${l.app_type ? `<span class="text-[11px] text-zinc-500">${esc(l.app_type)}</span>` : ''}
-                  ${l.council ? `<span class="text-[11px] text-zinc-600">${esc(l.council)}</span>` : ''}
+                  ${urgency}
                 </div>
-                <div class="text-sm font-medium text-white truncate">${esc(l.address) || '—'}</div>
+                <div class="text-sm font-semibold text-white leading-snug">${esc(l.address || '—')}</div>
                 <div class="text-[11px] text-zinc-500 mt-1 leading-relaxed">${esc(shortDesc)}</div>
               </div>
-              <div class="flex flex-col items-end gap-2 shrink-0">
-                <div class="text-lg font-bold brand">${esc(score)}<span class="text-xs text-zinc-600 font-normal">/10</span></div>
-                <div class="text-[10px] text-zinc-600">${esc(date)}</div>
-                <iconify-icon id="lc-${i}" icon="solar:alt-arrow-down-linear" class="chevron" style="font-size:14px;color:#71717a;"></iconify-icon>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <div class="text-lg font-bold ${scoreClass(score)}">${esc(score)}<span class="text-xs text-zinc-600 font-normal">/10</span></div>
+                ${l.start_date ? `<div class="text-[10px] text-zinc-600 font-mono">${esc(l.start_date)}</div>` : ''}
+                <iconify-icon id="lc-${id}" icon="solar:alt-arrow-down-linear" class="chevron no-print" style="font-size:13px;color:#52525b;"></iconify-icon>
               </div>
             </div>
-
             <!-- Expanded detail -->
-            <div id="lx-${i}" class="lead-expand mt-4 pt-4 border-t border-white/5">
+            <div id="lx-${id}" class="lead-expand mt-4 pt-4 border-t border-white/5">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                ${desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Description</div><div class="text-zinc-300 leading-relaxed">${esc(desc)}</div></div>` : ''}
-                ${l.score_reasoning && l.score_reasoning !== desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Score Reasoning</div><div class="text-zinc-400 leading-relaxed italic">${esc(l.score_reasoning)}</div></div>` : ''}
-                ${l.applicant_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Applicant</div><div class="text-white">${esc(l.applicant_name)}</div></div>` : ''}
-                ${l.agent_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Agent</div><div class="text-zinc-300">${esc(l.agent_name)}</div></div>` : ''}
-                ${l.dwelling_type ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Dwelling Type</div><div class="text-zinc-300">${esc(l.dwelling_type)}</div></div>` : ''}
-                ${l.development_scale ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Scale</div><div class="text-zinc-300">${esc(l.development_scale)}</div></div>` : ''}
-                ${l.unit_count != null ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Units</div><div class="text-zinc-300">${esc(l.unit_count)}</div></div>` : ''}
-                ${l.postcode ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Postcode</div><div class="text-zinc-300">${esc(l.postcode)}</div></div>` : ''}
+                ${desc ? `<div class="sm:col-span-2"><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Full Description</div><div class="text-zinc-300 leading-relaxed">${esc(desc)}</div></div>` : ''}
+                ${l.applicant_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Applicant</div><div class="text-white font-medium">${esc(l.applicant_name)}</div>${l.applicant_address ? `<div class="text-zinc-500 mt-0.5 text-[11px] leading-relaxed">${esc(l.applicant_address)}</div>` : ''}</div>` : ''}
+                ${l.agent_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Agent / Architect</div><div class="text-white font-medium">${esc(l.agent_name)}</div>${l.agent_email ? `<div class="text-blue-400 text-[11px] mt-0.5">${esc(l.agent_email)}</div>` : ''}${l.agent_phone ? `<div style="color:#00d084;" class="text-[11px] mt-0.5">${esc(l.agent_phone)}</div>` : ''}</div>` : ''}
                 ${l.app_state ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Status</div><div class="text-zinc-300">${esc(l.app_state)}</div></div>` : ''}
-                ${l.uid ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Reference</div><div class="text-zinc-400 font-mono">${esc(l.uid)}</div></div>` : ''}
+                ${l.postcode  ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Postcode</div><div class="text-zinc-300 font-mono">${esc(l.postcode)}</div></div>` : ''}
+                ${l.uid       ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Reference</div><div class="text-zinc-400 font-mono text-[11px]">${esc(l.uid)}</div></div>` : ''}
+                ${l.ward_name ? `<div><div class="text-zinc-500 mb-1 uppercase tracking-wide text-[10px]">Ward</div><div class="text-zinc-300">${esc(l.ward_name)}</div></div>` : ''}
               </div>
-              ${planitHref ? `<a href="${planitHref}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-4 text-[11px] font-semibold text-brand hover:underline no-print"><iconify-icon icon="solar:arrow-right-up-bold" style="font-size:12px;"></iconify-icon>View on PlanIt</a>` : ''}
+              ${(l.council_url || l.planit_url) ? `<a href="${esc(l.council_url || l.planit_url)}" target="_blank" rel="noopener" class="no-print inline-flex items-center gap-1.5 mt-3 text-[11px] font-semibold hover:underline" style="color:#00d084;"><iconify-icon icon="solar:arrow-right-up-bold" style="font-size:11px;"></iconify-icon>View Application</a>` : ''}
             </div>
           </div>`;
       }).join('');
+
+      return `
+        <div class="council-section">
+          <!-- Council header -->
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-base font-bold text-white">${esc(council)}</h2>
+              <div class="flex items-center gap-2 mt-1">
+                ${high > 0 ? `<span class="badge-high">${high} HIGH</span>` : ''}
+                ${med  > 0 ? `<span class="badge-medium">${med} MED</span>` : ''}
+                ${low  > 0 ? `<span class="badge-low">${low} LOW</span>` : ''}
+                <span class="text-[11px] text-zinc-600">${leads.length} total · avg score ${avgScore}</span>
+              </div>
+            </div>
+          </div>
+          <!-- Leads -->
+          <div class="glass overflow-hidden">
+            ${leadsHtml}
+          </div>
+        </div>`;
     }
 
     async function init() {
-      document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-GB', { dateStyle:'long' });
+      document.getElementById('printDate').textContent =
+        new Date().toLocaleDateString('en-GB', { dateStyle: 'long' });
 
       const token = new URLSearchParams(location.search).get('t');
       if (!token) { show('stateNotFound'); return; }
@@ -210,51 +246,58 @@
       let data;
       try {
         const res = await fetch(`/api/get-report?token=${encodeURIComponent(token)}`);
-        if (res.status === 404 || res.status === 410) {
-          const body = await res.json().catch(() => ({}));
-          if (res.status === 410) { show('stateExpired'); return; }
-          show('stateNotFound');
-          document.getElementById('stateNotFound').querySelector('p').textContent =
-            body.error ?? 'Report not found.';
-          return;
-        }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (res.status === 410) { show('stateExpired'); return; }
+        if (!res.ok) { show('stateNotFound'); return; }
         data = await res.json();
       } catch (err) {
-        console.error('share.html fetch error:', err);
         show('stateNotFound');
-        document.getElementById('stateNotFound').querySelector('p').textContent =
-          `Error: ${err.message}`;
         return;
       }
 
-      const now      = new Date();
-      const expiresAt = new Date(data.expires_at);
+      if (new Date(data.expires_at) < new Date()) { show('stateExpired'); return; }
 
-      if (now > expiresAt) { show('stateExpired'); return; }
-
-      // Expiry countdown badge
-      const msLeft   = expiresAt - now;
-      const hrsLeft  = Math.floor(msLeft / 3600000);
-      const minsLeft = Math.floor((msLeft % 3600000) / 60000);
-      const badge    = document.getElementById('expiryBadge');
-      if (badge) {
-        badge.innerHTML = `<iconify-icon icon="solar:clock-circle-linear" style="font-size:12px;"></iconify-icon> Expires in ${hrsLeft > 0 ? hrsLeft + 'h ' : ''}${minsLeft}m`;
-      }
+      // Expiry badge
+      const msLeft  = new Date(data.expires_at) - new Date();
+      const hrsLeft = Math.floor(msLeft / 3600000);
+      const minLeft = Math.floor((msLeft % 3600000) / 60000);
+      const badge   = document.getElementById('expiryBadge');
+      badge.innerHTML = `<iconify-icon icon="solar:clock-circle-linear" style="font-size:12px;"></iconify-icon> Expires in ${hrsLeft > 0 ? hrsLeft + 'h ' : ''}${minLeft}m`;
+      badge.classList.remove('hidden');
 
       const leads = Array.isArray(data.leads_data) ? data.leads_data : [];
-      if (leads.length === 0) { show('stateEmpty'); return; }
+      if (leads.length === 0) { show('stateNotFound'); return; }
 
-      // Report meta
-      const councils = [...new Set(leads.map(l => l.council).filter(Boolean))];
-      document.getElementById('reportTitle').textContent = councils.length === 1
-        ? `${councils[0]} Planning Leads`
-        : `Planning Leads Report`;
+      // Stats
+      const councils = [...new Set(leads.map(l => l.council).filter(Boolean))].sort();
+      document.getElementById('reportTitle').textContent =
+        data.label || (councils.length === 1 ? `${councils[0]} Planning Leads` : 'Planning Leads Report');
       document.getElementById('reportMeta').textContent =
-        `${leads.length} lead${leads.length !== 1 ? 's' : ''} · ${councils.length} council${councils.length !== 1 ? 's' : ''} · Generated ${new Date(data.created_at).toLocaleDateString('en-GB', { dateStyle:'medium' })}`;
+        `${leads.length} lead${leads.length !== 1 ? 's' : ''} across ${councils.length} council${councils.length !== 1 ? 's' : ''} · Generated ${new Date(data.created_at).toLocaleDateString('en-GB', { dateStyle: 'medium' })}`;
+      document.getElementById('statTotal').textContent    = leads.length;
+      document.getElementById('statHigh').textContent     = leads.filter(l => l.priority === 'HIGH').length;
+      document.getElementById('statMed').textContent      = leads.filter(l => l.priority === 'MEDIUM').length;
+      document.getElementById('statCouncils').textContent = councils.length;
 
-      renderLeads(leads);
+      // Group by council, sort each group by score
+      const byCouncil = {};
+      leads.forEach(l => {
+        const c = l.council || 'Unknown';
+        if (!byCouncil[c]) byCouncil[c] = [];
+        byCouncil[c].push(l);
+      });
+      councils.forEach(c => { byCouncil[c]?.sort((a, b) => (b.score ?? b.opportunity_score ?? 0) - (a.score ?? a.opportunity_score ?? 0)); });
+
+      document.getElementById('councilSections').innerHTML =
+        councils.map(c => renderCouncilSection(c, byCouncil[c] || [])).join('');
+
       show('stateReport');
+    }
+
+    function downloadPDF() {
+      // Expand all lead details so they appear in the PDF
+      document.querySelectorAll('.lead-expand').forEach(el => el.classList.add('open'));
+      document.querySelectorAll('.chevron').forEach(el => el.classList.add('open'));
+      setTimeout(() => window.print(), 100);
     }
 
     init();
