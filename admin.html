@@ -2359,7 +2359,7 @@
       box.classList.remove('hidden');
       input.value = 'Generating…';
 
-      const councilEntry = (window._councilData || []).find(r => r.council === councilName);
+      const councilEntry = (window._councilData || []).find(r => (r.council?.name || r.council) === councilName);
       const leads = councilEntry ? councilEntry.leads : [];
       if (leads.length === 0) { input.value = 'No leads for this council'; return; }
 
@@ -2430,8 +2430,12 @@
         window.open(`mailto:?subject=${subject}&body=${body}`);
       } catch (err) {
         console.error('sendReportEmail error:', err);
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:danger-triangle-bold" style="font-size:13px;"></iconify-icon> Error — try again';
+        return;
       } finally {
         setTimeout(() => {
+          if (!btn.disabled) return; // already reset by catch
           btn.disabled = false;
           btn.innerHTML = '<iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon> Send report';
         }, 1500);

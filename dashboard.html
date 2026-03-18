@@ -2221,17 +2221,18 @@
         return;
       }
 
-      // 1. Deduct the run server-side (validates access, returns NO_RUNS if none left)
+      // 1. Deduct the run server-side (validates access, enforces council limit by plan)
+      let councilsToScan = selectedCouncils;
       try {
         const authResp = await fetch('/api/trigger-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id }),
+          body: JSON.stringify({ userId: currentUser.id, councils: selectedCouncils }),
         });
         const authData = await authResp.json();
 
         if (!authResp.ok) {
-          if (authData.code === 'NO_RUNS') {
+          if (authData.code === 'NO_ACCESS') {
             updateCPNavState({ cp_runs_remaining: 0, cp_last_run_at: new Date().toISOString() });
             setStatus('No scan runs available. Request access from admin to run again.', 'warn');
           } else {
@@ -2239,6 +2240,15 @@
           }
           if (btn) { btn.disabled = false; btn.innerHTML = '<iconify-icon icon="solar:play-bold" style="font-size:13px;"></iconify-icon> Run Scan'; }
           return;
+        }
+
+        // Use server-enforced council list (respects plan council limit)
+        if (authData.councils && authData.councils.length > 0) {
+          councilsToScan = authData.councils;
+          if (authData.skipped && authData.skipped.length > 0) {
+            setStatus(`Plan limit: scanning ${councilsToScan.length} of ${selectedCouncils.length} councils (${authData.skipped.length} skipped — upgrade to scan all).`, 'warn');
+            await new Promise(r => setTimeout(r, 2000));
+          }
         }
       } catch (e) {
         setStatus('Connection error — could not reach server.', 'error');
@@ -2251,8 +2261,8 @@
       // 2. Run the scan directly via /api/planit (same engine as admin scanner)
       const allLeads = [];
       let done = 0;
-      for (const council of selectedCouncils) {
-        setStatus(`Scanning ${council} (${done + 1} / ${selectedCouncils.length})…`);
+      for (const council of councilsToScan) {
+        setStatus(`Scanning ${council} (${done + 1} / ${councilsToScan.length})…`);
         try {
           const leads = await fetchCouncilLeads(council);
           allLeads.push(...leads);
@@ -2287,8 +2297,13 @@
           unit_count:           l.unit_count,
           scraped_date:         new Date().toISOString().split('T')[0],
         }));
-        for (let i = 0; i < rows.length; i += 200) {
-          await sb.from('leads').upsert(rows.slice(i, i + 200), { onConflict: 'user_id,uid' });
+        try {
+          for (let i = 0; i < rows.length; i += 200) {
+            await sb.from('leads').upsert(rows.slice(i, i + 200), { onConflict: 'user_id,uid' });
+          }
+        } catch (saveErr) {
+          console.error('Failed to save leads to database:', saveErr);
+          setStatus(`Scan complete — ${allLeads.length} leads found (save failed, showing locally).`, 'warn', true);
         }
       }
 
