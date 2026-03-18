@@ -2314,15 +2314,41 @@
       if (isHidden) fetchPlanitDetails(i, true);
     }
 
-    function copyReportLink() {
-      const url = window.location.origin + '/dashboard.html';
-      navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById('copyLinkBtn');
-        const orig = btn.innerHTML;
+    async function copyReportLink() {
+      const btn = document.getElementById('copyLinkBtn');
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:13px;"></iconify-icon> Generating…';
+      btn.disabled = true;
+
+      try {
+        const allScanLeads = (window._councilData || []).flatMap(r => r.leads);
+        if (allScanLeads.length === 0) {
+          btn.innerHTML = '<iconify-icon icon="solar:danger-triangle-bold" style="font-size:13px;color:#f87171;"></iconify-icon> No leads to share';
+          setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2500);
+          return;
+        }
+
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await sb.from('shared_reports').insert({
+          created_by: (await sb.auth.getUser()).data.user?.id,
+          leads_data: allScanLeads,
+          expires_at: expiresAt,
+          label: `Full Scan Report — ${allScanLeads.length} leads`,
+        }).select('token').single();
+
+        if (error || !data?.token) throw new Error(error?.message || 'Insert failed');
+
+        const shareUrl = `https://pm-sand.vercel.app/share.html?t=${data.token}`;
+        await navigator.clipboard.writeText(shareUrl);
+
         btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:13px;"></iconify-icon> Copied!';
         btn.classList.add('text-brand');
-        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); }, 2000);
-      });
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-brand'); btn.disabled = false; }, 2500);
+      } catch (err) {
+        console.error('copyReportLink error:', err);
+        btn.innerHTML = '<iconify-icon icon="solar:danger-triangle-bold" style="font-size:13px;color:#f87171;"></iconify-icon> Error';
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2500);
+      }
     }
 
     // ── Per-council send to client ────────────────────────────────────────────
@@ -2377,20 +2403,31 @@
     async function sendReportEmail() {
       const btn = document.getElementById('sendReportBtn');
       btn.disabled = true;
-      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Sending…';
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Generating…';
 
-      // Build a simple summary
-      const total = lastScanResults.length;
-      const high  = lastScanResults.filter(l => l.priority === 'HIGH').length;
-      const dashUrl = window.location.origin + '/dashboard.html';
+      try {
+        const allScanLeads = (window._councilData || []).flatMap(r => r.leads);
+        const total = allScanLeads.length;
+        const high  = allScanLeads.filter(l => l.priority === 'HIGH').length;
 
-      // If Resend API key is configured server-side via Trigger.dev, call that.
-      // For now, fall back to mailto so it always works.
-      const subject = encodeURIComponent(`PPM Scan Report — ${total} leads found`);
-      const body = encodeURIComponent(
-        `PPM Scan Report\n\nTotal leads: ${total}\nHigh priority: ${high}\n\nView full results: ${dashUrl}\n\nSent from PPM Admin Panel`
-      );
-      window.open(`mailto:nicomistry@gmail.com?subject=${subject}&body=${body}`);
+        // Generate a share link so the email contains a secure client-facing URL
+        let shareUrl = 'https://pm-sand.vercel.app/share.html';
+        if (total > 0) {
+          const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+          const { data } = await sb.from('shared_reports').insert({
+            created_by: (await sb.auth.getUser()).data.user?.id,
+            leads_data: allScanLeads,
+            expires_at: expiresAt,
+            label: `Full Scan Report — ${total} leads`,
+          }).select('token').single();
+          if (data?.token) shareUrl = `https://pm-sand.vercel.app/share.html?t=${data.token}`;
+        }
+
+        const subject = encodeURIComponent(`PPM Planning Leads Report — ${total} leads found`);
+        const body = encodeURIComponent(
+          `Hi,\n\nYour PPM planning leads report is ready.\n\nTotal leads: ${total}\nHigh priority: ${high}\n\nView your report here (expires in 48h):\n${shareUrl}\n\n— PPM`
+        );
+        window.open(`mailto:?subject=${subject}&body=${body}`);
 
       setTimeout(() => {
         btn.disabled = false;
