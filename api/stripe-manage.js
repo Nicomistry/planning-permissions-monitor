@@ -17,6 +17,8 @@ export default async function handler(req, res) {
   const STRIPE_SECRET_KEY    = process.env.STRIPE_SECRET_KEY;
   const STARTER_PRICE_ID     = process.env.STRIPE_STARTER_PRICE_ID;
   const PRO_PRICE_ID         = process.env.STRIPE_PRO_PRICE_ID;
+  const UNLIMITED_PRICE_ID   = process.env.STRIPE_UNLIMITED_PRICE_ID;
+  const SCAN_PRICE_ID        = process.env.STRIPE_SCAN_PRICE_ID;
   const SUPABASE_URL         = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -36,15 +38,16 @@ export default async function handler(req, res) {
 
   // ── Checkout ──────────────────────────────────────────────────────────────
   if (!action || action === 'checkout') {
-    if (!STARTER_PRICE_ID || !PRO_PRICE_ID) {
-      return res.status(500).json({ error: 'Stripe prices not configured' });
+    if (!['starter', 'pro', 'unlimited', 'scan'].includes(planKey)) {
+      return res.status(400).json({ error: 'planKey must be starter, pro, unlimited, or scan' });
     }
-    if (!['starter', 'pro'].includes(planKey)) {
-      return res.status(400).json({ error: 'planKey must be starter or pro' });
-    }
-    const priceId = planKey === 'pro' ? PRO_PRICE_ID : STARTER_PRICE_ID;
+    const priceMap = { starter: STARTER_PRICE_ID, pro: PRO_PRICE_ID, unlimited: UNLIMITED_PRICE_ID, scan: SCAN_PRICE_ID };
+    const priceId = priceMap[planKey];
+    if (!priceId) return res.status(500).json({ error: `Price not configured for plan: ${planKey}` });
+
+    const isScan = planKey === 'scan';
     const session = await stripe.checkout.sessions.create({
-      mode:                 'subscription',
+      mode:                 isScan ? 'payment' : 'subscription',
       payment_method_types: ['card'],
       line_items:           [{ price: priceId, quantity: 1 }],
       client_reference_id:  user.id,

@@ -53,20 +53,33 @@
     </div>
   </div>
 
+  <!-- One-off scan banner -->
+  <div class="max-w-2xl mx-auto w-full px-4 mb-6">
+    <div class="card flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4" style="border-color:rgba(255,255,255,0.12);">
+      <div>
+        <div class="text-xs text-zinc-500 font-semibold uppercase tracking-widest mb-1">Not ready to commit?</div>
+        <div class="text-white font-semibold text-sm">Single Scan — <span style="color:#00d084;">£49</span> <span class="text-zinc-500 font-normal text-xs">one-off</span></div>
+        <p class="text-zinc-500 text-xs mt-0.5">Scan up to 3 councils once. No subscription required.</p>
+      </div>
+      <button id="scanBtn" onclick="subscribe('scan')" class="btn-outline text-sm font-semibold whitespace-nowrap px-6 py-2.5 flex-shrink-0">
+        Buy a scan
+      </button>
+    </div>
+  </div>
+
   <!-- Plans -->
-  <div class="max-w-3xl mx-auto w-full px-4 pb-16 flex flex-col sm:flex-row gap-5 justify-center">
+  <div class="max-w-5xl mx-auto w-full px-4 pb-16 grid grid-cols-1 sm:grid-cols-3 gap-5 justify-center">
 
     <!-- Starter -->
-    <div class="card flex-1 max-w-sm p-7 flex flex-col">
+    <div class="card p-7 flex flex-col">
       <div class="mb-6">
         <div class="text-xs text-zinc-500 font-semibold uppercase tracking-widest mb-2">Starter</div>
         <div class="flex items-end gap-1 mb-1">
-          <span class="text-4xl font-bold text-white">£280</span>
+          <span class="text-4xl font-bold text-white">£149</span>
           <span class="text-zinc-500 text-sm mb-1.5">/month</span>
         </div>
         <p class="text-zinc-500 text-xs">Perfect for a single trade covering a local area</p>
       </div>
-
       <ul class="space-y-3 mb-8 flex-1">
         <li class="flex items-start gap-2.5 text-sm text-zinc-300">
           <iconify-icon icon="solar:check-circle-bold" class="check mt-0.5 shrink-0" style="font-size:16px;"></iconify-icon>
@@ -84,32 +97,23 @@
           <iconify-icon icon="solar:check-circle-bold" class="check mt-0.5 shrink-0" style="font-size:16px;"></iconify-icon>
           Save &amp; manage contacts
         </li>
-        <li class="flex items-start gap-2.5 text-sm text-zinc-400">
-          <iconify-icon icon="solar:close-circle-linear" style="font-size:16px;color:#52525b;" class="mt-0.5 shrink-0"></iconify-icon>
-          Unlimited councils
-        </li>
       </ul>
-
-      <button id="starterBtn" onclick="subscribe('starter')"
-        class="btn-outline w-full text-sm font-semibold">
-        Get Starter
-      </button>
+      <button id="starterBtn" onclick="subscribe('starter')" class="btn-outline w-full text-sm font-semibold">Get Starter</button>
     </div>
 
     <!-- Pro -->
-    <div class="card card-pro flex-1 max-w-sm p-7 flex flex-col relative">
+    <div class="card card-pro p-7 flex flex-col relative">
       <div class="absolute -top-3 left-1/2 -translate-x-1/2">
         <span class="badge text-[10px]">Most popular</span>
       </div>
       <div class="mb-6">
         <div class="text-xs text-brand font-semibold uppercase tracking-widest mb-2">Pro</div>
         <div class="flex items-end gap-1 mb-1">
-          <span class="text-4xl font-bold text-white">£550</span>
+          <span class="text-4xl font-bold text-white">£349</span>
           <span class="text-zinc-500 text-sm mb-1.5">/month</span>
         </div>
         <p class="text-zinc-500 text-xs">For builders &amp; contractors covering multiple areas</p>
       </div>
-
       <ul class="space-y-3 mb-8 flex-1">
         <li class="flex items-start gap-2.5 text-sm text-zinc-300">
           <iconify-icon icon="solar:check-circle-bold" class="check mt-0.5 shrink-0" style="font-size:16px;"></iconify-icon>
@@ -127,16 +131,39 @@
           <iconify-icon icon="solar:check-circle-bold" class="check mt-0.5 shrink-0" style="font-size:16px;"></iconify-icon>
           Save &amp; manage contacts
         </li>
+      </ul>
+      <button id="proBtn" onclick="subscribe('pro')" class="btn-primary w-full text-sm">Get Pro</button>
+    </div>
+
+    <!-- Unlimited -->
+    <div class="card p-7 flex flex-col" style="border-color:rgba(168,85,247,0.3);background:linear-gradient(135deg,rgba(168,85,247,0.07) 0%,#111827 100%);">
+      <div class="mb-6">
+        <div class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#a855f7;">Unlimited</div>
+        <div class="flex items-end gap-1 mb-1">
+          <span class="text-4xl font-bold text-white">£700</span>
+          <span class="text-zinc-500 text-sm mb-1.5">/month</span>
+        </div>
+        <p class="text-zinc-500 text-xs">National coverage — every council, every lead</p>
+      </div>
+      <ul class="space-y-3 mb-8 flex-1">
         <li class="flex items-start gap-2.5 text-sm text-zinc-300">
-          <iconify-icon icon="solar:check-circle-bold" class="check mt-0.5 shrink-0" style="font-size:16px;"></iconify-icon>
-          Unlimited councils
+          <iconify-icon icon="solar:check-circle-bold" class="mt-0.5 shrink-0" style="font-size:16px;color:#a855f7;"></iconify-icon>
+          Scan <strong class="text-white mx-1">all councils</strong> per run
+        </li>
+        <li class="flex items-start gap-2.5 text-sm text-zinc-300">
+          <iconify-icon icon="solar:check-circle-bold" class="mt-0.5 shrink-0" style="font-size:16px;color:#a855f7;"></iconify-icon>
+          AI-scored leads with opportunity rating
+        </li>
+        <li class="flex items-start gap-2.5 text-sm text-zinc-300">
+          <iconify-icon icon="solar:check-circle-bold" class="mt-0.5 shrink-0" style="font-size:16px;color:#a855f7;"></iconify-icon>
+          Applicant &amp; agent contact details
+        </li>
+        <li class="flex items-start gap-2.5 text-sm text-zinc-300">
+          <iconify-icon icon="solar:check-circle-bold" class="mt-0.5 shrink-0" style="font-size:16px;color:#a855f7;"></iconify-icon>
+          Save &amp; manage contacts
         </li>
       </ul>
-
-      <button id="proBtn" onclick="subscribe('pro')"
-        class="btn-primary w-full text-sm">
-        Get Pro
-      </button>
+      <button id="unlimitedBtn" onclick="subscribe('unlimited')" class="w-full text-sm font-semibold py-3 rounded-xl transition-all" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#d8b4fe;">Get Unlimited</button>
     </div>
 
   </div>
@@ -176,7 +203,8 @@
     checkExistingSubscription();
 
     async function subscribe(planKey) {
-      const btn = document.getElementById(planKey === 'pro' ? 'proBtn' : 'starterBtn');
+      const btnMap = { starter: 'starterBtn', pro: 'proBtn', unlimited: 'unlimitedBtn', scan: 'scanBtn' };
+      const btn = document.getElementById(btnMap[planKey] || 'starterBtn');
       const orig = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:16px;"></iconify-icon>';

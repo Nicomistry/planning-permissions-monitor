@@ -70,7 +70,16 @@ export default async function handler(req, res) {
     const session  = event.data.object;
     const userId   = session.metadata?.user_id || session.client_reference_id;
     const planKey  = session.metadata?.plan_key ?? 'starter';
-    const planName = planKey === 'pro' ? 'Pro' : 'Starter';
+
+    // ── One-off scan credit ───────────────────────────────────────────────
+    if (planKey === 'scan') {
+      await updateProfile(userId, { cp_runs_remaining: 1 });
+      console.log(`Single scan purchased: userId=${userId}`);
+      return res.status(200).json({ received: true });
+    }
+
+    const planNameMap = { starter: 'Starter', pro: 'Pro', unlimited: 'Unlimited' };
+    const planName = planNameMap[planKey] ?? 'Starter';
     const planId   = await getPlanId(planName);
 
     if (!userId) {
