@@ -1,6 +1,6 @@
 // Vercel serverless function — proxies PlanIt API to avoid browser CORS restrictions
-// Uses area_id (numeric) when provided for reliable council matching,
-// falls back to council name string if no area_id supplied.
+// Resolves council name → planit_auth from council_portal_configs (canonical source),
+// falls back to planit_areas area_id, then raw council name string.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,21 +15,46 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'council param required' });
   }
 
-  // Resolve council name → area_id from DB for reliable matching
+  // Resolve council name → planit_auth from council_portal_configs (canonical source),
+  // then fall back to planit_areas area_id, then raw name.
   let authParam = council;
   try {
     const sb = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_KEY,
     );
-    const { data } = await sb
-      .from('planit_areas')
-      .select('area_id')
-      .ilike('area_name', council)
-      .single();
-    if (data?.area_id) authParam = String(data.area_id);
+
+    // Primary: council_portal_configs.planit_auth
+    const { data: cfg } = await sb
+      .from('council_portal_configs')
+      .select('planit_auth')
+      .ilike('council_name', council)
+      .not('planit_auth', 'is', null)
+      .neq('planit_auth', '')
+      .limit(1)
+      .maybeSingle();
+
+    if (cfg?.planit_auth) {
+      authParam = cfg.planit_auth;
+    } else {
+      // Fallback: planit_areas area_id (numeric) via starts-with match
+      const { data: area } = await sb
+        .from('planit_areas')
+        .select('area_id')
+        .ilike('area_name', `${council}%`)
+        .order('area_name', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (area?.area_id) {
+        authParam = String(area.area_id);
+      } else {
+        // Last resort: lowercase the name (PlanIt slugs are typically lowercase)
+        authParam = council.toLowerCase().replace(/\s+/g, '_');
+      }
+    }
   } catch (_) {
-    // table not seeded yet — fall back to name string
+    // DB unavailable — fall back to lowercase name slug
+    authParam = council.toLowerCase().replace(/\s+/g, '_');
   }
 
   let url;
@@ -58,7 +83,8 @@ export default async function handler(req, res) {
     });
 
     if (!upstream.ok) {
-      return res.status(upstream.status).json({ error: `PlanIt returned ${upstream.status} for ${url}` });
+      console.error(`PlanIt ${upstream.status} for auth=${authParam} council=${council} url=${url}`);
+      return res.status(upstream.status).json({ error: `PlanIt returned ${upstream.status} for council="${council}" (auth=${authParam})` });
     }
 
     const data = await upstream.json();
