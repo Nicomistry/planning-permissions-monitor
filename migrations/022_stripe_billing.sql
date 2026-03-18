@@ -10,8 +10,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS plans_name_unique ON plans(name);
 -- Seed plan tiers (safe to re-run)
 INSERT INTO plans (name, council_limit, price_monthly)
 VALUES
-  ('Starter', 3,    2900),
-  ('Pro',     NULL, 7900)
+  ('Starter',  3, 28000),
+  ('Pro',      20, 55000)
 ON CONFLICT (name) DO UPDATE
   SET council_limit  = EXCLUDED.council_limit,
       price_monthly  = EXCLUDED.price_monthly;

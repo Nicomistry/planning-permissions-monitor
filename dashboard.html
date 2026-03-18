@@ -753,7 +753,7 @@
             msg = document.createElement('div');
             msg.id = 'councilLimitMsg';
             msg.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#111;border:1px solid rgba(0,208,132,0.3);border-radius:12px;padding:10px 18px;font-size:12px;color:#a1a1aa;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
-            msg.innerHTML = `<iconify-icon icon="solar:lock-bold" style="color:#00d084;font-size:15px;flex-shrink:0;"></iconify-icon><span>Starter plan is limited to ${userCouncilLimit} councils. <a href="/pricing.html" style="color:#00d084;text-decoration:underline;">Upgrade to Pro</a> for unlimited.</span>`;
+            msg.innerHTML = `<iconify-icon icon="solar:lock-bold" style="color:#00d084;font-size:15px;flex-shrink:0;"></iconify-icon><span>${userPlanName || 'Your'} plan is limited to ${userCouncilLimit} councils. <a href="/pricing.html" style="color:#00d084;text-decoration:underline;">Upgrade your plan</a> for more.</span>`;
             document.body.appendChild(msg);
           }
           msg.style.display = 'flex';
