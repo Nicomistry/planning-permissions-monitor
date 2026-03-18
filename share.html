@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { background:#0a0a0a; font-family:'Geist',system-ui,sans-serif; color:#f4f4f5; -webkit-font-smoothing:antialiased; }
@@ -26,24 +27,6 @@
     .score-med  { color:#fbbf24; }
     .score-low  { color:#9ca3af; }
 
-    /* ── Print / PDF styles ────────────────────────────────────────── */
-    @media print {
-      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .no-print { display:none !important; }
-      body { background:#fff !important; color:#111 !important; font-size:11px; }
-      .glass { background:#f9fafb !important; border:1px solid #e5e7eb !important; border-radius:8px; }
-      .lead-expand { display:block !important; }
-      .chevron { display:none; }
-      .badge-high   { background:#dcfce7 !important; color:#166534 !important; border-color:#bbf7d0 !important; }
-      .badge-medium { background:#fef9c3 !important; color:#854d0e !important; border-color:#fde68a !important; }
-      .badge-low    { background:#f1f5f9 !important; color:#475569 !important; border-color:#cbd5e1 !important; }
-      .score-high { color:#166534 !important; }
-      .score-med  { color:#92400e !important; }
-      .score-low  { color:#64748b !important; }
-      .print-header { display:flex !important; }
-      .council-section { page-break-inside:avoid; }
-      a { color:#111 !important; text-decoration:none; }
-    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -58,7 +41,7 @@
     </div>
     <div class="flex items-center gap-3">
       <div id="expiryBadge" class="text-[11px] text-amber-400 border border-amber-500/25 bg-amber-500/8 rounded-lg px-3 py-1.5 flex items-center gap-1.5 hidden"></div>
-      <button onclick="downloadPDF()"
+      <button id="pdfBtn" onclick="downloadPDF()"
         class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg text-black hover:opacity-90 transition-all active:scale-95"
         style="background:#00d084;">
         <iconify-icon icon="solar:file-download-bold" style="font-size:13px;"></iconify-icon>
@@ -67,14 +50,6 @@
     </div>
   </header>
 
-  <!-- Print-only header -->
-  <div class="print-header hidden items-center justify-between px-6 py-4 border-b border-gray-200 mb-6">
-    <div>
-      <div class="text-xl font-bold text-black">PPM Planning Leads Report</div>
-      <div class="text-sm text-gray-500" id="printDate"></div>
-    </div>
-    <div class="text-sm text-gray-500">ppm-leads.vercel.app</div>
-  </div>
 
   <!-- Main -->
   <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8" id="mainContent">
@@ -237,9 +212,6 @@
     }
 
     async function init() {
-      document.getElementById('printDate').textContent =
-        new Date().toLocaleDateString('en-GB', { dateStyle: 'long' });
-
       const token = new URLSearchParams(location.search).get('t');
       if (!token) { show('stateNotFound'); return; }
 
@@ -266,6 +238,7 @@
 
       const leads = Array.isArray(data.leads_data) ? data.leads_data : [];
       if (leads.length === 0) { show('stateNotFound'); return; }
+      window._reportLeads = leads;
 
       // Stats
       const councils = [...new Set(leads.map(l => l.council).filter(Boolean))].sort();
@@ -294,10 +267,250 @@
     }
 
     function downloadPDF() {
-      // Expand all lead details so they appear in the PDF
-      document.querySelectorAll('.lead-expand').forEach(el => el.classList.add('open'));
-      document.querySelectorAll('.chevron').forEach(el => el.classList.add('open'));
-      setTimeout(() => window.print(), 100);
+      if (!window._reportLeads || window._reportLeads.length === 0) return;
+
+      const btn = document.getElementById('pdfBtn');
+      if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const W = 210; // A4 width mm
+        const MARGIN = 14;
+        const CONTENT_W = W - MARGIN * 2;
+        const BRAND = [0, 208, 132];
+        const BLACK = [10, 10, 10];
+        const GREY  = [100, 100, 110];
+        const LGREY = [220, 220, 224];
+
+        let y = 0;
+
+        function newPage() {
+          doc.addPage();
+          y = 14;
+          // Page header stripe
+          doc.setFillColor(...BRAND);
+          doc.rect(0, 0, W, 8, 'F');
+          doc.setFontSize(7);
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PPM PLANNING LEADS', MARGIN, 5.5);
+          const title = document.getElementById('reportTitle').textContent;
+          doc.setFont('helvetica', 'normal');
+          doc.text(title, W / 2, 5.5, { align: 'center' });
+          doc.text(`pm-sand.vercel.app`, W - MARGIN, 5.5, { align: 'right' });
+          y = 18;
+        }
+
+        function checkY(needed) {
+          if (y + needed > 285) newPage();
+        }
+
+        // ── Cover / header ──────────────────────────────────────────
+        // Green header bar
+        doc.setFillColor(...BRAND);
+        doc.rect(0, 0, W, 22, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        doc.setTextColor(0, 0, 0);
+        doc.text('PPM', MARGIN, 13);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('PLANNING LEADS', MARGIN + 14.5, 13);
+
+        const dateStr = new Date().toLocaleDateString('en-GB', { dateStyle: 'long' });
+        doc.setFontSize(8);
+        doc.text(dateStr, W - MARGIN, 13, { align: 'right' });
+
+        y = 32;
+
+        // Report title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(...BLACK);
+        const reportTitle = document.getElementById('reportTitle').textContent;
+        doc.text(reportTitle, MARGIN, y);
+        y += 7;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...GREY);
+        doc.text(document.getElementById('reportMeta').textContent, MARGIN, y);
+        y += 10;
+
+        // Stats row boxes
+        const leads = window._reportLeads;
+        const high  = leads.filter(l => l.priority === 'HIGH').length;
+        const med   = leads.filter(l => l.priority === 'MEDIUM').length;
+        const low   = leads.filter(l => l.priority === 'LOW').length;
+        const councils = [...new Set(leads.map(l => l.council).filter(Boolean))].sort();
+
+        const stats = [
+          { label: 'TOTAL LEADS', value: leads.length, color: BRAND },
+          { label: 'HIGH PRIORITY', value: high,  color: [74, 222, 128] },
+          { label: 'MEDIUM', value: med,  color: [251, 191, 36] },
+          { label: 'LOW', value: low,  color: [156, 163, 175] },
+          { label: 'COUNCILS', value: councils.length, color: [168, 85, 247] },
+        ];
+        const bw = CONTENT_W / stats.length;
+        stats.forEach((s, i) => {
+          const bx = MARGIN + i * bw;
+          doc.setDrawColor(...LGREY);
+          doc.setFillColor(248, 248, 250);
+          doc.roundedRect(bx, y, bw - 2, 18, 2, 2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(14);
+          doc.setTextColor(...s.color);
+          doc.text(String(s.value), bx + (bw - 2) / 2, y + 10, { align: 'center' });
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6.5);
+          doc.setTextColor(...GREY);
+          doc.text(s.label, bx + (bw - 2) / 2, y + 15.5, { align: 'center' });
+        });
+        y += 26;
+
+        // ── Per-council sections ────────────────────────────────────
+        const byCouncil = {};
+        leads.forEach(l => {
+          const c = l.council || 'Unknown';
+          if (!byCouncil[c]) byCouncil[c] = [];
+          byCouncil[c].push(l);
+        });
+        councils.forEach(c => {
+          byCouncil[c].sort((a, b) => (b.score ?? b.opportunity_score ?? 0) - (a.score ?? a.opportunity_score ?? 0));
+        });
+
+        councils.forEach(councilName => {
+          const cLeads = byCouncil[councilName] || [];
+
+          checkY(18);
+
+          // Council header
+          doc.setFillColor(...BRAND);
+          doc.rect(MARGIN, y, CONTENT_W, 0.6, 'F');
+          y += 4;
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(...BLACK);
+          doc.text(councilName, MARGIN, y);
+
+          const cHigh = cLeads.filter(l => l.priority === 'HIGH').length;
+          const cMed  = cLeads.filter(l => l.priority === 'MEDIUM').length;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...GREY);
+          doc.text(
+            `${cLeads.length} leads  ·  ${cHigh} HIGH  ·  ${cMed} MEDIUM`,
+            MARGIN, y + 5
+          );
+          y += 12;
+
+          // Each lead
+          cLeads.forEach((lead, li) => {
+            const score    = lead.score ?? lead.opportunity_score ?? '—';
+            const pri      = lead.priority || 'LOW';
+            const priColor = pri === 'HIGH' ? [74, 222, 128] : pri === 'MEDIUM' ? [251, 191, 36] : [156, 163, 175];
+            const desc     = (lead.description || '').slice(0, 280);
+            const agentLine = [lead.agent_name, lead.agent_email, lead.agent_phone].filter(Boolean).join('  ·  ');
+            const lines  = doc.splitTextToSize(desc, CONTENT_W - 16);
+            const needed = 10 + lines.length * 3.8 + (agentLine ? 5 : 0) + 6;
+
+            checkY(needed);
+
+            // Lead card background
+            const cardH = needed;
+            doc.setFillColor(249, 249, 251);
+            doc.setDrawColor(...LGREY);
+            doc.roundedRect(MARGIN, y, CONTENT_W, cardH, 2, 2, 'FD');
+
+            // Priority badge
+            doc.setFillColor(...priColor.map(v => Math.min(255, v + 160)));
+            doc.roundedRect(MARGIN + 3, y + 3, 14, 5, 1, 1, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(5.5);
+            doc.setTextColor(...priColor.map(v => Math.max(0, v - 80)));
+            doc.text(pri, MARGIN + 10, y + 6.5, { align: 'center' });
+
+            // Score
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(...priColor.map(v => Math.max(0, v - 40)));
+            doc.text(`${score}/10`, W - MARGIN - 3, y + 7, { align: 'right' });
+
+            // Address
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(...BLACK);
+            const addrLines = doc.splitTextToSize(lead.address || '—', CONTENT_W - 30);
+            doc.text(addrLines, MARGIN + 20, y + 7);
+
+            let ly = y + 7 + addrLines.length * 4;
+
+            // App type + date
+            const meta = [lead.app_type, lead.start_date].filter(Boolean).join('  ·  ');
+            if (meta) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(7);
+              doc.setTextColor(...GREY);
+              doc.text(meta, MARGIN + 3, ly);
+              ly += 4;
+            }
+
+            // Description
+            if (lines.length > 0) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(7.5);
+              doc.setTextColor(60, 60, 70);
+              doc.text(lines, MARGIN + 3, ly);
+              ly += lines.length * 3.8;
+            }
+
+            // Agent line
+            if (agentLine) {
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(7);
+              doc.setTextColor(0, 150, 100);
+              const agentLines = doc.splitTextToSize(`Contact: ${agentLine}`, CONTENT_W - 6);
+              doc.text(agentLines, MARGIN + 3, ly);
+              ly += agentLines.length * 3.5;
+            }
+
+            // Reference
+            if (lead.uid) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(6.5);
+              doc.setTextColor(...LGREY.map(v => v - 30));
+              doc.text(`Ref: ${lead.uid}`, MARGIN + 3, ly + 1);
+            }
+
+            y += cardH + 3;
+          });
+
+          y += 6; // gap between councils
+        });
+
+        // Page numbers
+        const pages = doc.getNumberOfPages();
+        for (let p = 1; p <= pages; p++) {
+          doc.setPage(p);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(...GREY);
+          doc.text(`Page ${p} of ${pages}`, W / 2, 293, { align: 'center' });
+        }
+
+        const filename = (reportTitle || 'ppm-leads').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.pdf';
+        doc.save(filename);
+
+      } catch (err) {
+        console.error('PDF error:', err);
+        alert('PDF generation failed: ' + err.message);
+      } finally {
+        if (btn) { btn.innerHTML = '<iconify-icon icon="solar:file-download-bold" style="font-size:13px;"></iconify-icon> Download PDF'; btn.disabled = false; }
+      }
     }
 
     init();
