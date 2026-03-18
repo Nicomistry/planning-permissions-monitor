@@ -9,5 +9,8 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/admin-councils.js": { "maxDuration": 60 }
+  }
 }

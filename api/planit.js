@@ -1,8 +1,7 @@
 // Vercel serverless function — proxies PlanIt API to avoid browser CORS restrictions
 // Resolves council name → planit_auth from council_portal_configs (canonical source),
 // falls back to planit_areas area_id, then raw council name string.
-
-import { createClient } from '@supabase/supabase-js';
+// Uses raw fetch for all DB calls (no Supabase SDK) to keep bundle minimal.
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,52 +14,46 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'council param required' });
   }
 
-  // Resolve council name → planit_auth from council_portal_configs (canonical source),
-  // then fall back to planit_areas area_id, then raw name.
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+  const sbHeaders = {
+    'Content-Type':  'application/json',
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'apikey':        SUPABASE_KEY,
+  };
+
+  // Resolve council name → planit auth identifier
   let authParam = council;
   try {
-    const sb = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY,
+    // Primary: council_portal_configs.planit_auth (ilike match)
+    const cfgResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/council_portal_configs?council_name=ilike.${encodeURIComponent(council)}&select=planit_auth&planit_auth=not.is.null&limit=1`,
+      { headers: sbHeaders }
     );
-
-    // Primary: council_portal_configs.planit_auth
-    const { data: cfg } = await sb
-      .from('council_portal_configs')
-      .select('planit_auth')
-      .ilike('council_name', council)
-      .not('planit_auth', 'is', null)
-      .neq('planit_auth', '')
-      .limit(1)
-      .maybeSingle();
-
-    if (cfg?.planit_auth) {
-      authParam = cfg.planit_auth;
+    const cfgRows = cfgResp.ok ? await cfgResp.json() : [];
+    if (cfgRows?.[0]?.planit_auth) {
+      authParam = cfgRows[0].planit_auth;
     } else {
-      // Fallback: planit_areas area_id (numeric) via starts-with match
-      const { data: area } = await sb
-        .from('planit_areas')
-        .select('area_id')
-        .ilike('area_name', `${council}%`)
-        .order('area_name', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (area?.area_id) {
-        authParam = String(area.area_id);
+      // Fallback: planit_areas area_id via starts-with match
+      const areaResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/planit_areas?area_name=ilike.${encodeURIComponent(council)}*&select=area_id&order=area_name.asc&limit=1`,
+        { headers: sbHeaders }
+      );
+      const areaRows = areaResp.ok ? await areaResp.json() : [];
+      if (areaRows?.[0]?.area_id) {
+        authParam = String(areaRows[0].area_id);
       } else {
-        // Last resort: lowercase the name (PlanIt slugs are typically lowercase)
+        // Last resort: lowercase slug
         authParam = council.toLowerCase().replace(/\s+/g, '_');
       }
     }
   } catch (_) {
-    // DB unavailable — fall back to lowercase name slug
     authParam = council.toLowerCase().replace(/\s+/g, '_');
   }
 
   let url;
-
   if (uid) {
-    // Individual application detail
     url = `https://www.planit.org.uk/planapplic/${encodeURIComponent(authParam)}/${uid}/json`;
   } else {
     const params = new URLSearchParams({
@@ -84,7 +77,9 @@ export default async function handler(req, res) {
 
     if (!upstream.ok) {
       console.error(`PlanIt ${upstream.status} for auth=${authParam} council=${council} url=${url}`);
-      return res.status(upstream.status).json({ error: `PlanIt returned ${upstream.status} for council="${council}" (auth=${authParam})` });
+      return res.status(upstream.status).json({
+        error: `PlanIt returned ${upstream.status} for council="${council}" (auth=${authParam})`,
+      });
     }
 
     const data = await upstream.json();
