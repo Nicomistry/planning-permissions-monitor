@@ -12,6 +12,7 @@ const AREA_TYPES = [
 const ADMIN_EMAIL = 'nicomistry@gmail.com';
 
 export default async function handler(req, res) {
+  try {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -110,4 +111,8 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
+  } catch (err) {
+    console.error('admin-councils unhandled error:', err);
+    return res.status(500).json({ error: err.message, stack: err.stack });
+  }
 }
