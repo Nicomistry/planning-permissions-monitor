@@ -2428,11 +2428,14 @@
           `Hi,\n\nYour PPM planning leads report is ready.\n\nTotal leads: ${total}\nHigh priority: ${high}\n\nView your report here (expires in 48h):\n${shareUrl}\n\n— PPM`
         );
         window.open(`mailto:?subject=${subject}&body=${body}`);
-
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon> Send report';
-      }, 1500);
+      } catch (err) {
+        console.error('sendReportEmail error:', err);
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon> Send report';
+        }, 1500);
+      }
     }
 
     function setProgress(done, total) {
