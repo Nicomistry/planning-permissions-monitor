@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Council Leads — PPM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Geist', 'sans-serif'], mono: ['Share Tech Mono', 'monospace'] },
+          colors: { brand: { DEFAULT: '#00d084', dark: '#00a064', light: '#33e39f' } }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antialiased; }
+    .glass-panel { background: rgba(17,17,17,0.9); border: 1px solid rgba(255,255,255,0.08); }
+    .badge-high   { background: rgba(22,163,74,0.15);  color: #4ade80; border: 1px solid rgba(22,163,74,0.3);   font-size:9px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+    .badge-medium { background: rgba(217,119,6,0.15);  color: #fbbf24; border: 1px solid rgba(217,119,6,0.3);   font-size:9px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+    .badge-low    { background: rgba(82,82,91,0.2);    color: #9ca3af; border: 1px solid rgba(82,82,91,0.3);    font-size:9px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+    .pill { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:999px; border-width:1px; }
+    .lead-card { background: rgba(17,17,17,0.9); border: 1px solid rgba(255,255,255,0.07); border-radius:12px; transition: border-color 0.2s, box-shadow 0.2s; cursor:pointer; }
+    .lead-card:hover { border-color: rgba(0,208,132,0.25); box-shadow: 0 0 12px rgba(0,208,132,0.06); }
+    .lead-card.open   { border-color: rgba(0,208,132,0.35); box-shadow: 0 0 16px rgba(0,208,132,0.1); }
+    .lead-expand { max-height:0; overflow:hidden; transition: max-height 0.3s ease; }
+    .lead-expand.visible { max-height: 1000px; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
+  </style>
+</head>
+<body class="min-h-screen font-sans">
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-40 border-b border-white/5" style="background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);">
+    <div class="max-w-5xl mx-auto px-4 h-12 flex items-center gap-3">
+      <a href="/dashboard.html" class="flex items-center gap-1.5 text-zinc-500 hover:text-white transition-colors text-xs">
+        <iconify-icon icon="solar:arrow-left-linear" style="font-size:14px;"></iconify-icon>
+        Back
+      </a>
+      <div class="h-3.5 w-px bg-white/10"></div>
+      <span class="text-white text-sm font-semibold" id="pageTitle">Loading…</span>
+      <div class="ml-auto flex items-center gap-2">
+        <span id="statHigh"   class="text-[10px] font-semibold px-2 py-0.5 rounded-full" style="background:rgba(22,163,74,0.12);color:#4ade80;border:1px solid rgba(22,163,74,0.2);">— HIGH</span>
+        <span id="statMedium" class="text-[10px] font-semibold px-2 py-0.5 rounded-full" style="background:rgba(217,119,6,0.12);color:#fbbf24;border:1px solid rgba(217,119,6,0.2);">— MED</span>
+        <span id="statLow"    class="text-[10px] font-semibold px-2 py-0.5 rounded-full" style="background:rgba(82,82,91,0.15);color:#9ca3af;border:1px solid rgba(82,82,91,0.2);">— LOW</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="max-w-5xl mx-auto px-4 py-6">
+
+    <!-- Filter bar -->
+    <div class="flex flex-wrap items-center gap-3 mb-5">
+      <div class="flex items-center gap-2 glass-panel rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+        <iconify-icon icon="solar:magnifer-linear" style="font-size:13px;color:#52525b;flex-shrink:0;"></iconify-icon>
+        <input id="searchInput" type="text" placeholder="Search address or description…"
+          oninput="filterLeads()"
+          class="bg-transparent text-xs text-white placeholder-zinc-600 outline-none w-full">
+      </div>
+      <select id="priorityFilter" onchange="filterLeads()"
+        class="glass-panel rounded-xl px-3 py-2 text-xs text-zinc-300 outline-none cursor-pointer">
+        <option value="">All priorities</option>
+        <option value="HIGH">HIGH only</option>
+        <option value="MEDIUM">MEDIUM only</option>
+        <option value="LOW">LOW only</option>
+      </select>
+      <select id="typeFilter" onchange="filterLeads()"
+        class="glass-panel rounded-xl px-3 py-2 text-xs text-zinc-300 outline-none cursor-pointer">
+        <option value="">All types</option>
+      </select>
+      <div class="text-xs text-zinc-600 flex-shrink-0" id="countLabel">Loading…</div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loadingState" class="text-center py-20">
+      <iconify-icon icon="solar:refresh-linear" style="font-size:28px;color:#52525b;" class="animate-spin"></iconify-icon>
+      <p class="text-zinc-600 text-sm mt-3">Fetching planning permissions…</p>
+    </div>
+
+    <!-- Empty state -->
+    <div id="emptyState" class="hidden text-center py-20">
+      <iconify-icon icon="solar:document-text-linear" style="font-size:32px;color:#27272a;"></iconify-icon>
+      <p class="text-zinc-600 text-sm mt-3">No matching planning permissions found</p>
+    </div>
+
+    <!-- Lead cards -->
+    <div id="leadsContainer" class="space-y-2"></div>
+
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://sgnmbvwwdshttdbbspou.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnbm1idnd3ZHNodHRkYmJzcG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzNjE5MzYsImV4cCI6MjA1NjkzNzkzNn0.UO5UN_M_oaFqxeVb8HdSmCVbGiNbFfEHFRiKn8wgHlQ';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const params   = new URLSearchParams(location.search);
+    const COUNCIL  = params.get('council') || '';
+    const RECENT   = params.get('recent') || '60';
+
+    let allLeads = [];
+
+    document.getElementById('pageTitle').textContent = COUNCIL || 'Council Leads';
+    document.title = `${COUNCIL} Leads — PPM`;
+
+    // ── Auth gate ─────────────────────────────────────────────────────────────
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+      if (COUNCIL) fetchLeads();
+      else showEmpty('No council specified in URL');
+    })();
+
+    // ── Scoring (matches admin.html logic) ────────────────────────────────────
+    function scoreApplication(desc, appType) {
+      const d = (desc + ' ' + appType).toLowerCase();
+      let score = 5;
+      if (/new\s+dwelling|new\s+house|new\s+build|new build/.test(d)) score += 3;
+      if (/two-?storey|double storey/.test(d))                         score += 2;
+      if (/loft conversion|dormer/.test(d))                            score += 2;
+      if (/extension/.test(d))                                         score += 1;
+      if (/basement|underground/.test(d))                              score += 2;
+      if (/orangery|bi-?fold|glazed|lantern/.test(d))                  score += 1;
+      if (/conversion.*flat|flat.*conversion|2 flat|two flat/.test(d)) score += 2;
+      if (/garage conversion/.test(d))                                 score += 1;
+      if (/landscap|driveway|patio|decking/.test(d))                   score += 1;
+      if (/full planning permission/.test(d))                          score += 1;
+      if (/single storey|single-storey/.test(d))                       score -= 1;
+      if (/certificate of lawfulness|lawful development/.test(d))      score -= 2;
+      if (/prior approval/.test(d))                                    score -= 1;
+      if (/fence|wall only|gates only/.test(d))                        score -= 2;
+      score = Math.min(10, Math.max(1, score));
+      return { score, priority: score >= 8 ? 'HIGH' : score >= 6 ? 'MEDIUM' : 'LOW' };
+    }
+
+    function mapRecord(rec) {
+      const of = rec.other_fields || {};
+      const clean = v => (v && v !== 'See source' && v.trim()) ? v.trim() : null;
+      const desc     = rec.description || of.description || '';
+      const appType  = rec.app_type || of.application_type || '';
+      const { score, priority } = scoreApplication(desc, appType);
+      return {
+        address:              rec.address || '—',
+        uid:                  rec.uid || '',
+        description:          desc,
+        app_type:             appType,
+        app_state:            rec.app_state || of.status || 'Undecided',
+        app_size:             rec.app_size || null,
+        start_date:           rec.start_date || of.date_received || '',
+        target_decision_date: rec.target_decision_date || of.application_expires_date || '',
+        consulted_date:       rec.consulted_date || of.consultation_end_date || null,
+        postcode:             rec.postcode || null,
+        ward_name:            of.ward_name || null,
+        n_documents:          of.n_documents || null,
+        planit_url:           rec.link || null,
+        council_url:          rec.url || of.source_url || null,
+        applicant_name:       clean(rec.applicant_name) || clean(of.applicant_name) || null,
+        applicant_address:    clean(of.applicant_address) || null,
+        agent_name:           clean(rec.agent_name) || clean(of.agent_name) || null,
+        agent_email:          clean(of.email) || clean(of.agent_email) || null,
+        agent_phone:          clean(of.agent_tel) || clean(of.agent_phone) || null,
+        score,
+        priority,
+      };
+    }
+
+    // ── Fetch ─────────────────────────────────────────────────────────────────
+    async function fetchLeads() {
+      try {
+        const res = await fetch(`/api/planit?council=${encodeURIComponent(COUNCIL)}&recent=${RECENT}&pg_sz=200&app_state=Undecided`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const records = data.records || data.results || [];
+        allLeads = records.map(mapRecord).sort((a, b) => b.score - a.score);
+
+        document.getElementById('loadingState').classList.add('hidden');
+        populateTypeFilter();
+        updateStats();
+        filterLeads();
+      } catch (err) {
+        document.getElementById('loadingState').classList.add('hidden');
+        showEmpty(`Failed to load leads: ${err.message}`);
+      }
+    }
+
+    function populateTypeFilter() {
+      const types = [...new Set(allLeads.map(l => l.app_type).filter(Boolean))].sort();
+      const sel = document.getElementById('typeFilter');
+      types.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t; opt.textContent = t.replace('Full Planning Permission','Full PP').replace('Householder Application','Householder');
+        sel.appendChild(opt);
+      });
+    }
+
+    function updateStats() {
+      const h = allLeads.filter(l => l.priority === 'HIGH').length;
+      const m = allLeads.filter(l => l.priority === 'MEDIUM').length;
+      const lo = allLeads.filter(l => l.priority === 'LOW').length;
+      document.getElementById('statHigh').textContent   = h  + ' HIGH';
+      document.getElementById('statMedium').textContent = m  + ' MED';
+      document.getElementById('statLow').textContent    = lo + ' LOW';
+    }
+
+    function filterLeads() {
+      const search   = document.getElementById('searchInput').value.toLowerCase();
+      const priority = document.getElementById('priorityFilter').value;
+      const type     = document.getElementById('typeFilter').value;
+
+      let filtered = allLeads;
+      if (priority) filtered = filtered.filter(l => l.priority === priority);
+      if (type)     filtered = filtered.filter(l => l.app_type === type);
+      if (search)   filtered = filtered.filter(l =>
+        (l.address || '').toLowerCase().includes(search) ||
+        (l.description || '').toLowerCase().includes(search)
+      );
+
+      document.getElementById('countLabel').textContent =
+        `${filtered.length} of ${allLeads.length} permissions`;
+
+      if (filtered.length === 0) {
+        document.getElementById('leadsContainer').innerHTML = '';
+        document.getElementById('emptyState').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('emptyState').classList.add('hidden');
+      renderLeads(filtered);
+    }
+
+    function esc(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderLeads(leads) {
+      const scoreColor = s => s >= 8 ? '#4ade80' : s >= 5 ? '#fbbf24' : '#9ca3af';
+      document.getElementById('leadsContainer').innerHTML = leads.map((l, i) => {
+        const daysLeft = l.target_decision_date
+          ? Math.ceil((new Date(l.target_decision_date) - new Date()) / 86400000) : null;
+        const urgencyLabel = daysLeft === null ? null
+          : daysLeft < 0   ? `${Math.abs(daysLeft)}d overdue`
+          : `${daysLeft}d left`;
+        const urgencyColor = daysLeft === null ? '#52525b'
+          : daysLeft < 0   ? '#f87171'
+          : daysLeft <= 14 ? '#fbbf24' : '#52525b';
+
+        const emailSubj = encodeURIComponent(`Re: Planning Application — ${(l.address||'').split(',')[0]}`);
+        const emailBody = encodeURIComponent(`Hi ${(l.applicant_name||'there').split(' ')[0]},\n\nI came across your planning application for ${(l.address||'').split(',')[0]} and I'd love to discuss how we can help.\n\nBest regards`);
+        const mailtoAddr = l.agent_email ? encodeURIComponent(l.agent_email) : '';
+
+        return `
+        <div class="lead-card" id="lc-${i}" onclick="toggleLead(${i})">
+          <div class="px-4 py-3.5">
+            <!-- Header row -->
+            <div class="flex items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <span class="text-white text-xs font-semibold leading-snug">${esc(l.address)}</span>
+                  ${l.uid ? `<span class="text-[10px] text-zinc-600 font-mono flex-shrink-0">${esc(l.uid)}</span>` : ''}
+                </div>
+                ${l.description ? `<p class="text-zinc-500 text-[11px] leading-relaxed line-clamp-2">${esc(l.description)}</p>` : ''}
+              </div>
+              <!-- Score + arrow -->
+              <div class="flex items-center gap-2.5 flex-shrink-0">
+                <div class="text-right">
+                  <div class="text-sm font-mono font-semibold" style="color:${scoreColor(l.score)}">${l.score}<span class="text-zinc-700 text-[10px]">/10</span></div>
+                  <span class="badge-${l.priority.toLowerCase()}">${l.priority}</span>
+                </div>
+                <iconify-icon id="lc-icon-${i}" icon="solar:alt-arrow-down-linear" style="font-size:13px;color:#52525b;transition:transform 0.2s;"></iconify-icon>
+              </div>
+            </div>
+            <!-- Pill row -->
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              ${l.app_type ? `<span class="pill bg-blue-500/10 border-blue-500/20 text-blue-400">${esc(l.app_type.replace('Full Planning Permission','Full PP').replace('Householder Application','Householder'))}</span>` : ''}
+              ${l.app_size ? `<span class="pill bg-white/5 border-white/8 text-zinc-500">${esc(l.app_size)}</span>` : ''}
+              ${l.start_date ? `<span class="pill bg-white/5 border-white/8 text-zinc-600"><iconify-icon icon="solar:calendar-linear" style="font-size:9px;"></iconify-icon>${esc(l.start_date)}</span>` : ''}
+              ${urgencyLabel ? `<span class="pill bg-white/5 border-white/8 font-mono" style="color:${urgencyColor};border-color:${urgencyColor}33"><iconify-icon icon="solar:clock-circle-linear" style="font-size:9px;"></iconify-icon>${urgencyLabel}</span>` : ''}
+              ${l.ward_name ? `<span class="pill bg-white/5 border-white/8 text-zinc-600"><iconify-icon icon="solar:map-point-linear" style="font-size:9px;"></iconify-icon>${esc(l.ward_name)}</span>` : ''}
+            </div>
+          </div>
+
+          <!-- Expandable detail -->
+          <div class="lead-expand" id="le-${i}">
+            <div class="border-t border-white/5 px-4 py-4 space-y-4">
+
+              <!-- Full description -->
+              ${l.description ? `<div>
+                <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Planning Description</div>
+                <p class="text-zinc-300 text-xs leading-relaxed">${esc(l.description)}</p>
+              </div>` : ''}
+
+              <!-- Contact Details -->
+              <div>
+                <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Contact Details</div>
+                ${(l.applicant_name || l.agent_name) ? `
+                  <div class="grid grid-cols-2 gap-4 mb-3">
+                    ${l.applicant_name ? `<div>
+                      <div class="text-[10px] text-zinc-600 mb-0.5">Applicant</div>
+                      <div class="text-xs text-white font-medium">${esc(l.applicant_name)}</div>
+                      ${l.applicant_address ? `<div class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">${esc(l.applicant_address)}</div>` : ''}
+                    </div>` : '<div></div>'}
+                    ${l.agent_name ? `<div>
+                      <div class="text-[10px] text-zinc-600 mb-0.5">Agent / Architect</div>
+                      <div class="text-xs text-white font-medium">${esc(l.agent_name)}</div>
+                      ${l.agent_email ? `<div class="text-[11px] text-blue-400 mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:letter-linear" style="font-size:10px;"></iconify-icon>${esc(l.agent_email)}</div>` : ''}
+                      ${l.agent_phone ? `<div class="text-[11px] text-brand mt-0.5 flex items-center gap-1"><iconify-icon icon="solar:phone-linear" style="font-size:10px;"></iconify-icon>${esc(l.agent_phone)}</div>` : ''}
+                    </div>` : '<div></div>'}
+                  </div>` : `<p class="text-[11px] text-zinc-600 mb-2">Contact details not published for this council.</p>`}
+                <!-- Action buttons -->
+                <div class="flex flex-wrap gap-2">
+                  ${l.agent_phone ? `<a href="tel:${l.agent_phone}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-brand border border-brand/30 bg-brand/8 hover:bg-brand/15 px-2.5 py-1.5 rounded-lg transition-all font-medium"><iconify-icon icon="solar:phone-linear" style="font-size:11px;"></iconify-icon>Call ${esc(l.agent_phone)}</a>` : ''}
+                  <a href="mailto:${mailtoAddr}?subject=${emailSubj}&body=${emailBody}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] ${l.agent_email ? 'text-blue-300 border-blue-400/40 bg-blue-500/10 hover:bg-blue-500/20' : 'text-blue-400 border-blue-500/25 bg-blue-500/8 hover:bg-blue-500/15'} border px-2.5 py-1.5 rounded-lg transition-all font-medium"><iconify-icon icon="solar:letter-linear" style="font-size:11px;"></iconify-icon>${l.agent_email ? `Email agent` : 'Draft Email'}</a>
+                  ${(l.council_url || l.planit_url) ? `<a href="${l.council_url || l.planit_url}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 border border-white/10 hover:border-brand/30 hover:text-brand px-2.5 py-1.5 rounded-lg transition-all"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:11px;"></iconify-icon>View Application</a>` : ''}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleLead(i) {
+      const card = document.getElementById('lc-' + i);
+      const body = document.getElementById('le-' + i);
+      const icon = document.getElementById('lc-icon-' + i);
+      if (!body) return;
+      const opening = !body.classList.contains('visible');
+      body.classList.toggle('visible', opening);
+      card.classList.toggle('open', opening);
+      if (icon) icon.style.transform = opening ? 'rotate(180deg)' : '';
+    }
+
+    function showEmpty(msg) {
+      document.getElementById('loadingState').classList.add('hidden');
+      const el = document.getElementById('emptyState');
+      el.classList.remove('hidden');
+      el.querySelector('p').textContent = msg;
+    }
+  </script>
+</body>
+</html>

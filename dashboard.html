@@ -986,6 +986,7 @@
       wrap.innerHTML = [...dActiveCouncils].map(c => `
         <span class="d-sel-pill">
           ${c}
+          <a href="/council-leads.html?council=${encodeURIComponent(c)}" target="_blank" onclick="event.stopPropagation()" title="View all leads for ${c}" style="color:#00d084;margin-left:2px;margin-right:2px;text-decoration:none;font-size:10px;" aria-label="View leads">↗</a>
           <button onclick="dToggleCouncil('${c.replace(/'/g,"\\'")}')">×</button>
         </span>`).join('');
     }
