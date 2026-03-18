@@ -350,7 +350,7 @@ For everything else: answer in plain text. Be specific, reference actual lead da
         'X-Title':       'PPM Assistant',
       },
       body: JSON.stringify({
-        model:       'anthropic/claude-3-5-haiku-20241022',
+        model:       'anthropic/claude-3-5-haiku',
         max_tokens:  800,
         temperature: 0.2,
         messages: [
@@ -363,9 +363,10 @@ For everything else: answer in plain text. Be specific, reference actual lead da
 
     const orData = await orRes.json();
     if (!orRes.ok) {
-      console.error('OpenRouter error:', JSON.stringify(orData));
+      const errMsg = orData?.error?.message || orData?.message || JSON.stringify(orData);
+      console.error('OpenRouter error:', errMsg);
       return res.status(200).json({
-        reply:       'I had a problem generating a response — please try again.',
+        reply:       `Assistant error: ${errMsg}`,
         lead_cards:  null,
         stat_teaser: statTeaser,
         report_sent: false,
