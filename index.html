@@ -624,96 +624,66 @@ body { background-color: #0a0a0a; color: #A1A1AA; -webkit-font-smoothing: antial
       <p class="text-lg text-zinc-400 font-light">Start finding leads today. Cancel anytime — no contracts, no setup fees.</p>
     </div>
 
-    <!-- One-off scan -->
-    <div class="max-w-3xl mx-auto mb-6 reveal">
-      <div class="glass-panel rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <div class="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-1">Not ready to commit?</div>
-          <div class="text-sm font-semibold text-white">Single Scan — <span style="color:#00d084;">£49</span> <span class="text-zinc-500 font-normal text-xs">one-off</span></div>
-          <p class="text-xs text-zinc-500 mt-0.5">Scan up to 3 councils once. No subscription required.</p>
-        </div>
-        <a href="/pricing.html" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/12 text-white text-xs font-semibold hover:bg-white/5 transition-all-ease whitespace-nowrap flex-shrink-0">
-          Buy a scan
-          <iconify-icon icon="solar:arrow-right-linear" style="font-size:12px;"></iconify-icon>
-        </a>
-      </div>
-    </div>
+    <!-- Plan comparison strip -->
+    <div class="max-w-3xl mx-auto space-y-3 reveal">
 
-    <!-- Subscription plans -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+      <!-- Single scan -->
+      <div class="glass-panel rounded-2xl px-6 py-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="text-xs font-semibold text-white">Single Scan</div>
+          <div class="text-xs text-zinc-500">Scan 3 councils once — no subscription</div>
+        </div>
+        <div class="flex items-center gap-4 flex-shrink-0">
+          <span class="text-sm font-semibold text-white">£49 <span class="text-zinc-500 font-normal text-xs">one-off</span></span>
+        </div>
+      </div>
 
       <!-- Starter -->
-      <div class="glass-panel rounded-2xl p-7 flex flex-col spotlight-card hover-brand reveal transition-colors duration-300">
-        <div class="mb-6">
-          <div class="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Starter</div>
-          <div class="flex items-baseline gap-1.5 mb-1">
-            <span class="text-4xl font-semibold text-white tracking-tighter">£149</span>
-            <span class="text-xs text-zinc-500">/month</span>
-          </div>
-          <p class="text-xs text-zinc-500">Perfect for a single trade covering a local area</p>
+      <div class="glass-panel rounded-2xl px-6 py-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="text-xs font-semibold text-white">Starter</div>
+          <div class="text-xs text-zinc-500">3 councils per run · AI-scored leads · contact details</div>
         </div>
-        <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Scan up to <strong class="text-white ml-1">3 councils</strong> per run</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> AI-scored leads with opportunity rating</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Applicant &amp; agent contact details</li>
-          <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-linear" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Save &amp; manage contacts</li>
-        </ul>
-        <a href="/pricing.html" class="block w-full text-xs font-semibold px-4 py-3 rounded-xl border border-white/12 text-white text-center hover:bg-white/5 hover:border-white/20 transition-all-ease">Get Starter</a>
+        <div class="flex items-center gap-4 flex-shrink-0">
+          <span class="text-sm font-semibold text-white">£149<span class="text-zinc-500 font-normal text-xs">/mo</span></span>
+        </div>
       </div>
 
-      <!-- Pro — featured -->
-      <div class="glass-panel rounded-2xl p-7 flex flex-col spotlight-card relative overflow-hidden reveal reveal-delay-1" style="background:linear-gradient(160deg,rgba(0,208,132,0.07) 0%,rgba(17,17,17,0.95) 50%);border-color:rgba(0,208,132,0.3);">
-        <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none" style="background:rgba(0,208,132,0.12);filter:blur(40px);"></div>
-        <div class="relative z-10 flex flex-col flex-1">
-          <div class="flex items-start justify-between mb-6">
-            <div>
-              <div class="text-[10px] font-semibold uppercase tracking-widest mb-2" style="color:#00d084;">Pro</div>
-              <div class="flex items-baseline gap-1.5 mb-1">
-                <span class="text-4xl font-semibold text-white tracking-tighter">£349</span>
-                <span class="text-xs text-zinc-500">/month</span>
-              </div>
-              <p class="text-xs text-zinc-500">For builders &amp; contractors covering multiple areas</p>
-            </div>
-            <span class="text-[9px] uppercase tracking-widest font-semibold px-2.5 py-1 rounded-full whitespace-nowrap mt-1" style="background:rgba(0,208,132,0.15);border:1px solid rgba(0,208,132,0.3);color:#00d084;">Popular</span>
-          </div>
-          <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Scan up to <strong class="text-white ml-1">20 councils</strong> per run</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> AI-scored leads with opportunity rating</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Applicant &amp; agent contact details</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#00d084;flex-shrink:0;"></iconify-icon> Save &amp; manage contacts</li>
-          </ul>
-          <a href="/pricing.html" class="block w-full text-xs font-semibold px-4 py-3 rounded-xl text-black text-center hover:opacity-90 transition-all-ease" style="background:#00d084;">Get Pro</a>
+      <!-- Pro -->
+      <div class="rounded-2xl px-6 py-4 flex items-center justify-between gap-4" style="background:rgba(0,208,132,0.06);border:1px solid rgba(0,208,132,0.25);">
+        <div class="flex items-center gap-4">
+          <div class="text-xs font-semibold" style="color:#00d084;">Pro</div>
+          <div class="text-xs text-zinc-500">20 councils per run · AI-scored leads · contact details</div>
+          <span class="text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full" style="background:rgba(0,208,132,0.15);border:1px solid rgba(0,208,132,0.3);color:#00d084;">Popular</span>
+        </div>
+        <div class="flex items-center gap-4 flex-shrink-0">
+          <span class="text-sm font-semibold text-white">£349<span class="text-zinc-500 font-normal text-xs">/mo</span></span>
         </div>
       </div>
 
       <!-- Unlimited -->
-      <div class="glass-panel rounded-2xl p-7 flex flex-col spotlight-card relative overflow-hidden reveal reveal-delay-2" style="background:linear-gradient(160deg,rgba(168,85,247,0.07) 0%,rgba(17,17,17,0.95) 50%);border-color:rgba(168,85,247,0.25);">
-        <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none" style="background:rgba(168,85,247,0.12);filter:blur(40px);"></div>
-        <div class="relative z-10 flex flex-col flex-1">
-          <div class="mb-6">
-            <div class="text-[10px] font-semibold uppercase tracking-widest mb-2" style="color:#a855f7;">Unlimited</div>
-            <div class="flex items-baseline gap-1.5 mb-1">
-              <span class="text-4xl font-semibold text-white tracking-tighter">£700</span>
-              <span class="text-xs text-zinc-500">/month</span>
-            </div>
-            <p class="text-xs text-zinc-500">National coverage — every council, every lead</p>
-          </div>
-          <ul class="space-y-3 text-xs text-zinc-300 mb-8 flex-1">
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Scan <strong class="text-white ml-1">all councils</strong> per run</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> AI-scored leads with opportunity rating</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Applicant &amp; agent contact details</li>
-            <li class="flex items-center gap-2.5"><iconify-icon icon="solar:check-circle-bold" style="font-size:14px;color:#a855f7;flex-shrink:0;"></iconify-icon> Save &amp; manage contacts</li>
-          </ul>
-          <a href="/pricing.html" class="block w-full text-xs font-semibold px-4 py-3 rounded-xl text-center hover:opacity-90 transition-all-ease" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#d8b4fe;">Get Unlimited</a>
+      <div class="rounded-2xl px-6 py-4 flex items-center justify-between gap-4" style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);">
+        <div class="flex items-center gap-4">
+          <div class="text-xs font-semibold" style="color:#a855f7;">Unlimited</div>
+          <div class="text-xs text-zinc-500">All 417 UK councils · national coverage · every lead</div>
+        </div>
+        <div class="flex items-center gap-4 flex-shrink-0">
+          <span class="text-sm font-semibold text-white">£700<span class="text-zinc-500 font-normal text-xs">/mo</span></span>
         </div>
       </div>
 
     </div>
 
-    <p class="text-center text-xs text-zinc-600 mt-10 flex items-center justify-center gap-2 reveal">
-      <iconify-icon icon="solar:lock-bold" style="font-size:13px;"></iconify-icon>
-      Secure payment via Stripe &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; No setup fees
-    </p>
+    <div class="text-center mt-8 reveal">
+      <a href="/pricing.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-black hover:opacity-90 transition-all-ease" style="background:#00d084;">
+        See all plans &amp; get started
+        <iconify-icon icon="solar:arrow-right-linear" style="font-size:14px;"></iconify-icon>
+      </a>
+      <p class="text-xs text-zinc-600 mt-4 flex items-center justify-center gap-2">
+        <iconify-icon icon="solar:lock-bold" style="font-size:12px;"></iconify-icon>
+        Secure payment via Stripe &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; No setup fees
+      </p>
+    </div>
   </div>
 </section>
 
