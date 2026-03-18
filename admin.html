@@ -1757,6 +1757,15 @@
     }
 
     function renderScanResults(councilResults) {
+      // Persist so results survive tab switches and page refreshes
+      try {
+        localStorage.setItem('ppm_last_scan', JSON.stringify({
+          councilResults,
+          scannedAt: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        }));
+      } catch (_) {}
+
+      window._councilData = councilResults;
       const allLeads = councilResults.flatMap(r => r.leads);
       const high   = allLeads.filter(l => l.priority === 'HIGH').length;
       const medium = allLeads.filter(l => l.priority === 'MEDIUM').length;
@@ -1767,9 +1776,6 @@
       document.getElementById('rHigh').textContent   = high + ' HIGH';
       document.getElementById('rMedium').textContent = medium + ' MEDIUM';
       document.getElementById('rLow').textContent    = low + ' LOW';
-
-      // store all council data for card expand
-      window._councilData = councilResults;
 
       // council cards
       document.getElementById('councilResultCards').innerHTML = councilResults.map(({council, leads}, ci) => {
@@ -2327,7 +2333,8 @@
       box.classList.remove('hidden');
       input.value = 'Generating…';
 
-      const leads = allLeads.filter(l => l.council === councilName);
+      const councilEntry = (window._councilData || []).find(r => r.council === councilName);
+      const leads = councilEntry ? councilEntry.leads : [];
       if (leads.length === 0) { input.value = 'No leads for this council'; return; }
 
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -2356,14 +2363,14 @@
     function toggleAllLeads() {
       _showingAllLeads = !_showingAllLeads;
       const btn = document.getElementById('showAllLeadsBtn');
+      const scanLeads = (window._councilData || []).flatMap(r => r.leads);
       const top = _showingAllLeads
-        ? [...allLeads].sort((a,b) => (b.score||0)-(a.score||0))
-        : [...allLeads].sort((a,b) => (b.score||0)-(a.score||0)).slice(0,15);
+        ? [...scanLeads].sort((a,b) => (b.score||0)-(a.score||0))
+        : [...scanLeads].sort((a,b) => (b.score||0)-(a.score||0)).slice(0,15);
       window._scanLeads = top;
       document.getElementById('topLeadsCount').textContent =
-        _showingAllLeads ? `All ${top.length} leads` : `Top ${top.length} of ${allLeads.length}`;
+        _showingAllLeads ? `All ${top.length} leads` : `Top ${top.length} of ${scanLeads.length}`;
       if (btn) btn.textContent = _showingAllLeads ? 'Show top 15' : 'Show all leads';
-      window._scanLeads = top;
       document.getElementById('resultsTableBody').innerHTML = top.map((l, i) => buildResultRow(l, i)).join('');
     }
 
@@ -2428,6 +2435,22 @@
       buildTradeChips();
       loadRequests();
       loadCPRequests();
+
+      // Restore last scan results if available (survives tab switches & refreshes)
+      try {
+        const saved = localStorage.getItem('ppm_last_scan');
+        if (saved) {
+          const { councilResults, scannedAt } = JSON.parse(saved);
+          if (councilResults && councilResults.length > 0) {
+            renderScanResults(councilResults);
+            // Fix meta timestamp to show original scan time, not now
+            const allLeads = councilResults.flatMap(r => r.leads);
+            document.getElementById('scanResultsMeta').textContent =
+              `${allLeads.length} leads found · ${councilResults.length} council(s) scanned · ${scannedAt} (restored)`;
+            document.getElementById('scanResultsPanel').classList.remove('hidden');
+          }
+        }
+      } catch (_) {}
     }
 
     init();
