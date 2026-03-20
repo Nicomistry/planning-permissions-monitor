@@ -1414,6 +1414,34 @@
                 </button>
               </div>
 
+              ${lead.admin_sent ? `
+              <!-- Admin-sent response row -->
+              <div style="padding-top:4px;border-top:1px solid rgba(168,85,247,0.15);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:10px;font-weight:600;color:#a855f7;text-transform:uppercase;letter-spacing:0.07em;flex:1;">
+                  <iconify-icon icon="solar:inbox-in-bold" style="font-size:11px;margin-right:3px;"></iconify-icon>Sent by PPM
+                </span>
+                ${lead.client_status === 'accepted' ? `
+                  <span id="resp-${lead.id}" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:7px;padding:5px 12px;">
+                    <iconify-icon icon="solar:check-circle-bold" style="font-size:12px;"></iconify-icon>Accepted
+                  </span>
+                ` : lead.client_status === 'declined' ? `
+                  <span id="resp-${lead.id}" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#f87171;border:1px solid rgba(248,113,113,0.3);border-radius:7px;padding:5px 12px;">
+                    <iconify-icon icon="solar:close-circle-bold" style="font-size:12px;"></iconify-icon>Declined
+                  </span>
+                ` : `
+                  <button id="resp-${lead.id}-accept" onclick="event.stopPropagation();respondToAdminLead('${lead.id}','accepted')"
+                    style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:7px;padding:5px 12px;background:transparent;cursor:pointer;font-family:inherit;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(74,222,128,0.1)'" onmouseout="this.style.background='transparent'">
+                    <iconify-icon icon="solar:check-circle-bold" style="font-size:12px;"></iconify-icon>Accept
+                  </button>
+                  <button id="resp-${lead.id}-decline" onclick="event.stopPropagation();respondToAdminLead('${lead.id}','declined')"
+                    style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#f87171;border:1px solid rgba(248,113,113,0.3);border-radius:7px;padding:5px 12px;background:transparent;cursor:pointer;font-family:inherit;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='transparent'">
+                    <iconify-icon icon="solar:close-circle-bold" style="font-size:12px;"></iconify-icon>Decline
+                  </button>
+                `}
+              </div>` : ''}
+
             </div>
           </div>
         </div>`;
@@ -1462,6 +1490,47 @@
       }
       // Refresh contacts badge
       loadDContacts();
+    }
+
+    // ── Respond to admin-sent lead ────────────────────────────────────────────
+    async function respondToAdminLead(leadId, status) {
+      const acceptBtn  = document.getElementById('resp-' + leadId + '-accept');
+      const declineBtn = document.getElementById('resp-' + leadId + '-decline');
+      if (acceptBtn)  { acceptBtn.disabled  = true; acceptBtn.style.opacity  = '0.5'; }
+      if (declineBtn) { declineBtn.disabled = true; declineBtn.style.opacity = '0.5'; }
+
+      const { error } = await sb.from('leads')
+        .update({ client_status: status })
+        .eq('id', leadId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('respondToAdminLead:', error);
+        if (acceptBtn)  { acceptBtn.disabled  = false; acceptBtn.style.opacity  = '1'; }
+        if (declineBtn) { declineBtn.disabled = false; declineBtn.style.opacity = '1'; }
+        return;
+      }
+
+      // Update local state and re-render response area inline
+      const lead = allLeads.find(l => String(l.id) === String(leadId));
+      if (lead) lead.client_status = status;
+
+      const isAccepted = status === 'accepted';
+      const wrapper = (acceptBtn || declineBtn)?.closest('div[style*="border-top"]');
+      if (wrapper) {
+        const badge = wrapper.querySelector('span:last-child') || wrapper;
+        const color  = isAccepted ? '#4ade80' : '#f87171';
+        const bcolor = isAccepted ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)';
+        const icon   = isAccepted ? 'solar:check-circle-bold' : 'solar:close-circle-bold';
+        const label  = isAccepted ? 'Accepted' : 'Declined';
+        wrapper.innerHTML = `
+          <span style="font-size:10px;font-weight:600;color:#a855f7;text-transform:uppercase;letter-spacing:0.07em;flex:1;">
+            <iconify-icon icon="solar:inbox-in-bold" style="font-size:11px;margin-right:3px;"></iconify-icon>Sent by PPM
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:${color};border:1px solid ${bcolor};border-radius:7px;padding:5px 12px;">
+            <iconify-icon icon="${icon}" style="font-size:12px;"></iconify-icon>${label}
+          </span>`;
+      }
     }
 
     // ── Run scraper ───────────────────────────────────────────────────────────
