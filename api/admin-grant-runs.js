@@ -196,11 +196,18 @@ export default async function handler(req, res) {
       admin_sent:           true,
     }));
 
+    // Strip null/undefined fields — PostgREST schema-validates every key present,
+    // so sending agent_email:null fails if the column isn't in the schema cache.
+    const stripNulls = obj => Object.fromEntries(
+      Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
+    );
+    const cleanRows = rows.map(stripNulls);
+
     // Batch upsert in chunks of 200
     const CHUNK = 200;
     let saved = 0;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
+    for (let i = 0; i < cleanRows.length; i += CHUNK) {
+      const chunk = cleanRows.slice(i, i + CHUNK);
       const upsertResp = await fetch(
         `${SUPABASE_URL}/rest/v1/leads?on_conflict=user_id%2Cuid`,
         {
@@ -216,7 +223,7 @@ export default async function handler(req, res) {
       saved += chunk.length;
     }
 
-    return res.status(200).json({ ok: true, saved });
+    return res.status(200).json({ ok: true, saved, total: cleanRows.length });
   }
 
   return res.status(400).json({ error: 'action must be "search", "grant", "list", "review", or "send-leads"' });
