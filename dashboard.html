@@ -513,6 +513,31 @@
 
       <!-- Contacts panel -->
       <div id="dpanel-contacts" class="hidden">
+
+        <!-- Saved Permissions -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <iconify-icon icon="solar:bookmark-bold" style="color:#fbbf24;font-size:16px;"></iconify-icon>
+            <span class="text-sm font-semibold text-white">Saved Permissions</span>
+            <span id="savedPermBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(251,191,36,0.15);color:#fbbf24;"></span>
+          </div>
+          <div class="glass-panel rounded-2xl overflow-hidden">
+            <div id="savedPermLoading" class="flex items-center justify-center py-10 gap-3 text-zinc-500">
+              <iconify-icon icon="svg-spinners:3-dots-fade" style="color:#fbbf24;font-size:18px;"></iconify-icon>
+            </div>
+            <div id="savedPermEmpty" class="hidden flex-col items-center justify-center py-10 text-center px-6">
+              <iconify-icon icon="solar:bookmark-linear" style="color:#52525b;font-size:32px;"></iconify-icon>
+              <div class="text-white font-medium mt-3 mb-1">No saved permissions yet</div>
+              <div class="text-xs text-zinc-500">Click <span style="color:#fbbf24;">Save Permission</span> on any lead, or accept an admin-sent permission.</div>
+            </div>
+            <div id="savedPermList" class="hidden divide-y divide-white/5"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 mb-3">
+          <iconify-icon icon="solar:users-group-rounded-bold" style="color:#00d084;font-size:16px;"></iconify-icon>
+          <span class="text-sm font-semibold text-white">My Contacts</span>
+        </div>
         <div class="flex flex-wrap items-center gap-3 mb-4">
           <select id="dcFilterStatus" onchange="renderDContacts()"
             class="text-xs bg-[#111] border border-white/10 text-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
@@ -1339,6 +1364,7 @@
         const score      = lead.opportunity_score ?? '—';
         const value      = estimateValue(lead);
         const alreadySaved = savedLeadIds.has(lead.id);
+        const isPermSaved  = lead.client_saved === true;
         const shortDesc  = (lead.description || '').length > 100
           ? lead.description.slice(0, 100) + '…' : (lead.description || '—');
         const daysLeft   = lead.target_decision_date
@@ -1411,6 +1437,14 @@
                   onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='transparent'">
                   <iconify-icon icon="solar:pen-bold" style="font-size:11px;"></iconify-icon>
                   Draft Outreach
+                </button>
+                <button id="saveperm-${lead.id}" onclick="event.stopPropagation();savePermission('${lead.id}')"
+                  ${isPermSaved ? 'disabled' : ''}
+                  style="display:inline-flex;align-items:center;gap:5px;font-size:11px;${isPermSaved ? 'color:#fbbf24;border-color:rgba(251,191,36,0.4);cursor:default;' : 'color:#71717a;border-color:rgba(255,255,255,0.12);cursor:pointer;'}border:1px solid;border-radius:7px;padding:6px 12px;background:transparent;font-family:inherit;transition:all 0.15s;"
+                  onmouseover="if(!this.disabled)this.style.color='#fbbf24',this.style.borderColor='rgba(251,191,36,0.4)'"
+                  onmouseout="if(!this.disabled)this.style.color='#71717a',this.style.borderColor='rgba(255,255,255,0.12)'">
+                  <iconify-icon icon="${isPermSaved ? 'solar:bookmark-bold' : 'solar:bookmark-linear'}" style="font-size:11px;"></iconify-icon>
+                  ${isPermSaved ? 'Saved' : 'Save Permission'}
                 </button>
               </div>
 
@@ -1492,6 +1526,36 @@
       loadDContacts();
     }
 
+    // ── Save permission permanently ───────────────────────────────────────────
+    async function savePermission(leadId) {
+      const btn = document.getElementById('saveperm-' + leadId);
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
+      const { error } = await sb.from('leads')
+        .update({ client_saved: true })
+        .eq('id', leadId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('savePermission:', error);
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        return;
+      }
+
+      const lead = allLeads.find(l => String(l.id) === String(leadId));
+      if (lead) lead.client_saved = true;
+
+      if (btn) {
+        btn.style.opacity = '1';
+        btn.style.color = '#fbbf24';
+        btn.style.borderColor = 'rgba(251,191,36,0.4)';
+        btn.innerHTML = '<iconify-icon icon="solar:bookmark-bold" style="font-size:11px;"></iconify-icon> Saved';
+      }
+
+      // Refresh saved count badge
+      loadSavedPermissions();
+    }
+
     // ── Respond to admin-sent lead ────────────────────────────────────────────
     async function respondToAdminLead(leadId, status) {
       const acceptBtn  = document.getElementById('resp-' + leadId + '-accept');
@@ -1511,9 +1575,18 @@
         return;
       }
 
+      // Auto-save to My Permissions when accepted
+      if (status === 'accepted') {
+        await sb.from('leads')
+          .update({ client_saved: true })
+          .eq('id', leadId)
+          .eq('user_id', currentUser.id);
+        loadSavedPermissions();
+      }
+
       // Update local state and re-render response area inline
       const lead = allLeads.find(l => String(l.id) === String(leadId));
-      if (lead) lead.client_status = status;
+      if (lead) { lead.client_status = status; if (status === 'accepted') lead.client_saved = true; }
 
       const isAccepted = status === 'accepted';
       const wrapper = (acceptBtn || declineBtn)?.closest('div[style*="border-top"]');
@@ -1580,7 +1653,83 @@
           btn.classList.add('text-zinc-500');
         }
       });
-      if (tab === 'contacts') loadDContacts();
+      if (tab === 'contacts') { loadSavedPermissions(); loadDContacts(); }
+    }
+
+    // ── Saved Permissions ─────────────────────────────────────────────────────
+    async function loadSavedPermissions() {
+      document.getElementById('savedPermLoading').classList.remove('hidden');
+      document.getElementById('savedPermList').classList.add('hidden');
+      document.getElementById('savedPermEmpty').classList.add('hidden');
+
+      const { data, error } = await sb
+        .from('leads')
+        .select('id,address,council,description,app_type,app_state,priority,opportunity_score,planit_url,start_date,target_decision_date,admin_sent,client_status,scraped_date')
+        .eq('user_id', currentUser.id)
+        .eq('client_saved', true)
+        .order('opportunity_score', { ascending: false });
+
+      document.getElementById('savedPermLoading').classList.add('hidden');
+
+      if (error || !data || data.length === 0) {
+        document.getElementById('savedPermEmpty').classList.remove('hidden');
+        document.getElementById('savedPermEmpty').classList.add('flex');
+        document.getElementById('savedPermBadge').classList.add('hidden');
+        return;
+      }
+
+      const badge = document.getElementById('savedPermBadge');
+      badge.textContent = data.length; badge.classList.remove('hidden');
+
+      const priColor = { HIGH:'#4ade80', MEDIUM:'#fbbf24', LOW:'#9ca3af' };
+      document.getElementById('savedPermList').innerHTML = data.map(p => {
+        const daysLeft = p.target_decision_date
+          ? Math.ceil((new Date(p.target_decision_date) - new Date()) / 86400000) : null;
+        const urgency = daysLeft === null ? '' :
+          daysLeft < 0 ? `<span style="color:#f87171;font-size:10px;">${Math.abs(daysLeft)}d overdue</span>` :
+          daysLeft <= 14 ? `<span style="color:#fbbf24;font-size:10px;">${daysLeft}d left</span>` :
+          `<span style="color:#52525b;font-size:10px;">${daysLeft}d left</span>`;
+        return `
+        <div style="padding:14px 16px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
+            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0;${
+              p.priority==='HIGH' ? 'background:rgba(74,222,128,0.15);color:#4ade80;' :
+              p.priority==='MEDIUM' ? 'background:rgba(251,191,36,0.15);color:#fbbf24;' :
+              'background:rgba(156,163,175,0.15);color:#9ca3af;'}">${p.priority||'—'}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:#f4f4f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.address||'—'}</div>
+              <div style="font-size:11px;color:#52525b;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;">
+                <span>${p.council||''}</span>${urgency}
+                ${p.admin_sent ? '<span style="color:#a855f7;font-size:10px;font-weight:600;">PPM Sent</span>' : ''}
+                ${p.client_status === 'accepted' ? '<span style="color:#4ade80;font-size:10px;font-weight:600;">Accepted</span>' : ''}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:14px;font-weight:700;color:${priColor[p.priority]||'#9ca3af'};">${p.opportunity_score??'—'}<span style="font-size:10px;color:#52525b;font-weight:400;">/10</span></div>
+            </div>
+          </div>
+          ${p.description ? `<div style="font-size:11px;color:#71717a;line-height:1.5;margin-bottom:8px;">${p.description.slice(0,140)}${p.description.length>140?'…':''}</div>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${p.app_type ? `<span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 8px;color:#71717a;">${p.app_type}</span>` : ''}
+            ${p.app_state ? `<span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 8px;color:#71717a;">${p.app_state}</span>` : ''}
+            ${p.planit_url ? `<a href="${p.planit_url}" target="_blank" style="font-size:10px;color:#60a5fa;text-decoration:none;border:1px solid rgba(96,165,250,0.25);border-radius:5px;padding:3px 8px;display:inline-flex;align-items:center;gap:4px;"><iconify-icon icon="solar:link-minimalistic-2-linear" style="font-size:10px;"></iconify-icon>View on PlanIt</a>` : ''}
+            <button onclick="unsavePermission('${p.id}')" style="font-size:10px;color:#71717a;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 8px;background:transparent;cursor:pointer;font-family:inherit;transition:color 0.15s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#71717a'">
+              <iconify-icon icon="solar:bookmark-opened-bold" style="font-size:10px;"></iconify-icon> Remove
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('savedPermList').classList.remove('hidden');
+      document.getElementById('savedPermEmpty').classList.add('hidden');
+      document.getElementById('savedPermEmpty').classList.remove('flex');
+    }
+
+    async function unsavePermission(leadId) {
+      await sb.from('leads').update({ client_saved: false }).eq('id', leadId).eq('user_id', currentUser.id);
+      const lead = allLeads.find(l => String(l.id) === String(leadId));
+      if (lead) lead.client_saved = false;
+      loadSavedPermissions();
     }
 
     // ── Contacts (read-only for subscriber) ───────────────────────────────────
