@@ -170,44 +170,37 @@ export default async function handler(req, res) {
       return Buffer.from(raw).toString('base64').slice(0, 24);
     };
 
+    // IMPORTANT: All rows must have IDENTICAL keys for PostgREST batch upsert (PGRST102).
+    // Only include columns confirmed to exist in the leads table schema.
+    // Excluded: agent_email, agent_phone, agent_name (not in schema cache → PGRST204).
     const rows = leads
-      .filter(l => (l.address || l.uid))   // skip fully empty leads
+      .filter(l => l.address || l.uid)
       .map(l => ({
-      user_id:              targetUserId,
-      uid:                  makeUid(l),
-      council:              l.councilName || l.council || 'Unknown',
-      address:              l.address || null,
-      description:          l.description || null,
-      app_type:             l.app_type || null,
-      app_state:            l.app_state || null,
-      start_date:           l.start_date || null,
-      target_decision_date: l.target_decision_date || null,
-      applicant_name:       l.applicant_name || null,
-      agent_name:           l.agent_name || null,
-      agent_phone:          l.agent_phone || null,
-      agent_email:          l.agent_email || null,
-      planit_url:           l.planit_url || null,
-      opportunity_score:    l.score || l.opportunity_score || 0,
-      priority:             l.priority || 'LOW',
-      dwelling_type:        l.dwelling_type || null,
-      development_scale:    l.development_scale || null,
-      unit_count:           l.unit_count || null,
-      scraped_date:         today,
-      admin_sent:           true,
-    }));
-
-    // Strip null/undefined fields — PostgREST schema-validates every key present,
-    // so sending agent_email:null fails if the column isn't in the schema cache.
-    const stripNulls = obj => Object.fromEntries(
-      Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
-    );
-    const cleanRows = rows.map(stripNulls);
+        user_id:              targetUserId,
+        uid:                  makeUid(l),
+        council:              l.councilName || l.council || 'Unknown',
+        address:              l.address || null,
+        description:          l.description || null,
+        app_type:             l.app_type || null,
+        app_state:            l.app_state || null,
+        start_date:           l.start_date || null,
+        target_decision_date: l.target_decision_date || null,
+        applicant_name:       l.applicant_name || null,
+        planit_url:           l.planit_url || null,
+        opportunity_score:    l.score || l.opportunity_score || 0,
+        priority:             l.priority || 'LOW',
+        dwelling_type:        l.dwelling_type || null,
+        development_scale:    l.development_scale || null,
+        unit_count:           l.unit_count || null,
+        scraped_date:         today,
+        admin_sent:           true,
+      }));
 
     // Batch upsert in chunks of 200
     const CHUNK = 200;
     let saved = 0;
-    for (let i = 0; i < cleanRows.length; i += CHUNK) {
-      const chunk = cleanRows.slice(i, i + CHUNK);
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
       const upsertResp = await fetch(
         `${SUPABASE_URL}/rest/v1/leads?on_conflict=user_id%2Cuid`,
         {
@@ -223,7 +216,7 @@ export default async function handler(req, res) {
       saved += chunk.length;
     }
 
-    return res.status(200).json({ ok: true, saved, total: cleanRows.length });
+    return res.status(200).json({ ok: true, saved });
   }
 
   return res.status(400).json({ error: 'action must be "search", "grant", "list", "review", or "send-leads"' });
