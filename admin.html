@@ -660,6 +660,12 @@
                 <iconify-icon icon="solar:letter-bold" style="font-size:13px;"></iconify-icon>
                 Send report
               </button>
+              <button onclick="openInHouseModal()" id="inHouseReportBtn"
+                class="flex items-center gap-1.5 text-xs font-medium transition-all rounded-lg px-3 py-2"
+                style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;">
+                <iconify-icon icon="solar:inbox-in-bold" style="font-size:13px;"></iconify-icon>
+                Send In-House
+              </button>
             </div>
           </div>
 
@@ -1156,6 +1162,61 @@
       <div class="flex gap-2 mt-3">
         <button onclick="saveNotes()" class="flex-1 py-2 rounded-lg bg-brand text-black text-xs font-medium hover:bg-brand-light transition-colors">Save</button>
         <button onclick="closeNotes()" class="flex-1 py-2 rounded-lg border border-white/10 text-zinc-300 text-xs hover:bg-white/5 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-House Report Modal -->
+  <div id="inHouseModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeInHouseModal()"></div>
+    <div class="relative w-full max-w-md glass-panel rounded-2xl p-6" style="border-color:rgba(168,85,247,0.3);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(124,58,237,0.2);border:1px solid rgba(168,85,247,0.3);">
+          <iconify-icon icon="solar:inbox-in-bold" style="color:#a855f7;font-size:18px;"></iconify-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-white">Send In-House Report</h3>
+          <p class="text-[11px] text-zinc-500">Push scan results directly to a client's dashboard</p>
+        </div>
+        <button onclick="closeInHouseModal()" class="ml-auto text-zinc-500 hover:text-white transition-colors">
+          <iconify-icon icon="solar:close-square-linear" style="font-size:20px;"></iconify-icon>
+        </button>
+      </div>
+
+      <!-- Stats summary -->
+      <div id="ihStats" class="flex gap-2 mb-4 p-3 rounded-xl" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.15);">
+        <span class="text-[11px] text-zinc-400">Loading scan summary…</span>
+      </div>
+
+      <!-- Search -->
+      <div class="relative mb-3">
+        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2" style="color:#71717a;font-size:14px;"></iconify-icon>
+        <input id="ihSearch" type="text" placeholder="Search clients by email…" oninput="filterInHouseClients()"
+          class="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500/50" />
+      </div>
+
+      <!-- Client list -->
+      <div id="ihClientList" class="max-h-52 overflow-y-auto rounded-xl border border-white/8 divide-y divide-white/5 mb-4">
+        <div class="flex items-center justify-center py-8 text-zinc-500 text-xs">
+          <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:20px;color:#a855f7;"></iconify-icon>
+        </div>
+      </div>
+
+      <div id="ihSelected" class="hidden mb-3 p-3 rounded-xl text-xs" style="background:rgba(124,58,237,0.15);border:1px solid rgba(168,85,247,0.3);">
+        <span class="text-zinc-400">Sending to: </span>
+        <span id="ihSelectedEmail" class="text-white font-semibold"></span>
+      </div>
+
+      <div id="ihStatus" class="hidden mb-3 text-xs text-center rounded-lg px-3 py-2"></div>
+
+      <div class="flex gap-2">
+        <button onclick="closeInHouseModal()" class="flex-1 py-2.5 rounded-xl border border-white/10 text-zinc-400 hover:text-white text-xs transition-colors">Cancel</button>
+        <button onclick="confirmSendInHouse()" id="ihConfirmBtn" disabled
+          class="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;">
+          <iconify-icon icon="solar:inbox-in-bold" style="font-size:13px;"></iconify-icon>
+          Send to Client
+        </button>
       </div>
     </div>
   </div>
@@ -3610,6 +3671,194 @@
       // Update local data so re-renders stay consistent
       const row = allConversations.find(c => c.id === id);
       if (row) row.follow_up_status = value;
+    }
+
+    // ── In-House Report ───────────────────────────────────────────────────────
+    let _ihClients = [];      // [{ id, email }]
+    let _ihSelectedId    = null;
+    let _ihSelectedEmail = null;
+
+    async function openInHouseModal() {
+      const leads = (window._councilData || []).flatMap(r => r.leads);
+      if (!leads.length) {
+        showToast('Run a scan first — no results to send.', 'warn');
+        return;
+      }
+      // Reset state
+      _ihSelectedId = null;
+      _ihSelectedEmail = null;
+      document.getElementById('ihConfirmBtn').disabled = true;
+      document.getElementById('ihSelected').classList.add('hidden');
+      document.getElementById('ihStatus').classList.add('hidden');
+      document.getElementById('ihSearch').value = '';
+
+      // Stats summary
+      const high   = leads.filter(l => l.priority === 'HIGH').length;
+      const medium = leads.filter(l => l.priority === 'MEDIUM').length;
+      const low    = leads.filter(l => l.priority === 'LOW').length;
+      document.getElementById('ihStats').innerHTML = `
+        <span class="text-[11px] font-semibold text-white mr-2">${leads.length} leads</span>
+        <span class="pri-badge pri-HIGH text-[10px]">${high} HIGH</span>
+        <span class="pri-badge pri-MEDIUM text-[10px] ml-1">${medium} MED</span>
+        <span class="pri-badge pri-LOW text-[10px] ml-1">${low} LOW</span>
+        <span class="ml-auto text-[10px] text-zinc-500">${(window._councilData||[]).length} council(s)</span>
+      `;
+
+      const modal = document.getElementById('inHouseModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      await loadInHouseClientList();
+    }
+
+    function closeInHouseModal() {
+      const modal = document.getElementById('inHouseModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function loadInHouseClientList() {
+      document.getElementById('ihClientList').innerHTML = `
+        <div class="flex items-center justify-center py-8">
+          <iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:20px;color:#a855f7;"></iconify-icon>
+        </div>`;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const r = await fetch('/api/admin-grant-runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'list' }),
+        });
+        const d = await r.json();
+        _ihClients = (d.users || []).map(u => ({ id: u.id, email: u.email }));
+        renderInHouseClientList(_ihClients);
+      } catch (e) {
+        document.getElementById('ihClientList').innerHTML =
+          `<div class="py-6 text-center text-xs text-red-400">Failed to load clients</div>`;
+      }
+    }
+
+    function renderInHouseClientList(clients) {
+      if (!clients.length) {
+        document.getElementById('ihClientList').innerHTML =
+          `<div class="py-6 text-center text-xs text-zinc-500">No clients found</div>`;
+        return;
+      }
+      document.getElementById('ihClientList').innerHTML = clients.map(c => `
+        <div onclick="selectInHouseClient('${c.id}','${c.email.replace(/'/g,"\\'")}',this)"
+          class="ih-client-row flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+            style="background:rgba(124,58,237,0.2);border:1px solid rgba(168,85,247,0.25);color:#a855f7;">
+            ${c.email[0].toUpperCase()}
+          </div>
+          <span class="text-xs text-zinc-300 truncate">${c.email}</span>
+          <iconify-icon icon="solar:check-circle-bold" class="ml-auto hidden check-icon" style="color:#a855f7;font-size:16px;"></iconify-icon>
+        </div>
+      `).join('');
+    }
+
+    function filterInHouseClients() {
+      const q = document.getElementById('ihSearch').value.toLowerCase();
+      renderInHouseClientList(_ihClients.filter(c => c.email.toLowerCase().includes(q)));
+    }
+
+    function selectInHouseClient(id, email, el) {
+      _ihSelectedId    = id;
+      _ihSelectedEmail = email;
+      // Update row highlights
+      document.querySelectorAll('.ih-client-row').forEach(row => {
+        row.classList.remove('bg-purple-900/20');
+        row.querySelector('.check-icon')?.classList.add('hidden');
+      });
+      el.classList.add('bg-purple-900/20');
+      el.querySelector('.check-icon')?.classList.remove('hidden');
+      // Show selection badge
+      document.getElementById('ihSelectedEmail').textContent = email;
+      document.getElementById('ihSelected').classList.remove('hidden');
+      document.getElementById('ihConfirmBtn').disabled = false;
+    }
+
+    async function confirmSendInHouse() {
+      if (!_ihSelectedId || !_ihSelectedEmail) return;
+      const allLeads = (window._councilData || []).flatMap(r => ({council: r.council, leads: r.leads}));
+      const flatLeads = (window._councilData || []).flatMap(r =>
+        r.leads.map(l => ({ ...l, councilName: r.council?.name || r.council || 'Unknown' }))
+      );
+      if (!flatLeads.length) return;
+
+      const btn = document.getElementById('ihConfirmBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="svg-spinners:3-dots-fade" style="font-size:14px;"></iconify-icon> Sending…';
+
+      const ihStatus = document.getElementById('ihStatus');
+      ihStatus.classList.remove('hidden');
+      ihStatus.className = 'mb-3 text-xs text-center rounded-lg px-3 py-2 text-zinc-400';
+      ihStatus.textContent = `Saving ${flatLeads.length} leads to ${_ihSelectedEmail}…`;
+
+      try {
+        const rows = flatLeads.map(l => ({
+          user_id:              _ihSelectedId,
+          uid:                  l.uid,
+          council:              l.councilName,
+          address:              l.address,
+          description:          l.description,
+          app_type:             l.app_type,
+          app_state:            l.app_state,
+          start_date:           l.start_date || null,
+          target_decision_date: l.target_decision_date || null,
+          applicant_name:       l.applicant_name,
+          agent_name:           l.agent_name,
+          agent_phone:          l.agent_phone,
+          agent_email:          l.agent_email,
+          planit_url:           l.planit_url,
+          opportunity_score:    l.score || l.opportunity_score || 0,
+          priority:             l.priority,
+          dwelling_type:        l.dwelling_type,
+          development_scale:    l.development_scale,
+          unit_count:           l.unit_count,
+          scraped_date:         new Date().toISOString().split('T')[0],
+        }));
+
+        // Batch upsert 200 at a time
+        for (let i = 0; i < rows.length; i += 200) {
+          const { error } = await sb.from('leads').upsert(rows.slice(i, i + 200), { onConflict: 'user_id,uid' });
+          if (error) throw error;
+        }
+
+        ihStatus.className = 'mb-3 text-xs text-center rounded-lg px-3 py-2 text-green-400';
+        ihStatus.style.background = 'rgba(0,208,132,0.08)';
+        ihStatus.style.border = '1px solid rgba(0,208,132,0.2)';
+        ihStatus.innerHTML = `<iconify-icon icon="solar:check-circle-bold" style="font-size:13px;margin-right:4px;"></iconify-icon>${rows.length} leads saved to ${_ihSelectedEmail}'s dashboard`;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:13px;"></iconify-icon> Sent!';
+        btn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+        setTimeout(closeInHouseModal, 2200);
+      } catch (err) {
+        console.error('confirmSendInHouse:', err);
+        ihStatus.className = 'mb-3 text-xs text-center rounded-lg px-3 py-2 text-red-400';
+        ihStatus.style.background = 'rgba(239,68,68,0.08)';
+        ihStatus.style.border = '1px solid rgba(239,68,68,0.2)';
+        ihStatus.textContent = 'Failed to save leads — check console for details';
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:inbox-in-bold" style="font-size:13px;"></iconify-icon> Retry';
+      }
+    }
+
+    function showToast(msg, type = 'info') {
+      let toast = document.getElementById('_ppmToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = '_ppmToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;border-radius:12px;font-size:12px;font-weight:600;transition:opacity 0.3s;max-width:320px;';
+        document.body.appendChild(toast);
+      }
+      const colors = { info: '#00d084', warn: '#f59e0b', error: '#ef4444' };
+      toast.style.background = type === 'warn' ? 'rgba(245,158,11,0.15)' : type === 'error' ? 'rgba(239,68,68,0.15)' : 'rgba(0,208,132,0.15)';
+      toast.style.border = `1px solid ${colors[type] || colors.info}40`;
+      toast.style.color = colors[type] || colors.info;
+      toast.style.opacity = '1';
+      toast.textContent = msg;
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
   </script>
 
