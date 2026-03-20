@@ -162,9 +162,19 @@ export default async function handler(req, res) {
     if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'leads array required' });
 
     const today = new Date().toISOString().split('T')[0];
-    const rows = leads.map(l => ({
+
+    // Build a stable uid fallback from address+council when PlanIt uid is absent
+    const makeUid = l => {
+      if (l.uid && l.uid.trim()) return l.uid.trim();
+      const raw = `${l.address||''}|${l.councilName||l.council||''}`.slice(0, 80);
+      return Buffer.from(raw).toString('base64').slice(0, 24);
+    };
+
+    const rows = leads
+      .filter(l => (l.address || l.uid))   // skip fully empty leads
+      .map(l => ({
       user_id:              targetUserId,
-      uid:                  l.uid,
+      uid:                  makeUid(l),
       council:              l.councilName || l.council || 'Unknown',
       address:              l.address || null,
       description:          l.description || null,

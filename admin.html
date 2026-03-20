@@ -3818,7 +3818,7 @@
         ihStatus.className = 'mb-3 text-xs text-center rounded-lg px-3 py-2 text-red-400';
         ihStatus.style.background = 'rgba(239,68,68,0.08)';
         ihStatus.style.border = '1px solid rgba(239,68,68,0.2)';
-        ihStatus.textContent = 'Failed to save leads — check console for details';
+        ihStatus.textContent = 'Error: ' + (err?.message || 'Unknown error — check console');
         btn.disabled = false;
         btn.innerHTML = '<iconify-icon icon="solar:inbox-in-bold" style="font-size:13px;"></iconify-icon> Retry';
       }
