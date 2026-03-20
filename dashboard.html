@@ -1662,25 +1662,46 @@
       document.getElementById('savedPermList').classList.add('hidden');
       document.getElementById('savedPermEmpty').classList.add('hidden');
 
-      const { data, error } = await sb
+      // First: show anything already in memory (instant — no wait for DB)
+      const localSaved = (allLeads || []).filter(l => l.client_saved === true);
+      if (localSaved.length > 0) {
+        document.getElementById('savedPermLoading').classList.add('hidden');
+        renderSavedPermList(localSaved);
+      }
+
+      // Then: fresh DB query so state is authoritative (covers accept auto-save etc)
+      const { data } = await sb
         .from('leads')
-        .select('id,address,council,description,app_type,app_state,priority,opportunity_score,planit_url,start_date,target_decision_date,admin_sent,client_status,scraped_date')
-        .eq('user_id', currentUser.id)
+        .select('*')
         .eq('client_saved', true)
         .order('opportunity_score', { ascending: false });
 
       document.getElementById('savedPermLoading').classList.add('hidden');
 
-      if (error || !data || data.length === 0) {
+      const saved = data || [];
+
+      // Sync into allLeads so local state stays accurate
+      saved.forEach(d => {
+        const existing = (allLeads || []).find(l => l.id === d.id);
+        if (existing) Object.assign(existing, d);
+        else if (allLeads) allLeads.push(d);
+      });
+
+      if (saved.length === 0 && localSaved.length === 0) {
         document.getElementById('savedPermEmpty').classList.remove('hidden');
         document.getElementById('savedPermEmpty').classList.add('flex');
         document.getElementById('savedPermBadge').classList.add('hidden');
         return;
       }
 
-      const badge = document.getElementById('savedPermBadge');
-      badge.textContent = data.length; badge.classList.remove('hidden');
+      if (saved.length > 0) renderSavedPermList(saved);
 
+      const badge = document.getElementById('savedPermBadge');
+      badge.textContent = (saved.length || localSaved.length); badge.classList.remove('hidden');
+
+    }
+
+    function renderSavedPermList(data) {
       const priColor = { HIGH:'#4ade80', MEDIUM:'#fbbf24', LOW:'#9ca3af' };
       document.getElementById('savedPermList').innerHTML = data.map(p => {
         const daysLeft = p.target_decision_date
