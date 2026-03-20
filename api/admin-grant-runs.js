@@ -155,5 +155,59 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  return res.status(400).json({ error: 'action must be "search", "grant", "list", or "review"' });
+  // ── Send leads to client (bypasses RLS via service role) ─────────────────
+  if (action === 'send-leads') {
+    const { targetUserId, leads } = req.body || {};
+    if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
+    if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'leads array required' });
+
+    const today = new Date().toISOString().split('T')[0];
+    const rows = leads.map(l => ({
+      user_id:              targetUserId,
+      uid:                  l.uid,
+      council:              l.councilName || l.council || 'Unknown',
+      address:              l.address || null,
+      description:          l.description || null,
+      app_type:             l.app_type || null,
+      app_state:            l.app_state || null,
+      start_date:           l.start_date || null,
+      target_decision_date: l.target_decision_date || null,
+      applicant_name:       l.applicant_name || null,
+      agent_name:           l.agent_name || null,
+      agent_phone:          l.agent_phone || null,
+      agent_email:          l.agent_email || null,
+      planit_url:           l.planit_url || null,
+      opportunity_score:    l.score || l.opportunity_score || 0,
+      priority:             l.priority || 'LOW',
+      dwelling_type:        l.dwelling_type || null,
+      development_scale:    l.development_scale || null,
+      unit_count:           l.unit_count || null,
+      scraped_date:         today,
+      admin_sent:           true,
+    }));
+
+    // Batch upsert in chunks of 200
+    const CHUNK = 200;
+    let saved = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const upsertResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/leads?on_conflict=user_id%2Cuid`,
+        {
+          method:  'POST',
+          headers: { ...svcHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(chunk),
+        }
+      );
+      if (!upsertResp.ok) {
+        const errText = await upsertResp.text();
+        return res.status(500).json({ error: 'Upsert failed: ' + errText });
+      }
+      saved += chunk.length;
+    }
+
+    return res.status(200).json({ ok: true, saved });
+  }
+
+  return res.status(400).json({ error: 'action must be "search", "grant", "list", "review", or "send-leads"' });
 }

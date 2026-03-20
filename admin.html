@@ -3796,35 +3796,15 @@
       ihStatus.textContent = `Saving ${flatLeads.length} leads to ${_ihSelectedEmail}…`;
 
       try {
-        const rows = flatLeads.map(l => ({
-          user_id:              _ihSelectedId,
-          uid:                  l.uid,
-          council:              l.councilName,
-          address:              l.address,
-          description:          l.description,
-          app_type:             l.app_type,
-          app_state:            l.app_state,
-          start_date:           l.start_date || null,
-          target_decision_date: l.target_decision_date || null,
-          applicant_name:       l.applicant_name,
-          agent_name:           l.agent_name,
-          agent_phone:          l.agent_phone,
-          agent_email:          l.agent_email,
-          planit_url:           l.planit_url,
-          opportunity_score:    l.score || l.opportunity_score || 0,
-          priority:             l.priority,
-          dwelling_type:        l.dwelling_type,
-          development_scale:    l.development_scale,
-          unit_count:           l.unit_count,
-          scraped_date:         new Date().toISOString().split('T')[0],
-          admin_sent:           true,
-        }));
-
-        // Batch upsert 200 at a time
-        for (let i = 0; i < rows.length; i += 200) {
-          const { error } = await sb.from('leads').upsert(rows.slice(i, i + 200), { onConflict: 'user_id,uid' });
-          if (error) throw error;
-        }
+        const { data: { session } } = await sb.auth.getSession();
+        const resp = await fetch('/api/admin-grant-runs', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'send-leads', targetUserId: _ihSelectedId, leads: flatLeads }),
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || 'API error');
+        const rows = flatLeads; // for count display only
 
         ihStatus.className = 'mb-3 text-xs text-center rounded-lg px-3 py-2 text-green-400';
         ihStatus.style.background = 'rgba(0,208,132,0.08)';
